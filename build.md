@@ -1,9 +1,10 @@
 # build.md
 
-CURRENT PHASE: 2 — Ingestion + Temporary Storage
+CURRENT PHASE: 3 — Authentication Layer
 STATUS: IN PROGRESS
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
+(Phase 2 — Ingestion + Temporary Storage: COMPLETE)
 
 ## Phase List
 
@@ -69,7 +70,7 @@ Test stack:
 
 ### Phase 2 — Ingestion + Temporary Storage
 Goal: Accept a YouTube URL and turn it into a temporary, processable asset on local storage.
-Status: [ ] In Progress
+Status: [x] Complete
 
 Build:
   [x] URL ingestion Celery task (yt-dlp download to TEMP_MEDIA_PATH)

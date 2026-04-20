@@ -1,10 +1,12 @@
-import subprocess
 import json
-from pathlib import Path
+import subprocess
 from dataclasses import dataclass
+from pathlib import Path
+
 
 class MetadataError(Exception):
     pass
+
 
 @dataclass
 class VideoMetadata:
@@ -16,54 +18,57 @@ class VideoMetadata:
     frame_rate: float | None
     file_size_bytes: int
 
+
 def extract_metadata(video_path: Path) -> VideoMetadata:
     if not video_path.exists():
         raise MetadataError(f"File not found: {video_path}")
-        
+
     cmd = [
-        "ffprobe", 
-        "-v", "quiet", 
-        "-print_format", "json", 
-        "-show_streams", 
-        "-show_format", 
-        str(video_path)
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_streams",
+        "-show_format",
+        str(video_path),
     ]
-    
+
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
     except FileNotFoundError as e:
         raise MetadataError("ffprobe not found") from e
     except subprocess.CalledProcessError as e:
         raise MetadataError(f"ffprobe failed: {e.stderr}") from e
-        
+
     try:
         data = json.loads(result.stdout)
     except json.JSONDecodeError as e:
         raise MetadataError("Could not parse ffprobe output") from e
-        
+
     format_info = data.get("format", {})
     streams_info = data.get("streams", [])
-    
+
     duration = format_info.get("duration")
     if duration is None:
         raise MetadataError("Duration not found in metadata")
-        
+
     try:
         duration_seconds = float(duration)
     except ValueError:
         raise MetadataError("Invalid duration format")
-        
+
     try:
         file_size_bytes = int(format_info.get("size", 0))
     except (ValueError, TypeError):
         file_size_bytes = 0
-        
+
     width = None
     height = None
     video_codec = None
     audio_codec = None
     frame_rate = None
-    
+
     for stream in streams_info:
         codec_type = stream.get("codec_type")
         if codec_type == "video":
@@ -80,7 +85,7 @@ def extract_metadata(video_path: Path) -> VideoMetadata:
                     pass
         elif codec_type == "audio":
             audio_codec = stream.get("codec_name")
-            
+
     return VideoMetadata(
         duration_seconds=duration_seconds,
         width=width,

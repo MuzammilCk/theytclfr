@@ -46,10 +46,12 @@ class TestVideoIngestedEvent:
 
     def test_rejects_invalid(self) -> None:
         with pytest.raises(ValidationError):
-            VideoIngestedEvent.model_validate({
-                "job_id": "not-a-uuid",
-                "youtube_url": 12345,
-            })
+            VideoIngestedEvent.model_validate(
+                {
+                    "job_id": "not-a-uuid",
+                    "youtube_url": 12345,
+                }
+            )
 
 
 # ── RouterDecision ────────────────────────────────────
@@ -69,14 +71,16 @@ class TestRouterDecision:
 
     def test_rejects_invalid(self) -> None:
         with pytest.raises(ValidationError):
-            RouterDecision.model_validate({
-                "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
-                "primary_route": "invalid-route-type",
-                "confidence": 2.0,
-                "speech_density": 0.5,
-                "ocr_density": 0.5,
-                "decided_at": "2026-04-20T06:31:00Z",
-            })
+            RouterDecision.model_validate(
+                {
+                    "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                    "primary_route": "invalid-route-type",
+                    "confidence": 2.0,
+                    "speech_density": 0.5,
+                    "ocr_density": 0.5,
+                    "decided_at": "2026-04-20T06:31:00Z",
+                }
+            )
 
 
 # ── ExtractorResult (ASR) ─────────────────────────────
@@ -95,13 +99,15 @@ class TestExtractorResultASR:
 
     def test_rejects_invalid(self) -> None:
         with pytest.raises(ValidationError):
-            ExtractorResult.model_validate({
-                "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
-                "extractor_type": "invalid_type",
-                "segments": [],
-                "total_duration_seconds": -1.0,
-                "extracted_at": "2026-04-20T06:35:00Z",
-            })
+            ExtractorResult.model_validate(
+                {
+                    "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                    "extractor_type": "invalid_type",
+                    "segments": [],
+                    "total_duration_seconds": -1.0,
+                    "extracted_at": "2026-04-20T06:35:00Z",
+                }
+            )
 
 
 # ── ExtractorResult (OCR) ─────────────────────────────
@@ -120,13 +126,15 @@ class TestExtractorResultOCR:
 
     def test_rejects_invalid(self) -> None:
         with pytest.raises(ValidationError):
-            ExtractorResult.model_validate({
-                "job_id": "not-valid",
-                "extractor_type": "ocr",
-                "segments": "not-a-list",
-                "total_duration_seconds": 100.0,
-                "extracted_at": "2026-04-20T06:36:00Z",
-            })
+            ExtractorResult.model_validate(
+                {
+                    "job_id": "not-valid",
+                    "extractor_type": "ocr",
+                    "segments": "not-a-list",
+                    "total_duration_seconds": 100.0,
+                    "extracted_at": "2026-04-20T06:36:00Z",
+                }
+            )
 
 
 # ── AlignedTimeline ───────────────────────────────────
@@ -147,21 +155,23 @@ class TestAlignedTimeline:
 
     def test_rejects_invalid(self) -> None:
         with pytest.raises(ValidationError):
-            AlignedTimeline.model_validate({
-                "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
-                "segments": [
-                    {
-                        "timestamp": -5.0,
-                        "source": "invalid_source",
-                        "text": "bad",
-                        "confidence": 1.5,
-                        "original_segment_ids": [],
-                    }
-                ],
-                "total_segments": 1,
-                "has_gaps": False,
-                "aligned_at": "2026-04-20T06:38:00Z",
-            })
+            AlignedTimeline.model_validate(
+                {
+                    "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                    "segments": [
+                        {
+                            "timestamp": -5.0,
+                            "source": "invalid_source",
+                            "text": "bad",
+                            "confidence": 1.5,
+                            "original_segment_ids": [],
+                        }
+                    ],
+                    "total_segments": 1,
+                    "has_gaps": False,
+                    "aligned_at": "2026-04-20T06:38:00Z",
+                }
+            )
 
 
 # ── FinalOutput ───────────────────────────────────────
@@ -183,15 +193,17 @@ class TestFinalOutput:
 
     def test_rejects_invalid(self) -> None:
         with pytest.raises(ValidationError):
-            FinalOutput.model_validate({
-                "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
-                "content_type": "invalid_type",
-                "video_metadata": {},
-                "confidence": -0.5,
-                "provenance": [],
-                "processed_at": "2026-04-20T06:45:00Z",
-                "processing_duration_seconds": 100.0,
-            })
+            FinalOutput.model_validate(
+                {
+                    "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                    "content_type": "invalid_type",
+                    "video_metadata": {},
+                    "confidence": -0.5,
+                    "provenance": [],
+                    "processed_at": "2026-04-20T06:45:00Z",
+                    "processing_duration_seconds": 100.0,
+                }
+            )
 
 
 # ── AuthToken ─────────────────────────────────────────
@@ -213,11 +225,13 @@ class TestAuthToken:
 
     def test_rejects_invalid(self) -> None:
         with pytest.raises(ValidationError):
-            AuthToken.model_validate({
-                "access_token": "some_token",
-                "token_type": "not_bearer",
-                "expires_in": "not_an_int",
-            })
+            AuthToken.model_validate(
+                {
+                    "access_token": "some_token",
+                    "token_type": "not_bearer",
+                    "expires_in": "not_an_int",
+                }
+            )
 
 
 # ── JWTPayload ────────────────────────────────────────
@@ -241,8 +255,10 @@ class TestJWTPayload:
 
     def test_rejects_invalid(self) -> None:
         with pytest.raises(ValidationError):
-            JWTPayload.model_validate({
-                "sub": 12345,
-                "exp": "not_a_timestamp",
-                "iat": None,
-            })
+            JWTPayload.model_validate(
+                {
+                    "sub": 12345,
+                    "exp": "not_a_timestamp",
+                    "iat": None,
+                }
+            )

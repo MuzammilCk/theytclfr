@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.0",
     "fastapi",
     "uvicorn",
+    "slowapi",
     "celery[redis]",
     "redis",
     "sqlalchemy",

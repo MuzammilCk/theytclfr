@@ -1,20 +1,22 @@
-from ytclfr.queue.celery_app import celery_app
-from ytclfr.core.config import get_settings
-from ytclfr.db.session import get_db
-from ytclfr.db.models.job import Job
-from ytclfr.ingestion.temp_storage import TempStorageManager
-from ytclfr.ingestion.downloader import VideoDownloader, IngestionError
-from ytclfr.ingestion.metadata import extract_metadata
-from ytclfr.contracts.events import VideoIngestedEvent
-from ytclfr.core.logging import get_logger
 import uuid
+from datetime import UTC, datetime
 from typing import Any
-from datetime import datetime, timezone
+
+from ytclfr.contracts.events import VideoIngestedEvent
+from ytclfr.core.config import get_settings
+from ytclfr.core.logging import get_logger
+from ytclfr.db.models.job import Job
+from ytclfr.db.session import get_db
+from ytclfr.ingestion.downloader import IngestionError, VideoDownloader
+from ytclfr.ingestion.metadata import extract_metadata
+from ytclfr.ingestion.temp_storage import TempStorageManager
+from ytclfr.queue.celery_app import celery_app
 
 logger = get_logger(__name__)
 settings = get_settings()
 
-@celery_app.task(
+
+@celery_app.task(  # type: ignore
     bind=True,
     name="ytclfr.ingest.download_video",
     queue="heavy",
@@ -22,12 +24,12 @@ settings = get_settings()
     default_retry_delay=30,
     time_limit=settings.celery_task_time_limit,
 )
-def download_video(self, job_id: str) -> dict[str, Any]:
+def download_video(self: Any, job_id: str) -> dict[str, Any]:
     settings_local = get_settings()
     parsed_job_id = uuid.UUID(job_id)
     temp_manager = TempStorageManager(settings_local)
     job_dir_created = False
-    
+
     db_gen = get_db()
     session = next(db_gen)
 
@@ -39,13 +41,15 @@ def download_video(self, job_id: str) -> dict[str, Any]:
         job.status = "downloading"
         session.commit()
 
-        job_dir = temp_manager.get_job_dir(parsed_job_id)
+        temp_manager.get_job_dir(parsed_job_id)
         job_dir_created = True
 
         downloader = VideoDownloader(settings_local)
-        result = downloader.download(job.youtube_url, parsed_job_id, temp_manager.base_path)
+        result = downloader.download(
+            job.youtube_url, parsed_job_id, temp_manager.base_path
+        )  # noqa: E501
 
-        metadata = extract_metadata(result.video_path)
+        extract_metadata(result.video_path)
 
         job.status = "downloaded"
         job.video_title = result.title
@@ -54,7 +58,7 @@ def download_video(self, job_id: str) -> dict[str, Any]:
         job.thumbnail_url = result.thumbnail_url
         job.local_media_path = str(result.video_path)
         job.metadata_raw = result.metadata_raw
-        
+
         session.commit()
 
         event = VideoIngestedEvent(
@@ -64,11 +68,11 @@ def download_video(self, job_id: str) -> dict[str, Any]:
             channel_name=job.channel_name,
             duration_seconds=job.duration_seconds,
             local_media_path=job.local_media_path,
-            ingested_at=datetime.now(timezone.utc),
+            ingested_at=datetime.now(UTC),
             metadata_raw=job.metadata_raw,
         )
         logger.info(f"VideoIngestedEvent: {event.model_dump_json()}")
-        # PHASE-5-TODO: publish VideoIngestedEvent to Redis pub/sub channel when worker infrastructure is built
+        # PHASE-5-TODO: publish VideoIngestedEvent to Redis pub/sub channel when worker infrastructure is built  # noqa: E501
 
         return {"job_id": job_id, "status": "downloaded"}
 
@@ -91,10 +95,10 @@ def download_video(self, job_id: str) -> dict[str, Any]:
             if self.request.retries >= self.max_retries:
                 job.error_message = str(exc)
             session.commit()
-            
+
         if self.request.retries >= self.max_retries and job_dir_created:
-             temp_manager.cleanup_job(parsed_job_id)
-             
+            temp_manager.cleanup_job(parsed_job_id)
+
         raise self.retry(exc=exc)
 
     finally:

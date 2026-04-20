@@ -141,3 +141,11 @@ Context: This decision elaborates on DR-2 by specifying the worker execution str
 Decision: Celery task chains and chords for pipeline orchestration. Sequential stages are linked via Celery chains. ASR and OCR tasks run in parallel via a Celery chord, with the temporal alignment task as the chord callback. Worker concurrency is controlled via WORKER_CONCURRENCY env var. Task time limits are enforced via CELERY_TASK_TIME_LIMIT. Failed tasks update job status and halt the pipeline for that job. No automatic retry of the full pipeline — individual task retries are configured per task.
 Consequences: Enables parallel execution of ASR and OCR stages while maintaining sequential ordering for dependent stages. Celery's built-in retry, timeout, and error handling mechanisms reduce custom orchestration code. Rules out custom pipeline orchestration frameworks. Rules out fully parallel execution of all stages (some stages depend on outputs of prior stages). Pipeline monitoring is available through Celery's built-in inspection API.
 Supersedes: NONE (extends DR-2 with execution strategy details)
+
+## DR-12 — Rate limiting library
+Date: 2026-04-20
+Status: ACCEPTED
+Context: Phase 3 requires rate limiting on the job submission and status endpoints to prevent abuse. A lightweight library that integrates natively with FastAPI/Starlette is needed.
+Decision: slowapi added to pyproject.toml. IP-based rate limiting in Phase 3. Per-user rate limiting can be added in Phase 9 using the authenticated identity from the JWT payload.
+Consequences: Adds one dependency. Limits are per IP in V1, not per authenticated user. Rate limit headers are automatically included in responses.
+Supersedes: NONE

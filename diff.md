@@ -208,3 +208,28 @@ Scope creep rejected:
 Next session must start by:
   - Reading all four control files
   - Beginning Phase 3 build items: Supabase JWT authentication layer
+
+## 2026-04-20 — Session 8 — Phase 3 authentication layer complete
+Phase: Phase 3 — Authentication Layer
+Files changed: build.md, decisions.md, diff.md, pyproject.toml, src/ytclfr/api/auth.py, src/ytclfr/api/main.py, src/ytclfr/api/rate_limit.py, src/ytclfr/api/v1/jobs.py, tests/unit/auth/__init__.py, tests/unit/auth/test_auth.py, tests/unit/ingestion/test_downloader.py
+Completed:
+  - Part A: Fixed test_downloader mock bug — private/unavailable video tests now use side_effect pattern matching success test
+  - Part A: Promoted Phase 2 to complete in build.md, updated current phase marker to Phase 3
+  - Part B: JWT validation dependency built using python-jose and Supabase JWT secret
+  - Part B: CREDENTIALS_EXCEPTION (401) and FORBIDDEN_EXCEPTION (403) error models defined
+  - Part B: slowapi rate limiter registered on app (IP-based, 10/min on POST /jobs, 30/min on GET /jobs/{job_id})
+  - Part B: require_auth dependency applied to POST /api/v1/jobs and GET /api/v1/jobs/{job_id}
+  - Part B: PHASE-3-TODO comments removed from jobs.py
+  - Part B: 9 auth unit tests written and passing
+  - Verification: ruff check src/ tests/ zero errors
+  - Verification: mypy src/ zero errors
+  - Verification: pytest tests/unit/ all passing
+Deferred:
+  - Rate limiting is IP-based in Phase 3, not per authenticated user — reason: low complexity priority for V1, revisit in Phase 9 hardening
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 4: Preflight Router
