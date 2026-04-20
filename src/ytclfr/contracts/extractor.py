@@ -1,7 +1,7 @@
 """Extractor result schemas for the ytclfr pipeline."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -12,6 +12,7 @@ ExtractorResultType = Literal["asr", "ocr"]
 class ASRSegment(BaseModel):
     """A single ASR transcript segment with word-level timestamps."""
 
+    segment_type: Literal["asr"] = "asr"
     start_time: float = Field(ge=0.0)
     end_time: float = Field(ge=0.0)
     text: str
@@ -26,6 +27,7 @@ class ASRSegment(BaseModel):
 class OCRSegment(BaseModel):
     """A single OCR extraction from a video frame."""
 
+    segment_type: Literal["ocr"] = "ocr"
     frame_timestamp: float = Field(ge=0.0)
     text: str
     confidence: float = Field(ge=0.0, le=1.0)
@@ -41,7 +43,12 @@ class ExtractorResult(BaseModel):
 
     job_id: UUID
     extractor_type: ExtractorResultType
-    segments: list[ASRSegment] | list[OCRSegment]
+    segments: list[
+        Annotated[
+            ASRSegment | OCRSegment,
+            Field(discriminator="segment_type"),
+        ]
+    ]
     total_duration_seconds: float = Field(ge=0.0)
     extracted_at: datetime
     error: str | None = None

@@ -3,6 +3,7 @@
   "extractor_type": "asr",
   "segments": [
     {
+      "segment_type": "asr",
       "start_time": 0.0,
       "end_time": 4.52,
       "text": "Welcome to our cooking channel, today we are making pasta.",
@@ -16,6 +17,7 @@
       ]
     },
     {
+      "segment_type": "asr",
       "start_time": 4.52,
       "end_time": 9.10,
       "text": "First, you need to boil a large pot of salted water.",
@@ -27,6 +29,7 @@
       ]
     },
     {
+      "segment_type": "asr",
       "start_time": 9.10,
       "end_time": 14.75,
       "text": "While the water is heating, let us prepare the sauce ingredients.",

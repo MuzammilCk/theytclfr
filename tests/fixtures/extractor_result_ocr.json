@@ -3,6 +3,7 @@
   "extractor_type": "ocr",
   "segments": [
     {
+      "segment_type": "ocr",
       "frame_timestamp": 2.0,
       "text": "TOP 10 PASTA RECIPES",
       "confidence": 0.96,
@@ -11,6 +12,7 @@
       ]
     },
     {
+      "segment_type": "ocr",
       "frame_timestamp": 15.5,
       "text": "Ingredient List: Spaghetti, Olive Oil, Garlic",
       "confidence": 0.89,
@@ -20,6 +22,7 @@
       ]
     },
     {
+      "segment_type": "ocr",
       "frame_timestamp": 45.0,
       "text": "Step 1: Boil Water",
       "confidence": 0.93,

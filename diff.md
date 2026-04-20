@@ -75,3 +75,26 @@ Scope creep rejected:
 Next session must start by:
   - Reading all four control files (context.md, build.md, diff.md, decisions.md)
   - Beginning Phase 2 build items: URL ingestion Celery task and temp storage
+
+---
+
+## 2026-04-20 — Session 3 — Pre-Phase 2 Fixes
+Phase: Phase 1 — Data Contracts + Schemas (Clean up)
+Files changed: src/ytclfr/contracts/extractor.py, tests/fixtures/extractor_result_asr.json, tests/fixtures/extractor_result_ocr.json
+Completed:
+  - Action 1: Verified .env.example and .gitignore exist on disk.
+  - Action 2: Fixed ExtractorResult.segments discriminated union bug (Issue 2).
+    - Added `segment_type: Literal["asr"] = "asr"` to ASRSegment.
+    - Added `segment_type: Literal["ocr"] = "ocr"` to OCRSegment.
+    - Updated ExtractorResult.segments type to `list[Annotated[ASRSegment | OCRSegment, Field(discriminator="segment_type")]]`.
+    - Added `segment_type` to ASR and OCR test fixtures.
+  - Verification check: `ruff check` (0 errors), `mypy` (0 errors), `pytest` (16/16 passed).
+Deferred:
+  - Issue 3: AlignedTimeline total_segments validation against len(segments) (to fix in Phase 1 cleanup or Phase 6).
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files (context.md, build.md, diff.md, decisions.md)
+  - Beginning Phase 2 build items: URL ingestion Celery task and temp storage
