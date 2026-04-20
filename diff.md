@@ -233,3 +233,24 @@ Scope creep rejected:
 Next session must start by:
   - Reading all four control files
   - Beginning Phase 4: Preflight Router
+
+---
+
+## 2026-04-20 — Session 9 — Metadata extraction fix for Windows Unicode decoding
+Phase: Phase 2 — Ingestion + Temporary Storage (bug fix)
+Files changed: src/ytclfr/ingestion/metadata.py
+Completed:
+  - Diagnosed `UnicodeDecodeError: 'charmap'` when Celery subprocess attempts reading `ffprobe` output on Windows without explicit encoding.
+  - Mitigated downstream `TypeError: the JSON object must be str, bytes or bytearray` caused by empty stdout.
+  - Addressed root cause by adding `encoding="utf-8"`, `errors="replace"`, and `timeout=120` to `subprocess.run()`.
+  - Added explicit defensive checks ensuring `result.stdout` exists before deserializing.
+  - Wrapped `json` and `subprocess` exceptions inside domain-level `MetadataError` to ensure proper Celery retry logic and database error tracking.
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all control files
+  - Beginning Phase 4: Preflight Router
