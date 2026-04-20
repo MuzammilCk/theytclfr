@@ -35,11 +35,24 @@ def extract_metadata(video_path: Path) -> VideoMetadata:
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+        )
     except FileNotFoundError as e:
         raise MetadataError("ffprobe not found") from e
     except subprocess.CalledProcessError as e:
         raise MetadataError(f"ffprobe failed: {e.stderr}") from e
+    except subprocess.TimeoutExpired as e:
+        raise MetadataError("ffprobe timed out after 120 seconds") from e
+
+    if not result.stdout:
+        raise MetadataError("ffprobe returned empty output or failed silently")
 
     try:
         data = json.loads(result.stdout)
