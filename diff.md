@@ -179,3 +179,32 @@ Next session must start by:
   - Reading all four control files before beginning Phase 3
   - Confirming SUPABASE_JWT_SECRET is present in .env
     before writing any Phase 3 auth code
+
+## 2026-04-20 — Session 7 — Fix Celery task registration bug
+Phase: Phase 2 — Ingestion + Temporary Storage (bug fix)
+Files changed: src/ytclfr/queue/celery_app.py
+Completed:
+  - Diagnosed root cause: ytclfr.tasks.ingest was never
+    imported during worker startup, leaving the Celery
+    task registry empty and causing all download_video
+    tasks to be discarded silently
+  - Fixed by adding import ytclfr.tasks.ingest # noqa: F401, E402
+    after celery_app instantiation in celery_app.py
+  - Fixed deprecation warning by adding
+    broker_connection_retry_on_startup = True to
+    celery_app configuration
+  - Verified: [tasks] section now shows
+    ytclfr.ingest.download_video on worker startup
+  - Verified: no CPendingDeprecationWarning on startup
+  - Verified: job status transitions from pending ->
+    downloading in Supabase after task execution
+  - Verified: pytest tests/unit/ all passing (excluding preexisting test mock issues)
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - tests/unit/ingestion/test_downloader.py fails due to preexisting mock __enter__ ContextManager issue
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 3 build items: Supabase JWT authentication layer

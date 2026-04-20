@@ -95,6 +95,9 @@ Test stack:
   retry and failure tests
   temp file lifecycle test
 
+Bugs found and fixed:
+  - Bug fixed post-phase: Celery task registration — ytclfr.tasks.ingest not imported during worker startup, fixed by adding import ytclfr.tasks.ingest # noqa: F401, E402 to celery_app.py (Session 7)
+
 ---
 
 ### Phase 3 — Authentication Layer
