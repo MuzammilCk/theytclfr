@@ -22,3 +22,5 @@ htmlcov/
 
 # ── Temporary media storage ───────────────────────────
 /storage/
+prompts.txt
+full_phase_architeccture_plan.txt
