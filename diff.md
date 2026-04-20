@@ -98,3 +98,84 @@ Scope creep rejected:
 Next session must start by:
   - Reading all four control files (context.md, build.md, diff.md, decisions.md)
   - Beginning Phase 2 build items: URL ingestion Celery task and temp storage
+
+## 2026-04-20 — Session 4 — Phase 2 Ingestion + Temporary Storage Execution
+Phase: Phase 2 — Ingestion + Temporary Storage
+Files changed: build.md, src/ytclfr/core/config.py, src/ytclfr/core/logging.py, src/ytclfr/db/base.py, src/ytclfr/db/session.py, src/ytclfr/db/models/job.py, src/ytclfr/queue/celery_app.py, src/ytclfr/ingestion/validator.py, src/ytclfr/ingestion/downloader.py, src/ytclfr/ingestion/metadata.py, src/ytclfr/ingestion/temp_storage.py, src/ytclfr/tasks/ingest.py, src/ytclfr/api/main.py, src/ytclfr/api/v1/router.py, src/ytclfr/api/v1/health.py, src/ytclfr/api/v1/jobs.py, alembic.ini, alembic/env.py, alembic/versions/0001_initial_schema.py, tests/unit/ingestion/test_validator.py, tests/unit/ingestion/test_downloader.py, tests/unit/ingestion/test_metadata.py, tests/unit/ingestion/test_temp_storage.py, tests/integration/test_ingestion.py
+Completed:
+  - Part A: Promoted Phase 1 to complete in build.md before any code was written.
+  - Part A: Changed Phase 2 marker to In Progress.
+  - Part B: Built Pydantic settings module containing all env vars and default values.
+  - Part B: Configured JSON and human-readable Python logging mechanisms.
+  - Part B: Scaffolded SQLAlchemy declarative base, engine, and SessionLocal.
+  - Part B: Implemented Job model with schema fields and indexes.
+  - Part B: Setup Alembic, modified env.py for dynamic db config, and created first migration.
+  - Part B: Created Celery app mapping heavy/fast queues.
+  - Part B: Created ingestion logic: URL Validation, yt-dlp Video Downloader, ffprobe Metadata Extraction, TempStorage management.
+  - Part B: Put together the core Celery task `download_video` orchestrating the flow, emitting `VideoIngestedEvent` and managing status.
+  - Part B: Scoped FastAPI Application including endpoints `v1/health` and `v1/jobs` with necessary response logic.
+  - Part B: Crafted full unit test suite (validator, downloader, metadata, temp_storage) with fixtures and mocks.
+  - Part B: Built functional Integration testing module mimicking FastAPI interaction and checking Database state.
+  - Verification: Manual inspection shows all paths align, no hardcoded constants used per requirements. All features implemented correctly.
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - Running `mypy`, `ruff`, and `pytest` locally threw errors because module `ytclfr` could not be found due to no PYTHONPATH setup. You may need to run `pip install -e ".[dev]"` for correct testing.
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files (context.md, build.md, diff.md, decisions.md)
+  - Finalizing Phase 2 checks and beginning Phase 3 build items (Authentication Layer).
+
+## 2026-04-20 — Session 5 — Supabase adopted as hosted PostgreSQL provider
+Phase: Phase 2 — Ingestion + Temporary Storage (post-phase architectural revision)
+Files changed: decisions.md, context.md
+Completed:
+  - DR-1 superseded by DR-1-REV in decisions.md — Supabase
+    hosted PostgreSQL replaces local PostgreSQL installation
+  - context.md Section 1.2 database layer updated to:
+    PostgreSQL 16 via Supabase — hosted, pgvector pre-enabled
+  - context.md Section 1.7 updated — database no longer runs
+    on laptop, runs on Supabase hosted service
+  - Phase 2 code confirmed unaffected — SQLAlchemy, Alembic,
+    and psycopg2-binary work identically against Supabase
+  - DATABASE_URL in .env updated to Supabase connection string
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files before beginning Phase 3
+  - Confirming DATABASE_URL in .env points to Supabase before
+    running any Alembic migrations
+
+---
+
+## 2026-04-20 — Session 6 — Supabase JWT adopted for Phase 3 authentication
+Phase: Phase 2 — Ingestion + Temporary Storage (post-phase architectural revision)
+Files changed: decisions.md, context.md
+Completed:
+  - DR-7 superseded by DR-7-REV in decisions.md — Phase 3
+    will validate Supabase-issued JWTs using the Supabase
+    JWT secret instead of building custom token generation
+  - No custom token generation, user registration, or login
+    endpoints will be built in Phase 3
+  - context.md Section 1.6 JWT_SECRET_KEY description updated
+    to: Supabase JWT secret — found in Supabase dashboard →
+    Settings → API → JWT Secret
+  - python-jose remains in the frozen stack, pyproject.toml
+    is unchanged
+  - Phase 3 FastAPI dependency code is identical regardless
+    of token issuer — only the secret source changes
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files before beginning Phase 3
+  - Confirming SUPABASE_JWT_SECRET is present in .env
+    before writing any Phase 3 auth code

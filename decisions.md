@@ -16,11 +16,33 @@ Supersedes: [DR-N if applicable, else NONE]
 
 ## DR-1 — Primary database choice
 Date: 2026-04-20
-Status: ACCEPTED
+Status: SUPERSEDED by DR-1-REV
 Context: The system needs a primary relational database to store job records, video metadata, transcript segments, OCR results, aligned timelines, structured extraction output, and confidence scores. The database must support JSONB for flexible structured data storage and the pgvector extension for future vector/semantic search capability. It must run on a single laptop alongside all other services.
 Decision: PostgreSQL 16 as the primary relational database. All persistent application data is stored here. The pgvector extension is installed for vector similarity search. Alembic is used for schema migrations.
 Consequences: Enables relational integrity, JSONB flexibility, and vector search in a single database engine. Rules out NoSQL-first approaches. Requires PostgreSQL to be running locally (native install). All future schema changes must use Alembic migrations.
 Supersedes: NONE
+
+## DR-1-REV — Primary database choice (revised)
+Date: 2026-04-20
+Status: ACCEPTED
+Context: Local PostgreSQL installation on Windows/WSL adds
+  setup friction and consumes RAM on a laptop already running
+  Ollama, faster-whisper, Celery, and Redis simultaneously.
+  Supabase provides a hosted PostgreSQL 16 instance with
+  pgvector pre-installed, eliminating both issues.
+Decision: Supabase hosted PostgreSQL satisfies the PostgreSQL
+  16 requirement. The DATABASE_URL in .env points to the
+  Supabase connection string. All application code
+  (SQLAlchemy, Alembic, psycopg2-binary) is unchanged.
+  pgvector extension is enabled via the Supabase dashboard,
+  not via migration SQL.
+Consequences: Removes local PostgreSQL as a dependency.
+  Requires a Supabase account and project. The free tier
+  is sufficient for V1. Alembic migrations run against the
+  Supabase database the same way they would run locally.
+  Section 1.7 of context.md is updated to reflect that
+  the database runs on Supabase, not on the laptop.
+Supersedes: DR-1
 
 ---
 
@@ -76,11 +98,19 @@ Supersedes: NONE
 
 ## DR-7 — Authentication mechanism
 Date: 2026-04-20
-Status: ACCEPTED
+Status: SUPERSEDED by DR-7-REV
 Context: The output API must be protected to prevent unauthorized access to job submission and result retrieval. The auth mechanism must be stateless (no server-side session storage), simple to implement, and suitable for both developer API usage and frontend UI authentication.
 Decision: JWT (JSON Web Tokens) with HS256 signing. Protected endpoints: POST /api/v1/jobs, GET /api/v1/jobs/{job_id}, GET /api/v1/jobs/{job_id}/result. Unprotected endpoints: GET /api/v1/health, GET /docs, GET /openapi.json, static frontend assets. JWT secret is stored in JWT_SECRET_KEY env var. Token expiry is configurable via JWT_EXPIRY_MINUTES. No refresh token mechanism in V1.
 Consequences: Enables stateless authentication suitable for API and UI consumers. Rules out OAuth2 flows (deferred to future version if third-party integrations are needed). Rules out API key authentication (less flexible than JWT). No user registration or login flow is defined in V1 — token generation mechanism is left to Phase 2 implementation (could be a simple admin-generated token or a basic login endpoint).
 Supersedes: NONE
+
+## DR-7-REV — Authentication mechanism (revised)
+Date: 2026-04-20
+Status: ACCEPTED
+Context: The output API must be protected. Building custom user registration and login flows is unnecessary when Supabase provides a fully managed authentication service that issues standard JWTs.
+Decision: Phase 3 will validate Supabase-issued JWTs using the Supabase JWT secret. We are not building custom token generation, user registration, or login endpoints. The FastAPI auth dependency reads the JWT secret from the JWT_SECRET_KEY environment variable — which will be the Supabase JWT secret from the dashboard, not a custom-generated one.
+Consequences: Simplifies the backend by removing user management. The python-jose library is still used. Nothing in pyproject.toml changes. Our API will trust tokens signed by Supabase.
+Supersedes: DR-7
 
 ---
 

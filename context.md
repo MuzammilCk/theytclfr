@@ -10,7 +10,7 @@ Language (backend) → Python 3.11+ — mature ecosystem for ML/AI workloads, na
 Language (frontend) → TypeScript — type safety for the public-facing UI, modern tooling
 API framework → FastAPI — async-first, automatic OpenAPI docs, native Pydantic integration
 Task queue / worker system → Celery 5 + Redis (broker) — battle-tested distributed task execution for Python
-Database (primary) → PostgreSQL 16 — robust relational store, supports pgvector extension for vector search
+Database (primary) → PostgreSQL 16 via Supabase — hosted, pgvector pre-enabled
 Database (vector/semantic search) → pgvector (PostgreSQL extension) — vector similarity search without a separate service, fits single-machine deployment
 Search / segment index → pgvector with GIN indexes — full-text and vector search within PostgreSQL, avoids a separate OpenSearch cluster in V1
 Cache → Redis 7 — in-memory cache and Celery message broker in one service
@@ -225,7 +225,7 @@ OCR_FRAME_SAMPLE_RATE — Frames per second to sample for OCR — Celery Worker
 
 ### Authentication
 
-JWT_SECRET_KEY — Secret key for signing JWT tokens — FastAPI
+JWT_SECRET_KEY — Supabase JWT secret — found in Supabase dashboard → Settings → API → JWT Secret — FastAPI
 JWT_ALGORITHM — JWT signing algorithm (HS256) — FastAPI
 JWT_EXPIRY_MINUTES — Token expiry duration in minutes — FastAPI
 
@@ -243,7 +243,7 @@ ENVIRONMENT — Deployment environment name (development, staging, production) �
 
 ## 1.7 — Deployment Target
 
-The system runs on a single laptop (bare metal): the FastAPI API server, Celery worker, PostgreSQL database, and Redis cache all run on the same machine; temporary media is stored on the local filesystem at the path specified by TEMP_MEDIA_PATH; this is a single-machine, non-distributed deployment suitable for development and personal use in V1.
+The system runs on a single laptop (bare metal): the FastAPI API server, Celery worker, and Redis cache all run on the same machine; temporary media is stored on the local filesystem at the path specified by TEMP_MEDIA_PATH; PostgreSQL runs on Supabase (hosted); this is a single-machine, non-distributed deployment suitable for development and personal use in V1.
 
 ## 1.8 — Session Protocol
 

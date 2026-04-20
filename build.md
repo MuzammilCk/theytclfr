@@ -1,8 +1,9 @@
 # build.md
 
-CURRENT PHASE: 1 — Data Contracts + Schemas
+CURRENT PHASE: 2 — Ingestion + Temporary Storage
 STATUS: IN PROGRESS
 (Phase 0 — Project Constitution: COMPLETE)
+(Phase 1 — Data Contracts + Schemas: COMPLETE)
 
 ## Phase List
 
@@ -68,24 +69,24 @@ Test stack:
 
 ### Phase 2 — Ingestion + Temporary Storage
 Goal: Accept a YouTube URL and turn it into a temporary, processable asset on local storage.
-Status: [ ] Not Started
+Status: [ ] In Progress
 
 Build:
-  [ ] URL ingestion Celery task (yt-dlp download to TEMP_MEDIA_PATH)
-  [ ] Video metadata extraction (title, duration, channel, thumbnail)
-  [ ] Ingestion job record written to PostgreSQL
-  [ ] VideoIngestedEvent emitted on success (Phase 1 contract)
-  [ ] Automatic temp file deletion after processing completes
-  [ ] Retry logic for transient download failures
-  [ ] Error handling for private/unavailable videos
+  [x] URL ingestion Celery task (yt-dlp download to TEMP_MEDIA_PATH)
+  [x] Video metadata extraction (title, duration, channel, thumbnail)
+  [x] Ingestion job record written to PostgreSQL
+  [x] VideoIngestedEvent emitted on success (Phase 1 contract)
+  [x] Automatic temp file deletion after processing completes
+  [x] Retry logic for transient download failures
+  [x] Error handling for private/unavailable videos
 
 Definition of Done:
-  [ ] Valid YouTube URL becomes a temp file in TEMP_MEDIA_PATH
-  [ ] Duration, codecs, and metadata are stored in the database
-  [ ] VideoIngestedEvent conforms to Phase 1 schema
-  [ ] Temp file is automatically removed after processing
-  [ ] Failed ingest leaves no orphaned media on disk
-  [ ] Retry handles transient network failures
+  [x] Valid YouTube URL becomes a temp file in TEMP_MEDIA_PATH
+  [x] Duration, codecs, and metadata are stored in the database
+  [x] VideoIngestedEvent conforms to Phase 1 schema
+  [x] Temp file is automatically removed after processing
+  [x] Failed ingest leaves no orphaned media on disk
+  [x] Retry handles transient network failures
 
 Test stack:
   pytest
