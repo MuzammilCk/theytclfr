@@ -56,6 +56,7 @@ class VideoDownloader:
         with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
             try:
                 result_info = ydl.extract_info(url, download=True)
+                result_info = ydl.sanitize_info(result_info)
             except Exception as e:
                 raise IngestionError(f"Download failed: {e}") from e
                 

@@ -9,6 +9,7 @@ from ytclfr.contracts.events import VideoIngestedEvent
 from ytclfr.core.logging import get_logger
 import uuid
 from typing import Any
+from datetime import datetime, timezone
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -59,8 +60,12 @@ def download_video(self, job_id: str) -> dict[str, Any]:
         event = VideoIngestedEvent(
             job_id=parsed_job_id,
             youtube_url=job.youtube_url,
+            video_title=job.video_title,
+            channel_name=job.channel_name,
             duration_seconds=job.duration_seconds,
             local_media_path=job.local_media_path,
+            ingested_at=datetime.now(timezone.utc),
+            metadata_raw=job.metadata_raw,
         )
         logger.info(f"VideoIngestedEvent: {event.model_dump_json()}")
         # PHASE-5-TODO: publish VideoIngestedEvent to Redis pub/sub channel when worker infrastructure is built
@@ -68,6 +73,7 @@ def download_video(self, job_id: str) -> dict[str, Any]:
         return {"job_id": job_id, "status": "downloaded"}
 
     except IngestionError as e:
+        session.rollback()
         job = session.query(Job).filter(Job.id == parsed_job_id).first()
         if job:
             job.status = "failed"
@@ -78,6 +84,7 @@ def download_video(self, job_id: str) -> dict[str, Any]:
         return {"job_id": job_id, "status": "failed", "error": str(e)}
 
     except Exception as exc:
+        session.rollback()
         job = session.query(Job).filter(Job.id == parsed_job_id).first()
         if job:
             job.status = "failed"

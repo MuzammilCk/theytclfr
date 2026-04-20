@@ -19,6 +19,10 @@ def test_downloader_success(mock_yt_dlp, mock_settings, tmp_path):
     mock_instance_info = MagicMock()
     mock_instance_download = MagicMock()
     
+    mock_instance_info.__enter__.return_value = mock_instance_info
+    mock_instance_download.__enter__.return_value = mock_instance_download
+    mock_instance_download.sanitize_info.side_effect = lambda x: x
+    
     mock_instance_info.extract_info.return_value = {"id": "123"}
     
     mock_instance_download.extract_info.return_value = {
@@ -70,9 +74,12 @@ def test_downloader_unavailable_video(mock_yt_dlp, mock_settings, tmp_path):
 @patch("ytclfr.ingestion.downloader.yt_dlp.YoutubeDL")
 def test_downloader_download_failure(mock_yt_dlp, mock_settings, tmp_path):
     mock_instance_info = MagicMock()
+    mock_instance_info.__enter__.return_value = mock_instance_info
     mock_instance_info.extract_info.return_value = {"id": "123"}
     
     mock_instance_download = MagicMock()
+    mock_instance_download.__enter__.return_value = mock_instance_download
+    mock_instance_download.sanitize_info.side_effect = lambda x: x
     mock_instance_download.extract_info.side_effect = Exception("Generic yt-dlp error")
     
     mock_yt_dlp.side_effect = [mock_instance_info, mock_instance_download]
