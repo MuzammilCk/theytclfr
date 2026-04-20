@@ -1,0 +1,44 @@
+{
+  "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+  "content_type": "movie_list",
+  "video_metadata": {
+    "title": "Top 20 Sci-Fi Movies You Must Watch in 2026",
+    "channel": "CinemaExampleChannel",
+    "duration": 1230.5,
+    "thumbnail_url": "https://img.youtube.com/vi/EXAMPLE_002/maxresdefault.jpg"
+  },
+  "items": [
+    {
+      "title": "Interstellar Odyssey",
+      "context": "A mind-bending journey through wormholes and time dilation, ranked number one for its scientific accuracy.",
+      "timestamp": 45.2,
+      "confidence": 0.95,
+      "metadata": {"year": 2026, "genre": "sci-fi", "director": "Example Director A"}
+    },
+    {
+      "title": "Neon Horizon",
+      "context": "Cyberpunk thriller set in a dystopian megacity where AI controls every aspect of human life.",
+      "timestamp": 120.8,
+      "confidence": 0.91,
+      "metadata": {"year": 2025, "genre": "sci-fi", "director": "Example Director B"}
+    },
+    {
+      "title": "The Last Signal",
+      "context": "First-contact story told from the perspective of a deep-space radio telescope operator.",
+      "timestamp": 210.3,
+      "confidence": 0.88,
+      "metadata": {"year": 2026, "genre": "sci-fi", "director": "Example Director C"}
+    }
+  ],
+  "recipe": null,
+  "script": null,
+  "summary": null,
+  "confidence": 0.91,
+  "provenance": [
+    {"item_index": 0, "timestamp": 45.2, "source": "asr", "segment_id": "asr-seg-010"},
+    {"item_index": 1, "timestamp": 120.8, "source": "asr", "segment_id": "asr-seg-025"},
+    {"item_index": 2, "timestamp": 210.3, "source": "merged", "segment_id": "merged-seg-040"}
+  ],
+  "processed_at": "2026-04-20T06:45:00Z",
+  "processing_duration_seconds": 182.7
+}

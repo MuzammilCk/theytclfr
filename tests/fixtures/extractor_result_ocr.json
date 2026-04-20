@@ -1,0 +1,34 @@
+{
+  "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+  "extractor_type": "ocr",
+  "segments": [
+    {
+      "frame_timestamp": 2.0,
+      "text": "TOP 10 PASTA RECIPES",
+      "confidence": 0.96,
+      "bounding_boxes": [
+        {"x": 120, "y": 50, "width": 480, "height": 60}
+      ]
+    },
+    {
+      "frame_timestamp": 15.5,
+      "text": "Ingredient List: Spaghetti, Olive Oil, Garlic",
+      "confidence": 0.89,
+      "bounding_boxes": [
+        {"x": 80, "y": 400, "width": 560, "height": 40},
+        {"x": 80, "y": 445, "width": 400, "height": 35}
+      ]
+    },
+    {
+      "frame_timestamp": 45.0,
+      "text": "Step 1: Boil Water",
+      "confidence": 0.93,
+      "bounding_boxes": [
+        {"x": 200, "y": 30, "width": 320, "height": 50}
+      ]
+    }
+  ],
+  "total_duration_seconds": 754.32,
+  "extracted_at": "2026-04-20T06:36:00Z",
+  "error": null
+}

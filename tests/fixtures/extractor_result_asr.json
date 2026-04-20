@@ -1,0 +1,44 @@
+{
+  "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+  "extractor_type": "asr",
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 4.52,
+      "text": "Welcome to our cooking channel, today we are making pasta.",
+      "confidence": 0.94,
+      "words": [
+        {"word": "Welcome", "start": 0.0, "end": 0.45, "probability": 0.97},
+        {"word": "to", "start": 0.45, "end": 0.58, "probability": 0.99},
+        {"word": "our", "start": 0.58, "end": 0.72, "probability": 0.96},
+        {"word": "cooking", "start": 0.72, "end": 1.15, "probability": 0.95},
+        {"word": "channel", "start": 1.15, "end": 1.60, "probability": 0.93}
+      ]
+    },
+    {
+      "start_time": 4.52,
+      "end_time": 9.10,
+      "text": "First, you need to boil a large pot of salted water.",
+      "confidence": 0.91,
+      "words": [
+        {"word": "First", "start": 4.52, "end": 4.90, "probability": 0.98},
+        {"word": "you", "start": 4.90, "end": 5.05, "probability": 0.97},
+        {"word": "need", "start": 5.05, "end": 5.30, "probability": 0.96}
+      ]
+    },
+    {
+      "start_time": 9.10,
+      "end_time": 14.75,
+      "text": "While the water is heating, let us prepare the sauce ingredients.",
+      "confidence": 0.88,
+      "words": [
+        {"word": "While", "start": 9.10, "end": 9.40, "probability": 0.94},
+        {"word": "the", "start": 9.40, "end": 9.55, "probability": 0.99},
+        {"word": "water", "start": 9.55, "end": 9.90, "probability": 0.95}
+      ]
+    }
+  ],
+  "total_duration_seconds": 754.32,
+  "extracted_at": "2026-04-20T06:35:00Z",
+  "error": null
+}

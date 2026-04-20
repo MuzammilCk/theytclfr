@@ -1,0 +1,9 @@
+{
+  "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+  "primary_route": "speech-heavy",
+  "confidence": 0.92,
+  "speech_density": 0.85,
+  "ocr_density": 0.12,
+  "decided_at": "2026-04-20T06:31:00Z",
+  "routing_notes": "High speech density detected with minimal on-screen text overlays."
+}

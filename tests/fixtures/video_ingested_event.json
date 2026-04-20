@@ -1,0 +1,21 @@
+{
+  "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+  "youtube_url": "https://www.youtube.com/watch?v=EXAMPLE_001",
+  "video_title": "Top 10 Pasta Recipes for Beginners",
+  "channel_name": "CookingWithExample",
+  "duration_seconds": 754.32,
+  "thumbnail_url": "https://img.youtube.com/vi/EXAMPLE_001/maxresdefault.jpg",
+  "local_media_path": "/tmp/ytclfr_media/a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d/video.mp4",
+  "ingested_at": "2026-04-20T06:30:00Z",
+  "metadata_raw": {
+    "id": "EXAMPLE_001",
+    "title": "Top 10 Pasta Recipes for Beginners",
+    "channel": "CookingWithExample",
+    "upload_date": "20260101",
+    "view_count": 123456,
+    "like_count": 9876,
+    "duration": 754,
+    "description": "Learn how to make the best pasta dishes at home.",
+    "tags": ["pasta", "cooking", "recipes", "beginner"]
+  }
+}
