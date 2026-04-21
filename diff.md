@@ -320,3 +320,57 @@ Next session must start by:
   - Reading all four control files
   - Beginning Phase 5: Worker Queue + Parallel
     Extractor Infrastructure
+
+## 2026-04-21 — Session 11 — Phase 4 Router Bug-Fix
+Phase: Phase 4 — Preflight Router (bug-fix session)
+Files changed:
+  src/ytclfr/router/audio_checker.py,
+  src/ytclfr/router/metadata_inspector.py,
+  src/ytclfr/router/classifier.py,
+  tests/unit/router/test_audio_checker.py,
+  tests/unit/router/test_metadata_inspector.py,
+  tests/unit/router/test_classifier.py,
+  decisions.md,
+  diff.md
+Completed:
+  - Fix 1: audio_checker.py rewritten to read yt-dlp info
+    dict format (acodec, abr, subtitles, duration) instead
+    of ffprobe format (streams, format.duration). Audio
+    detection now works for all videos.
+  - Fix 1: Duration gate (60-600s) removed from likely_music.
+    Minimum duration moved to classifier as tunable constant
+    MUSIC_MIN_DURATION_SECONDS = 10.0.
+  - Fix 2: metadata_inspector.py updated — word-boundary
+    regex matching replaces substring matching. LIST_KEYWORDS
+    replaced with multi-word phrases to eliminate false
+    positives on common English words. Tags included in
+    normalized text. "tutorial" removed from RECIPE_KEYWORDS.
+  - Fix 3: classifier.py Rule 1 guard changed from
+    NOT has_list_signal to NOT has_recipe_signal. Music
+    content with superlatives in the title now routes
+    correctly as music-heavy.
+  - Fix 4: test_audio_checker.py rewritten with yt-dlp
+    format inputs. Includes regression test for 20-second
+    ringtone (the original reported bug).
+  - Fix 5: test_metadata_inspector.py — added regression
+    tests for substring false positives, tag searching,
+    tutorial double-flag fix, ringtone title non-regression.
+  - Fix 6: test_classifier.py — added regression tests for
+    Rule 1 priority fix, ringtone end-to-end path, duration
+    gate, and routing notes content.
+  - DR-12 appended to decisions.md.
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - extract_metadata() return value is discarded in
+    ingest.py (MetadataError suppressed silently). The
+    ffprobe VideoMetadata object is computed and thrown
+    away. Fixing this requires a job schema addition and
+    is deferred to Phase 9 hardening to avoid a migration
+    during active Phase 5 development.
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 5: Worker Queue + Parallel
+    Extractor Infrastructure

@@ -170,3 +170,38 @@ Consequences: Downloads succeed on most YouTube
   videos. Requires Firefox and periodic refresh.
   cookies.txt must never be committed.
 Supersedes: NONE
+## DR-12 — Phase 4 router bug-fix: yt-dlp metadata format
+Date: 2026-04-21
+Status: ACCEPTED
+Context: Session 10 implemented check_audio_from_metadata()
+  expecting ffprobe JSON (streams[], format.duration).
+  downloader.py stores the yt-dlp info dict which has no
+  "streams" key and stores duration as a top-level float,
+  not under "format". Audio detection returned False for
+  100% of videos. Additionally, LIST_KEYWORDS contained
+  single-word tokens ("best", "all", "top") matched with
+  simple substring search, causing music videos with
+  common English words in titles to misroute as list-edit.
+  "tutorial" appeared in both RECIPE_KEYWORDS and
+  SLIDE_KEYWORDS causing double-flagging. The duration
+  gate (60-600s) in likely_music excluded ringtones and
+  YouTube Shorts from music detection.
+Decision:
+  1. check_audio_from_metadata() reads yt-dlp fields:
+     acodec, abr, subtitles. Duration gate moved to
+     classifier (MUSIC_MIN_DURATION_SECONDS = 10.0s).
+  2. LIST_KEYWORDS replaced with multi-word phrases only.
+     Word-boundary regex (re.search with \b) used for all
+     keyword matching. Tags included in normalized text.
+  3. "tutorial" removed from RECIPE_KEYWORDS. It remains
+     in SLIDE_KEYWORDS only.
+  4. Classifier Rule 1 guard changed from
+     "NOT has_list_signal" to "NOT has_recipe_signal".
+     Music with superlatives in the title now correctly
+     routes as music-heavy.
+  5. Unit tests rewritten to use yt-dlp format inputs.
+Consequences: Router correctly classifies music content
+  regardless of title wording. Ringtones, Shorts, and
+  long recordings all route correctly. List-edit routing
+  requires genuine multi-word list phrases.
+Supersedes: NONE. Corrects implementation of DR-10.

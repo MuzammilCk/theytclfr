@@ -1,5 +1,3 @@
-"""Combine signals into a RouterDecision conforming to Phase 1 contract."""
-
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -13,6 +11,12 @@ MED_CONFIDENCE: float = 0.65    # TUNABLE
 LOW_CONFIDENCE: float = 0.45    # TUNABLE
 MIXED_CONFIDENCE: float = 0.40  # TUNABLE
 
+# Minimum duration in seconds for a video to be considered
+# a legitimate music track vs an accidental short clip
+# or test file. 10 seconds chosen to allow ringtones
+# (~20-30s) while filtering out 1-2s test files.
+MUSIC_MIN_DURATION_SECONDS: float = 10.0  # TUNABLE
+
 
 def classify(
     job_id: UUID,
@@ -21,17 +25,33 @@ def classify(
     frame_count: int,
     video_duration_seconds: float,
 ) -> RouterDecision:
-    """Classify a video into a content route using heuristic rules.
+    """Classify a video into a content route using heuristics.
 
-    Classification rules are applied in priority order — first match wins.
-    No ML models are used. This is a lightweight, fast classifier.
+    Classification rules are applied in priority order —
+    first match wins. No ML models are used.
+
+    Rule priority rationale:
+      1. Music-heavy: audio signal is the strongest physical
+         evidence and takes priority over title keywords.
+         A music compilation titled "Best Songs" is still
+         music — the audio codec and bitrate prove it.
+      2. Slide-presentation: keyword-driven but only when
+         not competing with strong list signals.
+      3. List-edit: title/keyword-driven ranking content.
+      4. Speech-heavy: any audio present that is not music,
+         or recipe-flagged content.
+      5. Mixed: fallback when no signal is strong enough.
 
     Args:
         job_id: UUID of the job being classified.
-        audio: Audio check results from metadata analysis.
+        audio: Audio check results from yt-dlp metadata.
         metadata: Metadata keyword signals.
         frame_count: Number of frames successfully sampled.
-        video_duration_seconds: Video duration in seconds.
+            A value of 0 indicates audio-only or sampling
+            failure; does not block classification.
+        video_duration_seconds: Duration in seconds from
+            ffprobe via frame sampler, or job.duration_seconds
+            as fallback.
 
     Returns:
         RouterDecision conforming to the Phase 1 contract.
@@ -39,10 +59,16 @@ def classify(
     decided_at = datetime.now(UTC)
 
     # Rule 1: MUSIC-HEAVY
+    # Audio bitrate + codec evidence takes priority over
+    # title keywords. A music compilation or ringtone with
+    # "best" in the title is still music. The only guard is
+    # a minimum duration to filter out test/stub files and
+    # recipe content (cooking videos sometimes have high
+    # audio bitrate but are clearly not music).
     if (
         audio.likely_music
-        and not metadata.has_list_signal
         and not metadata.has_recipe_signal
+        and video_duration_seconds >= MUSIC_MIN_DURATION_SECONDS
     ):
         return RouterDecision(
             job_id=job_id,
@@ -51,7 +77,11 @@ def classify(
             speech_density=0.2,
             ocr_density=0.1,
             decided_at=decided_at,
-            routing_notes="High audio bitrate with music heuristic",
+            routing_notes=(
+                f"High audio bitrate music heuristic. "
+                f"duration={video_duration_seconds:.1f}s "
+                f"bitrate={audio.audio_bitrate_kbps}kbps"
+            ),
         )
 
     # Rule 2: SLIDE-PRESENTATION
@@ -80,7 +110,10 @@ def classify(
             speech_density=0.5,
             ocr_density=0.6,
             decided_at=decided_at,
-            routing_notes=f"List keywords: {metadata.matched_keywords[:3]}",
+            routing_notes=(
+                f"List keywords: "
+                f"{metadata.matched_keywords[:3]}"
+            ),
         )
 
     # Rule 4: RECIPE / SPEECH-HEAVY

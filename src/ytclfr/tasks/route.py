@@ -107,12 +107,11 @@ def classify_video(
             )
 
         # Step 8: Check audio from metadata
-        audio_result = check_audio_from_metadata(
-            job.metadata_raw or {}
-        )
+        meta_dict = job.metadata_raw if isinstance(job.metadata_raw, dict) else {}
+        audio_result = check_audio_from_metadata(meta_dict)
 
         # Step 9: Inspect metadata keywords
-        meta_signals = inspect_metadata(job.metadata_raw or {})
+        meta_signals = inspect_metadata(meta_dict)
 
         # Step 10: Classify
         decision = classify(
