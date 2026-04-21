@@ -149,3 +149,24 @@ Context: Phase 3 requires rate limiting on the job submission and status endpoin
 Decision: slowapi added to pyproject.toml. IP-based rate limiting in Phase 3. Per-user rate limiting can be added in Phase 9 using the authenticated identity from the JWT payload.
 Consequences: Adds one dependency. Limits are per IP in V1, not per authenticated user. Rate limit headers are automatically included in responses.
 Supersedes: NONE
+
+---
+
+## DR-11 — YouTube cookie authentication strategy
+Date: 2026-04-21
+Status: ACCEPTED
+Context: YouTube's bot detection system rejects all
+  unauthenticated yt-dlp requests since mid-2024.
+  Chrome cookies cannot be decrypted on Windows since
+  Chrome 127. Firefox stores cookies in plain SQLite
+  without encryption and is the only reliable cookie
+  source for yt-dlp on Windows in 2026.
+Decision: yt-dlp reads a cookies.txt file in Netscape
+  format exported from Firefox. File path set via
+  YTDLP_COOKIES_FILE env var (optional, defaults to
+  None). Excluded from git. Cookies must be refreshed
+  approximately every 2 weeks.
+Consequences: Downloads succeed on most YouTube
+  videos. Requires Firefox and periodic refresh.
+  cookies.txt must never be committed.
+Supersedes: NONE

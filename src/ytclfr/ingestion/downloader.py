@@ -29,33 +29,81 @@ class DownloadResult:
 class VideoDownloader:
     def __init__(self, settings: Settings):
         self.settings = settings
+        self._cookies_file: Path | None = (
+            Path(settings.ytdlp_cookies_file)
+            if settings.ytdlp_cookies_file
+            else None
+        )
+
+    def _validate_cookies(self) -> None:
+        if self._cookies_file is None:
+            return
+        if not self._cookies_file.exists():
+            raise IngestionError(
+                f"Cookies file not found: "
+                f"{self._cookies_file}. "
+                "Export Firefox cookies: close Firefox, "
+                "visit youtube.com logged in, then run: "
+                "yt-dlp --cookies-from-browser firefox "
+                "--cookies cookies.txt "
+                "\"https://youtu.be/jNQXAC9IVRw\""
+            )
+        if self._cookies_file.stat().st_size == 0:
+            raise IngestionError(
+                f"Cookies file is empty: "
+                f"{self._cookies_file}. "
+                "Re-export cookies from Firefox."
+            )
 
     def download(self, url: str, job_id: uuid.UUID, output_dir: Path) -> DownloadResult:
+        self._validate_cookies()
+
         logger.debug(f"Starting download for {url} into {output_dir}")
 
         target_dir = output_dir / str(job_id)
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        ydl_opts_info = {
+        ydl_opts_info: dict[str, Any] = {
             "quiet": True,
             "no_warnings": True,
         }
+        if self._cookies_file is not None:
+            ydl_opts_info["cookiefile"] = str(self._cookies_file)
 
         with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)
                 if not info:
                     raise IngestionError("Could not extract video info")
-            except Exception as e:
-                raise IngestionError(f"Video unavailable or private: {e}") from e
+            except Exception as exc:
+                error_msg = str(exc)
+                if any(kw in error_msg for kw in [
+                    "Sign in to confirm",
+                    "not a bot",
+                    "LOGIN_REQUIRED",
+                ]):
+                    raise IngestionError(
+                        "YouTube bot detection triggered. "
+                        "Cookies missing, expired, or invalid. "
+                        "Close Firefox, visit youtube.com logged "
+                        "in, then run: yt-dlp "
+                        "--cookies-from-browser firefox "
+                        "--cookies cookies.txt "
+                        "\"https://youtu.be/jNQXAC9IVRw\""
+                    ) from exc
+                raise IngestionError(
+                    f"Video unavailable or private: {error_msg}"
+                ) from exc
 
-        ydl_opts_download = {
+        ydl_opts_download: dict[str, Any] = {
             "format": "bestvideo+bestaudio/best",
             "merge_output_format": "mp4",
             "outtmpl": str(target_dir / "%(title)s.%(ext)s"),
             "quiet": True,
             "no_warnings": True,
         }
+        if self._cookies_file is not None:
+            ydl_opts_download["cookiefile"] = str(self._cookies_file)
 
         with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
             try:

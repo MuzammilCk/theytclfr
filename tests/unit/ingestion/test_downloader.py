@@ -103,3 +103,47 @@ def test_downloader_download_failure(mock_yt_dlp, mock_settings, tmp_path):
         downloader.download(
             "https://youtube.com/watch?v=abc123def45", uuid.uuid4(), tmp_path
         )  # noqa: E501
+
+
+def test_raises_ingestion_error_on_bot_detection(
+    mock_settings, tmp_path
+):
+    cookies_file = tmp_path / "cookies.txt"
+    cookies_file.write_text(
+        "# Netscape HTTP Cookie File\n"
+    )
+    mock_settings.ytdlp_cookies_file = str(cookies_file)
+    downloader = VideoDownloader(mock_settings)
+    with patch(
+        "ytclfr.ingestion.downloader.yt_dlp"
+        ".YoutubeDL"
+    ) as mock_ydl:
+        mock_inst = MagicMock()
+        mock_inst.__enter__.return_value = mock_inst
+        mock_inst.extract_info.side_effect = Exception(
+            "Sign in to confirm you're not a bot"
+        )
+        mock_ydl.side_effect = [mock_inst, mock_inst]
+        with pytest.raises(IngestionError) as exc_info:
+            downloader.download(
+                url="https://youtube.com/watch?v=abc123def45",
+                job_id=uuid.uuid4(),
+                output_dir=tmp_path,
+            )
+        assert "bot detection" in str(exc_info.value).lower()
+
+
+def test_raises_ingestion_error_missing_cookies(
+    mock_settings, tmp_path
+):
+    mock_settings.ytdlp_cookies_file = str(
+        tmp_path / "nonexistent.txt"
+    )
+    downloader = VideoDownloader(mock_settings)
+    with pytest.raises(IngestionError) as exc_info:
+        downloader.download(
+            url="https://youtube.com/watch?v=abc123def45",
+            job_id=uuid.uuid4(),
+            output_dir=tmp_path,
+        )
+    assert "not found" in str(exc_info.value).lower()

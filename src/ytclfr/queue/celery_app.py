@@ -26,3 +26,4 @@ def build_celery_app(settings: Settings) -> Celery:
 
 celery_app = build_celery_app(get_settings())
 import ytclfr.tasks.ingest  # noqa: F401, E402
+import ytclfr.tasks.route  # noqa: F401, E402

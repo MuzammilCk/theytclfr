@@ -254,3 +254,69 @@ Scope creep rejected:
 Next session must start by:
   - Reading all control files
   - Beginning Phase 4: Preflight Router
+
+---
+
+## 2026-04-21 — Session 10 — Phase 4 Preflight Router complete
+Phase: Phase 4 — Preflight Router
+Files changed: build.md, decisions.md, diff.md,
+  src/ytclfr/core/config.py,
+  src/ytclfr/ingestion/downloader.py,
+  src/ytclfr/router/__init__.py,
+  src/ytclfr/router/frame_sampler.py,
+  src/ytclfr/router/audio_checker.py,
+  src/ytclfr/router/metadata_inspector.py,
+  src/ytclfr/router/classifier.py,
+  src/ytclfr/db/models/router_decision.py,
+  src/ytclfr/db/models/__init__.py,
+  src/ytclfr/tasks/route.py,
+  src/ytclfr/tasks/ingest.py,
+  src/ytclfr/queue/celery_app.py,
+  alembic/versions/0002_router_decision.py,
+  tests/unit/router/__init__.py,
+  tests/unit/router/test_frame_sampler.py,
+  tests/unit/router/test_audio_checker.py,
+  tests/unit/router/test_metadata_inspector.py,
+  tests/unit/router/test_classifier.py,
+  tests/unit/ingestion/test_downloader.py,
+  .env.example, .gitignore
+Completed:
+  - Part A: Deleted stray auth.py and test_sanitize.py
+    from project root
+  - Part A: Applied cookies fix — ytdlp_cookies_file
+    in Settings, _validate_cookies() in downloader,
+    cookiefile in both yt-dlp opts dicts, bot-detection
+    error handler, YTDLP_COOKIES_FILE in .env.example,
+    cookies.txt in .gitignore, DR-11 in decisions.md,
+    2 new cookie unit tests
+  - Part A: Promoted Phase 3 to complete in build.md,
+    current phase marker updated to Phase 4
+  - Part B: Frame sampler using ffmpeg subprocess
+    with configurable ROUTER_FRAME_SAMPLE_COUNT
+  - Part B: Audio checker reading metadata_raw streams
+  - Part B: Metadata inspector with keyword sets for
+    list, recipe, and slide signals
+  - Part B: Rule-based classifier producing
+    RouterDecision conforming to Phase 1 contract
+  - Part B: RouterDecisionModel DB model created
+  - Part B: Alembic migration 0002 for
+    router_decisions table
+  - Part B: classify_video Celery task on fast queue
+  - Part B: download_video chains to classify_video
+    on success
+  - Part B: classify_video registered in celery_app.py
+  - Part B: 14 router unit tests written
+  - Part B: 2 new downloader cookie tests written
+Deferred:
+  - Frame brightness/variance analysis deferred —
+    reason: title/description/audio heuristics are
+    sufficient for V1 router accuracy, visual
+    analysis can be added in Phase 9 hardening
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 5: Worker Queue + Parallel
+    Extractor Infrastructure

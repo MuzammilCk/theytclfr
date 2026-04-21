@@ -8,6 +8,7 @@ from alembic import context
 
 from ytclfr.db.base import Base
 import ytclfr.db.models.job
+import ytclfr.db.models.router_decision
 
 config = context.config
 

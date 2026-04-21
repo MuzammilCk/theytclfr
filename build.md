@@ -1,10 +1,11 @@
 # build.md
 
-CURRENT PHASE: 3 — Authentication Layer
+CURRENT PHASE: 4 — Preflight Router
 STATUS: IN PROGRESS
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
 (Phase 2 — Ingestion + Temporary Storage: COMPLETE)
+(Phase 3 — Authentication Layer: COMPLETE)
 
 ## Phase List
 
@@ -103,7 +104,7 @@ Bugs found and fixed:
 
 ### Phase 3 — Authentication Layer
 Goal: Protect every user-facing endpoint before any output is exposed.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
   [ ] JWT token creation utility
@@ -131,7 +132,7 @@ Test stack:
 
 ### Phase 4 — Preflight Router
 Goal: Classify the video cheaply before committing to heavy work.
-Status: [ ] Not Started
+Status: [ ] In Progress
 
 Build:
   [ ] Frame sampler (configurable sample count, not hardcoded)

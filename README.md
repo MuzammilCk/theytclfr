@@ -1,1 +1,2 @@
 # theytclfr
+python -c "import time; from jose import jwt; print(jwt.encode({'sub': 'test_user', 'exp': int(time.time()) + 3600*24}, 'ytclfr-local-dev-secret-key-change-me-in-production', algorithm='HS256'))"

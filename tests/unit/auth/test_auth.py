@@ -1,4 +1,5 @@
 import time
+from datetime import UTC
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -89,13 +90,13 @@ def test_require_auth_with_valid_token(mock_delay, mock_get_settings, mock_setti
     mock_get_settings.return_value = mock_settings
 
     mock_db = MagicMock()
-    
+
     def mock_refresh(job):
         import uuid
-        from datetime import datetime, timezone
+        from datetime import datetime
         job.id = uuid.uuid4()
-        job.created_at = datetime.now(timezone.utc)
-        
+        job.created_at = datetime.now(UTC)
+
     mock_db.refresh.side_effect = mock_refresh
     app.dependency_overrides[get_db] = lambda: mock_db
 
@@ -113,12 +114,12 @@ def test_require_auth_with_valid_token(mock_delay, mock_get_settings, mock_setti
     assert response.status_code != 403
 
 
-def test_require_auth_missing_header_returns_403():
+def test_require_auth_missing_header_returns_401():
     client = TestClient(app)
     response = client.post(
         "/api/v1/jobs", json={"youtube_url": "https://youtube.com/watch?v=12345"}
     )
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 def test_require_auth_invalid_token_returns_401():
