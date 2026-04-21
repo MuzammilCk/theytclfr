@@ -111,18 +111,20 @@ def test_decision_conforms_to_contract():
     decision = classify(uuid4(), audio, meta, 5, 240.0)
     assert isinstance(decision, RouterDecision)
     assert decision.primary_route in (
-        "speech-heavy", "music-heavy", "list-edit",
-        "slide-presentation", "mixed",
+        "speech-heavy",
+        "music-heavy",
+        "list-edit",
+        "slide-presentation",
+        "mixed",
     )
+
 
 def test_music_routes_correctly_despite_list_keyword():
     """Music with superlatives in the title must still route
     as music-heavy. Regression for Rule 1 guard bug.
     audio.likely_music=True takes priority over list keywords.
     """
-    audio = _make_audio(
-        has_audio=True, likely_music=True, bitrate=192.0
-    )
+    audio = _make_audio(has_audio=True, likely_music=True, bitrate=192.0)
     meta = _make_meta(
         title="Best of Taylor Swift Compilation",
         has_list=True,
@@ -138,9 +140,7 @@ def test_ringtone_routes_as_music_heavy():
     music-heavy. This is the end-to-end regression test
     for the original reported bug.
     """
-    audio = _make_audio(
-        has_audio=True, likely_music=True, bitrate=192.0
-    )
+    audio = _make_audio(has_audio=True, likely_music=True, bitrate=192.0)
     meta = _make_meta(title="Best iPhone Ringtone 2024")
     decision = classify(uuid4(), audio, meta, 5, 20.0)
     assert decision.primary_route == "music-heavy"
@@ -150,9 +150,7 @@ def test_music_blocked_below_minimum_duration():
     """A 5-second stub/test file must not route as music
     even with high bitrate audio.
     """
-    audio = _make_audio(
-        has_audio=True, likely_music=True, bitrate=192.0
-    )
+    audio = _make_audio(has_audio=True, likely_music=True, bitrate=192.0)
     meta = _make_meta()
     decision = classify(uuid4(), audio, meta, 0, 5.0)
     # Below MUSIC_MIN_DURATION_SECONDS — should not be music
@@ -163,9 +161,7 @@ def test_routing_notes_include_duration_for_music():
     """Router notes for music-heavy must include duration
     so operators can debug misclassifications in logs.
     """
-    audio = _make_audio(
-        has_audio=True, likely_music=True, bitrate=192.0
-    )
+    audio = _make_audio(has_audio=True, likely_music=True, bitrate=192.0)
     meta = _make_meta()
     decision = classify(uuid4(), audio, meta, 5, 180.0)
     assert decision.primary_route == "music-heavy"

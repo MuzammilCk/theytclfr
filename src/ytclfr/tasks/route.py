@@ -29,9 +29,7 @@ logger = get_logger(__name__)
     max_retries=2,
     default_retry_delay=10,
 )
-def classify_video(
-    self: Any, job_id: str
-) -> dict[str, object]:
+def classify_video(self: Any, job_id: str) -> dict[str, object]:
     """Classify a downloaded video using lightweight heuristics.
 
     Reads metadata from the database, samples frames via ffmpeg,
@@ -63,9 +61,7 @@ def classify_video(
         # Step 5: Check media path
         if job.local_media_path is None:
             job.status = "failed"
-            job.error_message = (
-                "No media path — download may have failed"
-            )
+            job.error_message = "No media path — download may have failed"
             session.commit()
             return {
                 "job_id": job_id,
@@ -77,9 +73,7 @@ def classify_video(
         from pathlib import Path
 
         temp_manager = TempStorageManager(settings)
-        frames_dir = (
-            temp_manager.get_job_dir(job_uuid) / "router_frames"
-        )
+        frames_dir = temp_manager.get_job_dir(job_uuid) / "router_frames"
         frames_dir.mkdir(parents=True, exist_ok=True)
 
         # Step 7: Sample frames
@@ -91,17 +85,14 @@ def classify_video(
             )
         except FrameSamplerError as e:
             logger.warning(
-                "Frame sampling failed for job %s: %s. "
-                "Continuing with zero frames.",
+                "Frame sampling failed for job %s: %s. Continuing with zero frames.",
                 job_id,
                 e,
             )
             sampled = SampledFrames(
                 frame_paths=[],
                 video_duration_seconds=(
-                    job.duration_seconds
-                    if job.duration_seconds
-                    else 0.0
+                    job.duration_seconds if job.duration_seconds else 0.0
                 ),
                 sample_count=0,
             )
@@ -123,11 +114,7 @@ def classify_video(
         )
 
         # Step 11: Persist RouterDecisionModel (upsert)
-        existing = (
-            session.query(RouterDecisionModel)
-            .filter_by(job_id=job_uuid)
-            .first()
-        )
+        existing = session.query(RouterDecisionModel).filter_by(job_id=job_uuid).first()
         if existing:
             existing.primary_route = decision.primary_route
             existing.confidence = decision.confidence
@@ -161,6 +148,30 @@ def classify_video(
         )
 
         # Step 14: Return result
+        # Dispatch extractors in parallel after classification.
+        # ASR and OCR run as a Celery group (parallel).
+        # Audio classifier runs on the fast queue.
+        # All three complete before build_timeline callback runs.
+        from celery import chord, group
+
+        from ytclfr.tasks.align import build_timeline
+        from ytclfr.tasks.extract import (
+            run_asr,
+            run_audio_classifier,
+            run_ocr,
+        )
+
+        extractor_group = group(
+            run_asr.s(job_id),
+            run_ocr.s(job_id),
+            run_audio_classifier.s(job_id),
+        )
+        chord(extractor_group)(build_timeline.s(job_id))
+
+        # Update job status to "extracting"
+        job.status = "extracting"
+        session.commit()
+
         return {
             "job_id": job_id,
             "status": "classified",
@@ -181,11 +192,7 @@ def classify_video(
         # Retryable error
         session.rollback()
         try:
-            job = (
-                session.query(Job)
-                .filter(Job.id == job_uuid)
-                .first()
-            )
+            job = session.query(Job).filter(Job.id == job_uuid).first()
             if job:
                 job.status = "failed"
                 job.error_message = str(exc)

@@ -23,7 +23,7 @@ FORBIDDEN_EXCEPTION = HTTPException(
     detail="Insufficient permissions",
 )
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def decode_supabase_jwt(token: str) -> typing.Any:
@@ -43,6 +43,8 @@ def decode_supabase_jwt(token: str) -> typing.Any:
 
 
 def require_auth(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> typing.Any:
+    if not credentials:
+        raise CREDENTIALS_EXCEPTION
     return decode_supabase_jwt(credentials.credentials)

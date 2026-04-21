@@ -30,9 +30,7 @@ class VideoDownloader:
     def __init__(self, settings: Settings):
         self.settings = settings
         self._cookies_file: Path | None = (
-            Path(settings.ytdlp_cookies_file)
-            if settings.ytdlp_cookies_file
-            else None
+            Path(settings.ytdlp_cookies_file) if settings.ytdlp_cookies_file else None
         )
 
     def _validate_cookies(self) -> None:
@@ -46,7 +44,7 @@ class VideoDownloader:
                 "visit youtube.com logged in, then run: "
                 "yt-dlp --cookies-from-browser firefox "
                 "--cookies cookies.txt "
-                "\"https://youtu.be/jNQXAC9IVRw\""
+                '"https://youtu.be/jNQXAC9IVRw"'
             )
         if self._cookies_file.stat().st_size == 0:
             raise IngestionError(
@@ -78,11 +76,14 @@ class VideoDownloader:
                     raise IngestionError("Could not extract video info")
             except Exception as exc:
                 error_msg = str(exc)
-                if any(kw in error_msg for kw in [
-                    "Sign in to confirm",
-                    "not a bot",
-                    "LOGIN_REQUIRED",
-                ]):
+                if any(
+                    kw in error_msg
+                    for kw in [
+                        "Sign in to confirm",
+                        "not a bot",
+                        "LOGIN_REQUIRED",
+                    ]
+                ):
                     raise IngestionError(
                         "YouTube bot detection triggered. "
                         "Cookies missing, expired, or invalid. "
@@ -90,7 +91,7 @@ class VideoDownloader:
                         "in, then run: yt-dlp "
                         "--cookies-from-browser firefox "
                         "--cookies cookies.txt "
-                        "\"https://youtu.be/jNQXAC9IVRw\""
+                        '"https://youtu.be/jNQXAC9IVRw"'
                     ) from exc
                 raise IngestionError(
                     f"Video unavailable or private: {error_msg}"

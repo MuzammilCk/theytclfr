@@ -24,21 +24,11 @@ class RouterDecisionModel(Base):
     job_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("jobs.id"), nullable=False, unique=True
     )
-    primary_route: Mapped[str] = mapped_column(
-        String(32), nullable=False
-    )
-    confidence: Mapped[float] = mapped_column(
-        Float, nullable=False
-    )
-    speech_density: Mapped[float] = mapped_column(
-        Float, nullable=False
-    )
-    ocr_density: Mapped[float] = mapped_column(
-        Float, nullable=False
-    )
-    routing_notes: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
+    primary_route: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    speech_density: Mapped[float] = mapped_column(Float, nullable=False)
+    ocr_density: Mapped[float] = mapped_column(Float, nullable=False)
+    routing_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     decided_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -46,6 +36,4 @@ class RouterDecisionModel(Base):
         DateTime(timezone=True), default=utcnow, nullable=False
     )
 
-    __table_args__ = (
-        Index("ix_router_decisions_job_id", "job_id"),
-    )
+    __table_args__ = (Index("ix_router_decisions_job_id", "job_id"),)

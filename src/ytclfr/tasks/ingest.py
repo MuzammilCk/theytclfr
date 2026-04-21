@@ -73,6 +73,7 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
         # PHASE-5-TODO: publish VideoIngestedEvent to Redis pub/sub channel when worker infrastructure is built  # noqa: E501
 
         from ytclfr.tasks.route import classify_video
+
         classify_video.apply_async(
             args=[job_id],
             countdown=2,

@@ -205,3 +205,11 @@ Consequences: Router correctly classifies music content
   long recordings all route correctly. List-edit routing
   requires genuine multi-word list phrases.
 Supersedes: NONE. Corrects implementation of DR-10.
+
+## DR-13 — Extractor task base class pattern
+Date: 2026-04-21
+Status: ACCEPTED
+Context: Phase 5 adds three new Celery extractor tasks (ASR, OCR, audio classifier). Each task needs identical retry policy (max_retries=3, retry_backoff), structured on_failure and on_retry logging, and failure isolation. Copy-pasting this boilerplate into three tasks creates maintenance risk.
+Decision: A BaseExtractorTask(Task) class in extractors/base.py provides shared on_failure() and on_retry() hooks with structured logging. All extractor tasks set base=BaseExtractorTask in their decorator. Individual extractors (ASR, OCR, audio) are implemented as plain Python classes (not Celery tasks). Celery task wrappers in tasks/extract.py call the extractor classes. This keeps the extractor logic independently testable without Celery overhead.
+Consequences: Extractor logic is fully testable without Celery. New extractors (YAMNet, object detection) added in V2 follow the same pattern. BaseExtractorTask is abstract=True so it cannot be used as a task itself.
+Supersedes: NONE

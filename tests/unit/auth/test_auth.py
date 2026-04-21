@@ -94,6 +94,7 @@ def test_require_auth_with_valid_token(mock_delay, mock_get_settings, mock_setti
     def mock_refresh(job):
         import uuid
         from datetime import datetime
+
         job.id = uuid.uuid4()
         job.created_at = datetime.now(UTC)
 

@@ -399,3 +399,34 @@ Next session must start by:
   - Reading all four control files
   - Beginning Phase 5: Worker Queue + Parallel
     Extractor Infrastructure
+
+## [2026-04-21] — Session 13 — Phase 5 extractor infrastructure complete
+Phase: Phase 5 — Worker Queue + Parallel Extractor Infrastructure
+Files changed: build.md, decisions.md, diff.md, src/ytclfr/extractors/__init__.py, src/ytclfr/extractors/base.py, src/ytclfr/extractors/asr.py, src/ytclfr/extractors/ocr.py, src/ytclfr/extractors/audio_classifier.py, src/ytclfr/db/models/extractor_result.py, src/ytclfr/db/models/__init__.py, src/ytclfr/tasks/extract.py, src/ytclfr/tasks/align.py, src/ytclfr/tasks/route.py, src/ytclfr/queue/celery_app.py, alembic/versions/0003_extractor_results.py, tests/unit/extractors/__init__.py, tests/unit/extractors/test_asr.py, tests/unit/extractors/test_ocr.py, tests/unit/extractors/test_audio_classifier.py, tests/unit/tasks/__init__.py, tests/unit/tasks/test_extract.py
+Completed:
+  - Part A: Promoted Phase 4 to complete in build.md
+  - BaseExtractorTask base class with on_failure/on_retry hooks for all extractor tasks
+  - ASRExtractor class using faster-whisper with word-level timestamps and lru_cache singleton
+  - OCRExtractor class using Tesseract via pytesseract with ffmpeg frame extraction, deduplication, and Windows-safe subprocess (utf-8 encoding)
+  - AudioClassifier using yt-dlp metadata heuristic wrapped in ExtractorResult contract (PHASE-9-TODO comment for YAMNet replacement)
+  - ExtractorResultModel DB model for persisting extractor outputs
+  - Alembic migration 0003 for extractor_results table
+  - Three Celery tasks (run_asr, run_ocr, run_audio_classifier) in tasks/extract.py
+  - build_timeline chord callback stub in tasks/align.py
+  - classify_video chained to extractor group + chord
+  - All four task modules registered in celery_app.py
+  - 12 unit tests written and passing
+  - alembic upgrade head runs clean
+  - ruff check src/ tests/ zero errors
+  - mypy src/ zero errors
+  - pytest tests/unit/ all passing
+Deferred:
+  - Audio classifier uses metadata heuristic in Phase 5. YAMNet acoustic model replacement deferred to Phase 9 hardening per PHASE-9-TODO comment.
+  - build_timeline is a stub. Full temporal alignment logic deferred to Phase 6.
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 6: Temporal Alignment Layer

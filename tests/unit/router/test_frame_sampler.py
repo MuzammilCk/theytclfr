@@ -17,9 +17,7 @@ def _mock_ffprobe_result(duration: float = 60.0) -> MagicMock:
     """Create a mock subprocess result for ffprobe."""
     result = MagicMock()
     result.returncode = 0
-    result.stdout = json.dumps({
-        "format": {"duration": str(duration)}
-    })
+    result.stdout = json.dumps({"format": {"duration": str(duration)}})
     result.stderr = ""
     return result
 

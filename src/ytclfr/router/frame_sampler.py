@@ -90,8 +90,10 @@ def _get_video_duration(video_path: Path) -> float:
     """
     cmd = [
         "ffprobe",
-        "-v", "quiet",
-        "-print_format", "json",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
         "-show_format",
         str(video_path),
     ]
@@ -109,9 +111,7 @@ def _get_video_duration(video_path: Path) -> float:
             "ffprobe not found. Ensure ffmpeg is installed and in PATH."
         ) from exc
     except subprocess.TimeoutExpired as exc:
-        raise FrameSamplerError(
-            f"ffprobe timed out reading {video_path}"
-        ) from exc
+        raise FrameSamplerError(f"ffprobe timed out reading {video_path}") from exc
 
     if result.returncode != 0:
         raise FrameSamplerError(
@@ -130,19 +130,21 @@ def _get_video_duration(video_path: Path) -> float:
         ) from exc
 
 
-def _extract_frame(
-    video_path: Path, timestamp: float, output_path: Path
-) -> bool:
+def _extract_frame(video_path: Path, timestamp: float, output_path: Path) -> bool:
     """Extract a single frame at the given timestamp.
 
     Returns True if the frame was successfully extracted.
     """
     cmd = [
         "ffmpeg",
-        "-ss", str(timestamp),
-        "-i", str(video_path),
-        "-vframes", "1",
-        "-q:v", "2",
+        "-ss",
+        str(timestamp),
+        "-i",
+        str(video_path),
+        "-vframes",
+        "1",
+        "-q:v",
+        "2",
         str(output_path),
     ]
 

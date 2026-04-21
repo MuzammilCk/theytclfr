@@ -6,9 +6,9 @@ from ytclfr.router.audio_checker import AudioCheckResult
 from ytclfr.router.metadata_inspector import MetadataSignals
 
 # Confidence thresholds — module-level constants
-HIGH_CONFIDENCE: float = 0.85   # TUNABLE
-MED_CONFIDENCE: float = 0.65    # TUNABLE
-LOW_CONFIDENCE: float = 0.45    # TUNABLE
+HIGH_CONFIDENCE: float = 0.85  # TUNABLE
+MED_CONFIDENCE: float = 0.65  # TUNABLE
+LOW_CONFIDENCE: float = 0.45  # TUNABLE
 MIXED_CONFIDENCE: float = 0.40  # TUNABLE
 
 # Minimum duration in seconds for a video to be considered
@@ -99,9 +99,7 @@ def classify(
     # Rule 3: LIST-EDIT
     if metadata.has_list_signal:
         confidence = (
-            HIGH_CONFIDENCE
-            if len(metadata.matched_keywords) >= 2
-            else MED_CONFIDENCE
+            HIGH_CONFIDENCE if len(metadata.matched_keywords) >= 2 else MED_CONFIDENCE
         )
         return RouterDecision(
             job_id=job_id,
@@ -110,16 +108,11 @@ def classify(
             speech_density=0.5,
             ocr_density=0.6,
             decided_at=decided_at,
-            routing_notes=(
-                f"List keywords: "
-                f"{metadata.matched_keywords[:3]}"
-            ),
+            routing_notes=(f"List keywords: {metadata.matched_keywords[:3]}"),
         )
 
     # Rule 4: RECIPE / SPEECH-HEAVY
-    if metadata.has_recipe_signal or (
-        audio.has_audio and not audio.likely_music
-    ):
+    if metadata.has_recipe_signal or (audio.has_audio and not audio.likely_music):
         return RouterDecision(
             job_id=job_id,
             primary_route="speech-heavy",

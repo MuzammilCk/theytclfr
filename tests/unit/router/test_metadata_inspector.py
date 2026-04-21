@@ -136,6 +136,4 @@ def test_slide_and_recipe_not_both_set_for_tutorial():
     }
     signals = inspect_metadata(meta)
     # One or neither — never both for a pure tutorial title
-    assert not (
-        signals.has_slide_signal and signals.has_recipe_signal
-    )
+    assert not (signals.has_slide_signal and signals.has_recipe_signal)

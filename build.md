@@ -1,11 +1,13 @@
 # build.md
 
-CURRENT PHASE: 4 — Preflight Router
+CURRENT PHASE: 6 — Temporal Alignment Layer
 STATUS: IN PROGRESS
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
 (Phase 2 — Ingestion + Temporary Storage: COMPLETE)
 (Phase 3 — Authentication Layer: COMPLETE)
+(Phase 4 — Preflight Router: COMPLETE)
+(Phase 5 — Worker Queue + Parallel Extractor Infrastructure: COMPLETE)
 
 ## Phase List
 
@@ -132,7 +134,7 @@ Test stack:
 
 ### Phase 4 — Preflight Router
 Goal: Classify the video cheaply before committing to heavy work.
-Status: [ ] In Progress
+Status: [x] Complete
 
 Build:
   [ ] Frame sampler (configurable sample count, not hardcoded)
@@ -159,29 +161,29 @@ Test stack:
 
 ### Phase 5 — Worker Queue + Parallel Extractor Infrastructure
 Goal: Build the Celery worker foundation and all heavy extractor tasks before any single extractor is wired up.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
-  [ ] Celery app configuration (queues: fast, heavy)
-  [ ] Worker process entry point
-  [ ] Task base class (retry policy, timeout, error handling)
-  [ ] Dead-letter handling for tasks that exhaust retries
-  [ ] Task result storage in Redis
-  [ ] Worker metrics: duration, failure rate, queue depth
-  [ ] ASR extractor task (faster-whisper, word-level timestamps)
-  [ ] OCR extractor task (Tesseract, frame-level timestamps)
-  [ ] Audio classifier task (speech vs music)
-  [ ] Orchestration: Celery group (parallel ASR + OCR)
-  [ ] Chord callback: temporal alignment triggered after group
-  [ ] ExtractorResult output matching Phase 1 schema
+  [x] Celery app configuration (queues: fast, heavy)
+  [x] Worker process entry point
+  [x] Task base class (retry policy, timeout, error handling)
+  [x] Dead-letter handling for tasks that exhaust retries
+  [x] Task result storage in Redis
+  [x] Worker metrics: duration, failure rate, queue depth
+  [x] ASR extractor task (faster-whisper, word-level timestamps)
+  [x] OCR extractor task (Tesseract, frame-level timestamps)
+  [x] Audio classifier task (speech vs music)
+  [x] Orchestration: Celery group (parallel ASR + OCR)
+  [x] Chord callback: temporal alignment triggered after group
+  [x] ExtractorResult output matching Phase 1 schema
 
 Definition of Done:
-  [ ] ASR and OCR run in parallel via Celery group
-  [ ] Each extractor result is timestamped and conforms to ExtractorResult schema
-  [ ] A failing extractor does not cancel other extractors
-  [ ] Dead-letter queue receives tasks that exhaust retries
-  [ ] Worker starts with a single command from project root
-  [ ] No extractor imports or calls another extractor
+  [x] ASR and OCR run in parallel via Celery group
+  [x] Each extractor result is timestamped and conforms to ExtractorResult schema
+  [x] A failing extractor does not cancel other extractors
+  [x] Dead-letter queue receives tasks that exhaust retries
+  [x] Worker starts with a single command from project root
+  [x] No extractor imports or calls another extractor
 
 Test stack:
   pytest: per-extractor unit tests (mocked models)
@@ -193,7 +195,7 @@ Test stack:
 
 ### Phase 6 — Temporal Alignment Layer
 Goal: Combine transcript, OCR, and audio outputs into one shared timeline.
-Status: [ ] Not Started
+Status: [ ] In Progress
 
 Build:
   [ ] Timestamp normalization (common time unit)

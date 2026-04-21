@@ -35,9 +35,7 @@ def check_audio_from_metadata(
     # no audio stream is present.
     acodec = metadata_raw.get("acodec")
     has_audio = (
-        acodec is not None
-        and isinstance(acodec, str)
-        and acodec.lower() != "none"
+        acodec is not None and isinstance(acodec, str) and acodec.lower() != "none"
     )
 
     if not has_audio:
@@ -64,9 +62,7 @@ def check_audio_from_metadata(
     # only treat manually-added subtitles as a disqualifier
     # because auto-captions appear on almost all videos.
     subtitles = metadata_raw.get("subtitles")
-    has_manual_subtitles = (
-        isinstance(subtitles, dict) and len(subtitles) > 0
-    )
+    has_manual_subtitles = isinstance(subtitles, dict) and len(subtitles) > 0
 
     # Music heuristic — TUNABLE:
     # High bitrate audio + no manually-added subtitles.

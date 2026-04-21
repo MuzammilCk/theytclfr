@@ -9,35 +9,68 @@ from typing import Any
 # removed to prevent substring false positives
 # (e.g. "all" matching "actually", "top" matching "stop").
 
-LIST_KEYWORDS: frozenset[str] = frozenset({  # TUNABLE
-    "top 10", "top 5", "top 3", "top ten", "top five",
-    "best of", "ranking", "ranked", "ranked list",
-    "worst of", "most popular", "least popular",
-    "ultimate list", "definitive list", "complete list",
-    "every single", "all time best", "all time worst",
-})
+LIST_KEYWORDS: frozenset[str] = frozenset(
+    {  # TUNABLE
+        "top 10",
+        "top 5",
+        "top 3",
+        "top ten",
+        "top five",
+        "best of",
+        "ranking",
+        "ranked",
+        "ranked list",
+        "worst of",
+        "most popular",
+        "least popular",
+        "ultimate list",
+        "definitive list",
+        "complete list",
+        "every single",
+        "all time best",
+        "all time worst",
+    }
+)
 
 # Minimum number of LIST_KEYWORDS that must match for
 # has_list_signal to be True. Prevents single-word
 # title coincidences from triggering list routing.
 LIST_KEYWORD_MIN_MATCHES: int = 1  # TUNABLE
 
-RECIPE_KEYWORDS: frozenset[str] = frozenset({  # TUNABLE
-    "recipe", "how to make", "cook", "cooking",
-    "bake", "baking", "ingredients", "diy",
-    "step by step", "how to",
-})
+RECIPE_KEYWORDS: frozenset[str] = frozenset(
+    {  # TUNABLE
+        "recipe",
+        "how to make",
+        "cook",
+        "cooking",
+        "bake",
+        "baking",
+        "ingredients",
+        "diy",
+        "step by step",
+        "how to",
+    }
+)
 # NOTE: "tutorial" was removed from RECIPE_KEYWORDS.
 # It exists only in SLIDE_KEYWORDS. Reason: tutorial
 # content is structured educational material, not culinary.
 # Keeping it in both sets caused double-flagging and
 # unpredictable rule priority. See DR-12.
 
-SLIDE_KEYWORDS: frozenset[str] = frozenset({  # TUNABLE
-    "lecture", "presentation", "slides", "course",
-    "class", "lesson", "tutorial", "explained",
-    "introduction to", "overview of",
-})
+SLIDE_KEYWORDS: frozenset[str] = frozenset(
+    {  # TUNABLE
+        "lecture",
+        "presentation",
+        "slides",
+        "course",
+        "class",
+        "lesson",
+        "tutorial",
+        "explained",
+        "introduction to",
+        "overview of",
+    }
+)
 
 
 @dataclass
@@ -53,9 +86,7 @@ class MetadataSignals:
     matched_keywords: list[str] = field(default_factory=list)
 
 
-def _keyword_matches(
-    text: str, keywords: frozenset[str]
-) -> list[str]:
+def _keyword_matches(text: str, keywords: frozenset[str]) -> list[str]:
     """Return list of keywords found in text using word
     boundary matching. Multi-word phrases match as a
     substring unit. Single words match only at word
@@ -101,26 +132,16 @@ def inspect_metadata(
     # + all tags. Tags are joined with spaces so word
     # boundaries work correctly across tag values.
     tags_text = " ".join(str(t) for t in tags if t)
-    normalized = (
-        title + " " + description + " " + tags_text
-    ).lower()
+    normalized = (title + " " + description + " " + tags_text).lower()
 
     # Match each keyword set
     list_matches = _keyword_matches(normalized, LIST_KEYWORDS)
-    recipe_matches = _keyword_matches(
-        normalized, RECIPE_KEYWORDS
-    )
-    slide_matches = _keyword_matches(
-        normalized, SLIDE_KEYWORDS
-    )
+    recipe_matches = _keyword_matches(normalized, RECIPE_KEYWORDS)
+    slide_matches = _keyword_matches(normalized, SLIDE_KEYWORDS)
 
-    matched_keywords: list[str] = (
-        list_matches + recipe_matches + slide_matches
-    )
+    matched_keywords: list[str] = list_matches + recipe_matches + slide_matches
 
-    has_list_signal = (
-        len(list_matches) >= LIST_KEYWORD_MIN_MATCHES
-    )
+    has_list_signal = len(list_matches) >= LIST_KEYWORD_MIN_MATCHES
     has_recipe_signal = len(recipe_matches) > 0
     has_slide_signal = len(slide_matches) > 0
 
