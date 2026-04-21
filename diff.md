@@ -374,3 +374,28 @@ Next session must start by:
   - Reading all four control files
   - Beginning Phase 5: Worker Queue + Parallel
     Extractor Infrastructure
+
+## 2026-04-21 — Session 12 — Pre-Phase-5 cleanup
+Phase: Phase 4 — Preflight Router (pre-phase-5 cleanup)
+Files changed: src/ytclfr/tasks/ingest.py
+Completed:
+  - Deleted scratch.py from project root — one-off
+    script that had already appended its content
+  - Removed module-level settings = get_settings()
+    from ingest.py — called at import time before
+    .env is guaranteed loaded, redundant with the
+    settings_local = get_settings() call inside the
+    task function body, and incompatible with test
+    monkeypatching
+  - Removed time_limit= from @celery_app.task
+    decorator in ingest.py — falls back to global
+    task_time_limit in celery_app.py which is the
+    correct single source of truth
+  - Verified: ruff, mypy, pytest all passing
+Deferred: NONE
+Bugs found (not fixed): NONE
+Scope creep rejected: NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 5: Worker Queue + Parallel
+    Extractor Infrastructure

@@ -13,7 +13,6 @@ from ytclfr.ingestion.temp_storage import TempStorageManager
 from ytclfr.queue.celery_app import celery_app
 
 logger = get_logger(__name__)
-settings = get_settings()
 
 
 @celery_app.task(  # type: ignore
@@ -22,7 +21,6 @@ settings = get_settings()
     queue="heavy",
     max_retries=3,
     default_retry_delay=30,
-    time_limit=settings.celery_task_time_limit,
 )
 def download_video(self: Any, job_id: str) -> dict[str, Any]:
     settings_local = get_settings()
