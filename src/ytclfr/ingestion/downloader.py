@@ -66,6 +66,7 @@ class VideoDownloader:
         ydl_opts_info: dict[str, Any] = {
             "quiet": True,
             "no_warnings": True,
+            "js_runtimes": {"node": {}},
         }
         if self._cookies_file is not None:
             ydl_opts_info["cookiefile"] = str(self._cookies_file)
@@ -101,6 +102,7 @@ class VideoDownloader:
             "outtmpl": str(target_dir / "%(title)s.%(ext)s"),
             "quiet": True,
             "no_warnings": True,
+            "js_runtimes": {"node": {}},
         }
         if self._cookies_file is not None:
             ydl_opts_download["cookiefile"] = str(self._cookies_file)

@@ -20,8 +20,6 @@ def validate_youtube_url(url: str) -> str:
 
     if "/live/" in path:
         raise ValueError("Live streams are out of scope")
-    if "/shorts/" in path:
-        raise ValueError("Shorts are out of scope")
     if path == "/playlist" or "/playlist" in path:
         raise ValueError("Playlists are out of scope")
 
@@ -29,6 +27,12 @@ def validate_youtube_url(url: str) -> str:
 
     if domain == "youtu.be":
         video_id = parsed.path.lstrip("/")
+    elif "/shorts/" in path:
+        parts = parsed.path.split("/")
+        for i, part in enumerate(parts):
+            if part.lower() == "shorts" and i + 1 < len(parts):
+                video_id = parts[i + 1]
+                break
     else:
         if path == "/watch":
             query = parsed.query
