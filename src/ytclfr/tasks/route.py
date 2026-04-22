@@ -7,7 +7,7 @@ from ytclfr.core.config import get_settings
 from ytclfr.core.logging import get_logger
 from ytclfr.db.models.job import Job
 from ytclfr.db.models.router_decision import RouterDecisionModel
-from ytclfr.db.session import get_db
+from ytclfr.db.session import db_session
 from ytclfr.ingestion.temp_storage import TempStorageManager
 from ytclfr.queue.celery_app import celery_app
 from ytclfr.router.audio_checker import check_audio_from_metadata
@@ -45,161 +45,161 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
     settings = get_settings()
     job_uuid = uuid.UUID(job_id)
 
-    db_gen = get_db()
-    session = next(db_gen)
+    with db_session() as session:
+        try:
+            # Step 1-3: Load job
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if not job:
+                raise ValueError(f"Job not found: {job_id}")
 
-    try:
-        # Step 1-3: Load job
-        job = session.query(Job).filter(Job.id == job_uuid).first()
-        if not job:
-            raise ValueError(f"Job not found: {job_id}")
-
-        # Step 4: Update status
-        job.status = "classifying"
-        session.commit()
-
-        # Step 5: Check media path
-        if job.local_media_path is None:
-            job.status = "failed"
-            job.error_message = "No media path — download may have failed"
+            # Step 4: Update status
+            job.status = "classifying"
             session.commit()
+
+            # Step 5: Check media path
+            if job.local_media_path is None:
+                job.status = "failed"
+                job.error_message = "No media path — download may have failed"
+                session.commit()
+                return {
+                    "job_id": job_id,
+                    "status": "failed",
+                    "error": job.error_message,
+                }
+
+            # Step 6: Create frames directory
+            from pathlib import Path
+
+            temp_manager = TempStorageManager(settings)
+            frames_dir = temp_manager.get_job_dir(job_uuid) / "router_frames"
+            frames_dir.mkdir(parents=True, exist_ok=True)
+
+            # Step 7: Sample frames
+            try:
+                sampled = sample_frames(
+                    video_path=Path(job.local_media_path),
+                    output_dir=frames_dir,
+                    sample_count=settings.router_frame_sample_count,
+                )
+            except FrameSamplerError as e:
+                logger.warning(
+                    "Frame sampling failed for job %s: %s. "
+                    "Continuing with zero frames.",
+                    job_id,
+                    e,
+                )
+                sampled = SampledFrames(
+                    frame_paths=[],
+                    video_duration_seconds=(
+                        job.duration_seconds if job.duration_seconds else 0.0
+                    ),
+                    sample_count=0,
+                )
+
+            # Step 8: Check audio from metadata
+            meta_dict = job.metadata_raw if isinstance(job.metadata_raw, dict) else {}
+            audio_result = check_audio_from_metadata(meta_dict)
+
+            # Step 9: Inspect metadata keywords
+            meta_signals = inspect_metadata(meta_dict)
+
+            # Step 10: Classify
+            decision = classify(
+                job_id=job_uuid,
+                audio=audio_result,
+                metadata=meta_signals,
+                frame_count=sampled.sample_count,
+                video_duration_seconds=sampled.video_duration_seconds,
+            )
+
+            # Step 11: Persist RouterDecisionModel (upsert)
+            existing = (
+                session.query(RouterDecisionModel)
+                .filter_by(job_id=job_uuid)
+                .first()
+            )
+            if existing:
+                existing.primary_route = decision.primary_route
+                existing.confidence = decision.confidence
+                existing.speech_density = decision.speech_density
+                existing.ocr_density = decision.ocr_density
+                existing.routing_notes = decision.routing_notes
+                existing.decided_at = decision.decided_at
+            else:
+                db_decision = RouterDecisionModel(
+                    job_id=job_uuid,
+                    primary_route=decision.primary_route,
+                    confidence=decision.confidence,
+                    speech_density=decision.speech_density,
+                    ocr_density=decision.ocr_density,
+                    routing_notes=decision.routing_notes,
+                    decided_at=decision.decided_at,
+                )
+                session.add(db_decision)
+            session.commit()
+
+            # Step 12: Update job status
+            job.status = "classified"
+            session.commit()
+
+            # Step 13: Log decision
+            logger.info(
+                "RouterDecision for job %s: route=%s confidence=%.2f",
+                job_id,
+                decision.primary_route,
+                decision.confidence,
+            )
+
+            # Step 14: Return result
+            # Dispatch extractors in parallel after classification.
+            # ASR and OCR run as a Celery group (parallel).
+            # Audio classifier runs on the fast queue.
+            # All three complete before build_timeline callback runs.
+            from celery import chord, group
+
+            from ytclfr.tasks.align import build_timeline
+            from ytclfr.tasks.extract import (
+                run_asr,
+                run_audio_classifier,
+                run_ocr,
+            )
+
+            extractor_group = group(
+                run_asr.s(job_id),
+                run_ocr.s(job_id),
+                run_audio_classifier.s(job_id),
+            )
+            chord(extractor_group)(build_timeline.s(job_id))
+
+            # Update job status to "extracting"
+            job.status = "extracting"
+            session.commit()
+
+            return {
+                "job_id": job_id,
+                "status": "classified",
+                "route": decision.primary_route,
+                "confidence": decision.confidence,
+            }
+
+        except ValueError:
+            # Non-retryable: job not found
+            session.rollback()
             return {
                 "job_id": job_id,
                 "status": "failed",
-                "error": job.error_message,
+                "error": f"Job not found: {job_id}",
             }
 
-        # Step 6: Create frames directory
-        from pathlib import Path
-
-        temp_manager = TempStorageManager(settings)
-        frames_dir = temp_manager.get_job_dir(job_uuid) / "router_frames"
-        frames_dir.mkdir(parents=True, exist_ok=True)
-
-        # Step 7: Sample frames
-        try:
-            sampled = sample_frames(
-                video_path=Path(job.local_media_path),
-                output_dir=frames_dir,
-                sample_count=settings.router_frame_sample_count,
-            )
-        except FrameSamplerError as e:
-            logger.warning(
-                "Frame sampling failed for job %s: %s. Continuing with zero frames.",
-                job_id,
-                e,
-            )
-            sampled = SampledFrames(
-                frame_paths=[],
-                video_duration_seconds=(
-                    job.duration_seconds if job.duration_seconds else 0.0
-                ),
-                sample_count=0,
-            )
-
-        # Step 8: Check audio from metadata
-        meta_dict = job.metadata_raw if isinstance(job.metadata_raw, dict) else {}
-        audio_result = check_audio_from_metadata(meta_dict)
-
-        # Step 9: Inspect metadata keywords
-        meta_signals = inspect_metadata(meta_dict)
-
-        # Step 10: Classify
-        decision = classify(
-            job_id=job_uuid,
-            audio=audio_result,
-            metadata=meta_signals,
-            frame_count=sampled.sample_count,
-            video_duration_seconds=sampled.video_duration_seconds,
-        )
-
-        # Step 11: Persist RouterDecisionModel (upsert)
-        existing = session.query(RouterDecisionModel).filter_by(job_id=job_uuid).first()
-        if existing:
-            existing.primary_route = decision.primary_route
-            existing.confidence = decision.confidence
-            existing.speech_density = decision.speech_density
-            existing.ocr_density = decision.ocr_density
-            existing.routing_notes = decision.routing_notes
-            existing.decided_at = decision.decided_at
-        else:
-            db_decision = RouterDecisionModel(
-                job_id=job_uuid,
-                primary_route=decision.primary_route,
-                confidence=decision.confidence,
-                speech_density=decision.speech_density,
-                ocr_density=decision.ocr_density,
-                routing_notes=decision.routing_notes,
-                decided_at=decision.decided_at,
-            )
-            session.add(db_decision)
-        session.commit()
-
-        # Step 12: Update job status
-        job.status = "classified"
-        session.commit()
-
-        # Step 13: Log decision
-        logger.info(
-            "RouterDecision for job %s: route=%s confidence=%.2f",
-            job_id,
-            decision.primary_route,
-            decision.confidence,
-        )
-
-        # Step 14: Return result
-        # Dispatch extractors in parallel after classification.
-        # ASR and OCR run as a Celery group (parallel).
-        # Audio classifier runs on the fast queue.
-        # All three complete before build_timeline callback runs.
-        from celery import chord, group
-
-        from ytclfr.tasks.align import build_timeline
-        from ytclfr.tasks.extract import (
-            run_asr,
-            run_audio_classifier,
-            run_ocr,
-        )
-
-        extractor_group = group(
-            run_asr.s(job_id),
-            run_ocr.s(job_id),
-            run_audio_classifier.s(job_id),
-        )
-        chord(extractor_group)(build_timeline.s(job_id))
-
-        # Update job status to "extracting"
-        job.status = "extracting"
-        session.commit()
-
-        return {
-            "job_id": job_id,
-            "status": "classified",
-            "route": decision.primary_route,
-            "confidence": decision.confidence,
-        }
-
-    except ValueError:
-        # Non-retryable: job not found
-        session.rollback()
-        return {
-            "job_id": job_id,
-            "status": "failed",
-            "error": f"Job not found: {job_id}",
-        }
-
-    except Exception as exc:
-        # Retryable error
-        session.rollback()
-        try:
-            job = session.query(Job).filter(Job.id == job_uuid).first()
-            if job:
-                job.status = "failed"
-                job.error_message = str(exc)
-                session.commit()
-        except Exception:
-            pass
-        raise self.retry(exc=exc)
-
-    finally:
-        session.close()
+        except Exception as exc:
+            # Retryable error
+            session.rollback()
+            try:
+                job = session.query(Job).filter(Job.id == job_uuid).first()
+                if job:
+                    job.status = "failed"
+                    job.error_message = str(exc)
+                    session.commit()
+            except Exception:
+                pass
+            raise self.retry(exc=exc)

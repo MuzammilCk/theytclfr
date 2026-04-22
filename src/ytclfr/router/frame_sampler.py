@@ -1,17 +1,21 @@
-"""Extract evenly-spaced frames from a video file via ffmpeg subprocess."""
+"""Extract evenly-spaced frames from a video file via ffmpeg subprocess.
+
+Uses a single ffmpeg call instead of N separate calls, reducing
+subprocess overhead from O(N) to O(1).
+"""
 
 import json
-import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from ytclfr.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class FrameSamplerError(Exception):
     """Raised when frame sampling fails."""
-
     pass
 
 
@@ -31,8 +35,9 @@ def sample_frames(
 ) -> SampledFrames:
     """Extract N evenly-spaced frames from a video file.
 
-    Uses ffprobe to determine duration, then ffmpeg to extract
-    individual frames at calculated timestamps.
+    Uses a single ffmpeg call with the fps filter to extract all
+    frames in one subprocess, eliminating the O(N) subprocess
+    overhead of calling ffmpeg once per frame.
 
     Args:
         video_path: Path to the video file.
@@ -40,40 +45,81 @@ def sample_frames(
         sample_count: Number of frames to extract.
 
     Returns:
-        SampledFrames with paths to extracted frames.
+        SampledFrames with paths to extracted frames and duration.
 
     Raises:
         FrameSamplerError: If ffprobe fails or no frames extracted.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Get video duration via ffprobe
     duration = _get_video_duration(video_path)
 
-    # Calculate evenly-spaced timestamps
-    interval = duration / (sample_count + 1)
-    timestamps = [interval * i for i in range(1, sample_count + 1)]
+    if duration <= 0:
+        raise FrameSamplerError(
+            f"Video {video_path} has zero or negative duration: "
+            f"{duration}s"
+        )
 
-    # Extract frames at each timestamp
-    frame_paths: list[Path] = []
-    for i, timestamp in enumerate(timestamps):
-        frame_path = output_dir / f"frame_{i:03d}.jpg"
-        success = _extract_frame(video_path, timestamp, frame_path)
-        if success:
-            frame_paths.append(frame_path)
-        else:
-            logger.debug(
-                "Failed to extract frame %d at %.2fs from %s",
-                i,
-                timestamp,
-                video_path,
-            )
+    # Calculate the fps value needed to extract exactly sample_count
+    # frames evenly distributed across the video.
+    # fps = sample_count / duration gives one frame every
+    # (duration / sample_count) seconds.
+    fps_value = sample_count / duration
+
+    output_pattern = str(output_dir / "frame_%03d.jpg")
+
+    cmd = [
+        "ffmpeg",
+        "-i", str(video_path),
+        "-vf", f"fps={fps_value:.6f}",
+        "-frames:v", str(sample_count),
+        "-q:v", "2",
+        "-y",
+        output_pattern,
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+        )
+    except FileNotFoundError as exc:
+        raise FrameSamplerError(
+            "ffmpeg not found. Ensure ffmpeg is installed and in PATH."
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise FrameSamplerError(
+            f"ffmpeg timed out extracting frames from {video_path}"
+        ) from exc
+
+    if result.returncode != 0:
+        logger.warning(
+            "ffmpeg frame extraction returned non-zero exit code %d "
+            "for %s: %s",
+            result.returncode,
+            video_path,
+            result.stderr[:500],
+        )
+
+    frame_paths = sorted(output_dir.glob("frame_*.jpg"))
 
     if not frame_paths:
         raise FrameSamplerError(
             f"No frames could be extracted from {video_path}. "
-            f"Attempted {sample_count} frames over {duration:.1f}s duration."
+            f"Attempted {sample_count} frames over {duration:.1f}s. "
+            f"ffmpeg stderr: {result.stderr[:300] if result else 'N/A'}"
         )
+
+    logger.debug(
+        "Extracted %d frames from %s (%.1fs duration, target=%d)",
+        len(frame_paths),
+        video_path.name,
+        duration,
+        sample_count,
+    )
 
     return SampledFrames(
         frame_paths=frame_paths,
@@ -90,10 +136,8 @@ def _get_video_duration(video_path: Path) -> float:
     """
     cmd = [
         "ffprobe",
-        "-v",
-        "quiet",
-        "-print_format",
-        "json",
+        "-v", "quiet",
+        "-print_format", "json",
         "-show_format",
         str(video_path),
     ]
@@ -111,12 +155,14 @@ def _get_video_duration(video_path: Path) -> float:
             "ffprobe not found. Ensure ffmpeg is installed and in PATH."
         ) from exc
     except subprocess.TimeoutExpired as exc:
-        raise FrameSamplerError(f"ffprobe timed out reading {video_path}") from exc
+        raise FrameSamplerError(
+            f"ffprobe timed out reading {video_path}"
+        ) from exc
 
     if result.returncode != 0:
         raise FrameSamplerError(
             f"ffprobe failed with code {result.returncode} "
-            f"for {video_path}: {result.stderr}"
+            f"for {video_path}: {result.stderr[:300]}"
         )
 
     try:
@@ -128,34 +174,3 @@ def _get_video_duration(video_path: Path) -> float:
             f"Could not parse video duration from ffprobe output "
             f"for {video_path}: {exc}"
         ) from exc
-
-
-def _extract_frame(video_path: Path, timestamp: float, output_path: Path) -> bool:
-    """Extract a single frame at the given timestamp.
-
-    Returns True if the frame was successfully extracted.
-    """
-    cmd = [
-        "ffmpeg",
-        "-ss",
-        str(timestamp),
-        "-i",
-        str(video_path),
-        "-vframes",
-        "1",
-        "-q:v",
-        "2",
-        str(output_path),
-    ]
-
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=30,
-        )
-        return result.returncode == 0 and output_path.exists()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return False

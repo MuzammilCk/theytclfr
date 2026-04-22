@@ -430,3 +430,58 @@ Scope creep rejected:
 Next session must start by:
   - Reading all four control files
   - Beginning Phase 6: Temporal Alignment Layer
+
+## 2026-04-22 — Session 14 — Pre-Phase-6 Critical Bug Fix Session
+Phase: Phase 5 — Worker Queue + Parallel Extractor (post-phase hardening)
+Files changed:
+  src/ytclfr/db/session.py,
+  src/ytclfr/tasks/ingest.py,
+  src/ytclfr/tasks/route.py,
+  src/ytclfr/tasks/extract.py,
+  src/ytclfr/tasks/align.py,
+  src/ytclfr/queue/celery_app.py,
+  src/ytclfr/db/models/extractor_result.py,
+  src/ytclfr/router/frame_sampler.py,
+  src/ytclfr/api/main.py
+Completed:
+  - FIX 01: SessionLocal.configure() moved into _get_engine() —
+    now called exactly once on initialization, not on every request.
+  - FIX 02: Replaced db_gen/next(db_gen) generator hack with
+    db_session() context manager in ingest.py, route.py,
+    extract.py, and align.py. Generator finalizer now executes
+    correctly. Connection and memory leaks eliminated.
+  - FIX 03: Added @setup_logging.connect signal hook in
+    celery_app.py. Celery workers now use the project's
+    configured JSON/human-readable logger. Worker errors are
+    visible and structured.
+  - FIX 04: Replaced bare raise self.retry(exc=exc) on final
+    retry in all three extractor tasks (run_asr, run_ocr,
+    run_audio_classifier) with soft error dict return. Chord
+    callback build_timeline now always fires even when an
+    extractor exhausts retries. Zombie "extracting" job state
+    eliminated.
+  - FIX 05: Replaced bare except Exception in
+    _persist_extractor_error with logger.critical() call.
+    Error record loss events are now visible in logs.
+  - FIX 06: Moved inline imports to module level —
+    from typing import Any out of ExtractorResultModel class
+    body in extractor_result.py; from datetime import UTC,
+    datetime out of _persist_extractor_error in extract.py.
+  - FIX 07: Replaced O(N) ffmpeg subprocess loop in
+    frame_sampler.py with a single ffmpeg call using the fps
+    filter. Video decoder now opened once per sample_frames()
+    call regardless of sample count.
+  - FIX 08: Replaced deprecated @app.on_event("startup") in
+    main.py with asynccontextmanager lifespan pattern.
+  - Verified: ruff check src/ tests/ zero errors
+  - Verified: mypy src/ zero errors
+  - Verified: pytest tests/unit/ all passing
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 6: Temporal Alignment Layer

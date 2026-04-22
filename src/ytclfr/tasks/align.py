@@ -1,6 +1,9 @@
+import uuid
 from typing import Any
 
 from ytclfr.core.logging import get_logger
+from ytclfr.db.models.job import Job
+from ytclfr.db.session import db_session
 from ytclfr.queue.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -26,39 +29,27 @@ def build_timeline(
           ExtractorResult dicts from the parallel group.
         job_id: String UUID of the job being processed.
     """
-    import uuid
-
-    from ytclfr.db.models.job import Job
-    from ytclfr.db.session import get_db
-
     job_uuid = uuid.UUID(job_id)
 
-
-    db_gen = get_db()
-    session = next(db_gen)
-
-    try:
-        job = session.query(Job).filter(Job.id == job_uuid).first()
+    with db_session() as session:
+        job = session.query(Job).filter(
+            Job.id == job_uuid
+        ).first()
         if job:
             job.status = "aligning"
             session.commit()
 
-        logger.info(
-            "Alignment chord callback received "
-            "%d extractor results for job %s. "
-            "Full alignment deferred to Phase 6.",
-            len(extractor_results),
-            job_id,
-        )
+    logger.info(
+        "Alignment chord callback received %d extractor results "
+        "for job %s. Full alignment deferred to Phase 6.",
+        len(extractor_results),
+        job_id,
+    )
 
-        # PHASE-6-TODO: Build unified aligned timeline
-        # from extractor_results here.
+    # PHASE-6-TODO: Build unified aligned timeline here.
 
-        return {
-            "job_id": job_id,
-            "status": "aligning",
-            "extractor_count": len(extractor_results),
-        }
-
-    finally:
-        session.close()
+    return {
+        "job_id": job_id,
+        "status": "aligning",
+        "extractor_count": len(extractor_results),
+    }

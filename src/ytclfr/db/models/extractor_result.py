@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -29,7 +30,6 @@ class ExtractorResultModel(Base):
     # (e.g., retry produces a new result).
     # The temporal alignment layer reads the latest
     # by created_at per (job_id, extractor_type).
-    from typing import Any
     segments_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     total_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

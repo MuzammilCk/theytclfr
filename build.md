@@ -191,6 +191,15 @@ Test stack:
   pytest: dead-letter routing test
   integration test on 3 short video clips
 
+Post-phase hardening fixes applied (Session 14):
+  - DB session generator leak (FIX 01, FIX 02)
+  - Celery worker logging observability (FIX 03)
+  - Chord zombie job state (FIX 04)
+  - Silent error persistence failure (FIX 05)
+  - Inline import locations (FIX 06)
+  - O(N) ffmpeg subprocess loop (FIX 07)
+  - Deprecated FastAPI on_event (FIX 08)
+
 ---
 
 ### Phase 6 — Temporal Alignment Layer

@@ -29,10 +29,22 @@ def _mock_ffmpeg_success(tmp_path: Path) -> MagicMock:
         cmd = args[0] if args else kwargs.get("args", [])
         # If this is an ffmpeg call (not ffprobe), create the output file
         if cmd and cmd[0] == "ffmpeg":
-            # The output path is the last argument
-            output_path = Path(cmd[-1])
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_bytes(b"\xff\xd8\xff\xe0")  # JPEG header
+            output_path_pattern = cmd[-1]
+            output_dir = Path(output_path_pattern).parent
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            num_frames = 1
+            if "-frames:v" in cmd:
+                idx = cmd.index("-frames:v")
+                num_frames = int(cmd[idx + 1])
+
+            if "%03d" in output_path_pattern:
+                for i in range(1, num_frames + 1):
+                    actual_path = output_dir / f"frame_{i:03d}.jpg"
+                    actual_path.write_bytes(b"\xff\xd8\xff\xe0")
+            else:
+                Path(output_path_pattern).write_bytes(b"\xff\xd8\xff\xe0")
+
             result = MagicMock()
             result.returncode = 0
             return result

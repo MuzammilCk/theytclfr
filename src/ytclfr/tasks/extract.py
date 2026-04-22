@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,7 @@ from ytclfr.db.models.extractor_result import (
     ExtractorResultModel,
 )
 from ytclfr.db.models.job import Job
-from ytclfr.db.session import get_db
+from ytclfr.db.session import db_session
 from ytclfr.extractors.base import BaseExtractorTask
 from ytclfr.queue.celery_app import celery_app
 
@@ -32,41 +33,50 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
 
     job_uuid = uuid.UUID(job_id)
 
-    db_gen = get_db()
-    session = next(db_gen)
+    with db_session() as session:
+        try:
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if not job or not job.local_media_path:
+                raise ValueError(f"Job {job_id} not found or has no media path")
 
-    try:
-        job = session.query(Job).filter(Job.id == job_uuid).first()
-        if not job or not job.local_media_path:
-            raise ValueError(f"Job {job_id} not found or has no media path")
+            from ytclfr.extractors.asr import (
+                get_asr_extractor,
+            )
 
-        from ytclfr.extractors.asr import (
-            get_asr_extractor,
-        )
+            extractor = get_asr_extractor()
+            result = extractor.extract(
+                job_id=job_uuid,
+                video_path=Path(job.local_media_path),
+            )
 
-        extractor = get_asr_extractor()
-        result = extractor.extract(
-            job_id=job_uuid,
-            video_path=Path(job.local_media_path),
-        )
+            _persist_extractor_result(session, result)
+            session.commit()
 
-        _persist_extractor_result(session, result)
-        session.commit()
+            logger.info(
+                "ASR extraction complete for job %s: %d segments",
+                job_id,
+                len(result.segments),
+            )
+            return result.model_dump(mode="json")
 
-        logger.info(
-            "ASR extraction complete for job %s: %d segments",
-            job_id,
-            len(result.segments),
-        )
-        return result.model_dump(mode="json")
-
-    except Exception as exc:
-        session.rollback()
-        _persist_extractor_error(session, job_uuid, "asr", str(exc))
-        raise self.retry(exc=exc)
-
-    finally:
-        session.close()
+        except Exception as exc:
+            session.rollback()
+            if self.request.retries >= self.max_retries:
+                _persist_extractor_error(
+                    session, job_uuid, "asr", str(exc)
+                )
+                logger.error(
+                    "Extractor asr exhausted all retries for job %s: %s",
+                    job_id,
+                    str(exc),
+                )
+                return {
+                    "job_id": job_id,
+                    "extractor_type": "asr",
+                    "error": str(exc),
+                    "segments": [],
+                }
+            raise self.retry(exc=exc)
 
 
 @celery_app.task(  # type: ignore
@@ -85,49 +95,58 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
     settings = get_settings()
     job_uuid = uuid.UUID(job_id)
 
-    db_gen = get_db()
-    session = next(db_gen)
+    with db_session() as session:
+        try:
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if not job or not job.local_media_path:
+                raise ValueError(f"Job {job_id} not found or has no media path")
 
-    try:
-        job = session.query(Job).filter(Job.id == job_uuid).first()
-        if not job or not job.local_media_path:
-            raise ValueError(f"Job {job_id} not found or has no media path")
+            from ytclfr.ingestion.temp_storage import (
+                TempStorageManager,
+            )
 
-        from ytclfr.ingestion.temp_storage import (
-            TempStorageManager,
-        )
+            temp_manager = TempStorageManager(settings)
+            ocr_frames_dir = temp_manager.get_job_dir(job_uuid) / "ocr_frames"
 
-        temp_manager = TempStorageManager(settings)
-        ocr_frames_dir = temp_manager.get_job_dir(job_uuid) / "ocr_frames"
+            from ytclfr.extractors.ocr import (
+                get_ocr_extractor,
+            )
 
-        from ytclfr.extractors.ocr import (
-            get_ocr_extractor,
-        )
+            extractor = get_ocr_extractor()
+            result = extractor.extract(
+                job_id=job_uuid,
+                video_path=Path(job.local_media_path),
+                output_dir=ocr_frames_dir,
+            )
 
-        extractor = get_ocr_extractor()
-        result = extractor.extract(
-            job_id=job_uuid,
-            video_path=Path(job.local_media_path),
-            output_dir=ocr_frames_dir,
-        )
+            _persist_extractor_result(session, result)
+            session.commit()
 
-        _persist_extractor_result(session, result)
-        session.commit()
+            logger.info(
+                "OCR extraction complete for job %s: %d segments",
+                job_id,
+                len(result.segments),
+            )
+            return result.model_dump(mode="json")
 
-        logger.info(
-            "OCR extraction complete for job %s: %d segments",
-            job_id,
-            len(result.segments),
-        )
-        return result.model_dump(mode="json")
-
-    except Exception as exc:
-        session.rollback()
-        _persist_extractor_error(session, job_uuid, "ocr", str(exc))
-        raise self.retry(exc=exc)
-
-    finally:
-        session.close()
+        except Exception as exc:
+            session.rollback()
+            if self.request.retries >= self.max_retries:
+                _persist_extractor_error(
+                    session, job_uuid, "ocr", str(exc)
+                )
+                logger.error(
+                    "Extractor ocr exhausted all retries for job %s: %s",
+                    job_id,
+                    str(exc),
+                )
+                return {
+                    "job_id": job_id,
+                    "extractor_type": "ocr",
+                    "error": str(exc),
+                    "segments": [],
+                }
+            raise self.retry(exc=exc)
 
 
 @celery_app.task(  # type: ignore
@@ -145,42 +164,51 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
     """
     job_uuid = uuid.UUID(job_id)
 
-    db_gen = get_db()
-    session = next(db_gen)
+    with db_session() as session:
+        try:
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
 
-    try:
-        job = session.query(Job).filter(Job.id == job_uuid).first()
-        if not job:
-            raise ValueError(f"Job {job_id} not found")
+            from ytclfr.extractors.audio_classifier import (
+                classify_audio_from_metadata,
+            )
 
-        from ytclfr.extractors.audio_classifier import (
-            classify_audio_from_metadata,
-        )
+            meta = job.metadata_raw if isinstance(job.metadata_raw, dict) else {}
+            result = classify_audio_from_metadata(
+                job_id=job_uuid,
+                metadata_raw=meta,
+            )
 
-        meta = job.metadata_raw if isinstance(job.metadata_raw, dict) else {}
-        result = classify_audio_from_metadata(
-            job_id=job_uuid,
-            metadata_raw=meta,
-        )
+            _persist_extractor_result(session, result)
+            session.commit()
 
-        _persist_extractor_result(session, result)
-        session.commit()
+            logger.info(
+                "Audio classification complete for job %s: label=%s confidence=%.2f",
+                job_id,
+                result.segments[0].text if result.segments else "unknown",
+                result.segments[0].confidence if result.segments else 0.0,
+            )
+            return result.model_dump(mode="json")
 
-        logger.info(
-            "Audio classification complete for job %s: label=%s confidence=%.2f",
-            job_id,
-            result.segments[0].text if result.segments else "unknown",
-            result.segments[0].confidence if result.segments else 0.0,
-        )
-        return result.model_dump(mode="json")
-
-    except Exception as exc:
-        session.rollback()
-        _persist_extractor_error(session, job_uuid, "audio", str(exc))
-        raise self.retry(exc=exc)
-
-    finally:
-        session.close()
+        except Exception as exc:
+            session.rollback()
+            if self.request.retries >= self.max_retries:
+                _persist_extractor_error(
+                    session, job_uuid, "audio", str(exc)
+                )
+                logger.error(
+                    "Extractor audio exhausted all retries for job %s: %s",
+                    job_id,
+                    str(exc),
+                )
+                return {
+                    "job_id": job_id,
+                    "extractor_type": "audio",
+                    "error": str(exc),
+                    "segments": [],
+                }
+            raise self.retry(exc=exc)
 
 
 # ── Private helpers ────────────────────────────────
@@ -215,7 +243,6 @@ def _persist_extractor_error(
     Commits immediately — separate from the main
     transaction that may have been rolled back.
     """
-    from datetime import UTC, datetime
 
     try:
         db_result = ExtractorResultModel(
@@ -228,5 +255,15 @@ def _persist_extractor_error(
         )
         session.add(db_result)
         session.commit()
-    except Exception:
+    except Exception as persist_exc:
         session.rollback()
+        logger.critical(
+            "Failed to persist extractor error state to DB. "
+            "Error record is lost.",
+            exc_info=persist_exc,
+            extra={
+                "job_id": str(job_id),
+                "extractor_type": extractor_type,
+                "original_error": error_message,
+            },
+        )

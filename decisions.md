@@ -213,3 +213,19 @@ Context: Phase 5 adds three new Celery extractor tasks (ASR, OCR, audio classifi
 Decision: A BaseExtractorTask(Task) class in extractors/base.py provides shared on_failure() and on_retry() hooks with structured logging. All extractor tasks set base=BaseExtractorTask in their decorator. Individual extractors (ASR, OCR, audio) are implemented as plain Python classes (not Celery tasks). Celery task wrappers in tasks/extract.py call the extractor classes. This keeps the extractor logic independently testable without Celery overhead.
 Consequences: Extractor logic is fully testable without Celery. New extractors (YAMNet, object detection) added in V2 follow the same pattern. BaseExtractorTask is abstract=True so it cannot be used as a task itself.
 Supersedes: NONE
+
+## DR-14 — Celery task DB session pattern (context manager)
+Date: 2026-04-22
+Status: ACCEPTED
+Context: All Celery tasks were using a generator-based session
+  acquisition pattern (db_gen = get_db(); session = next(db_gen))
+  that left the generator's internal finally block unexecuted,
+  causing memory and connection leaks in long-running workers.
+Decision: All Celery tasks use the db_session() context manager
+  exclusively. get_db() remains for FastAPI dependency injection
+  only. db_session() is the single approved pattern for use in
+  Celery tasks, scripts, and any non-FastAPI context.
+Consequences: Generator leaks eliminated. Session lifecycle is
+  guaranteed by the context manager's finally block. No manual
+  session.close() calls in task code.
+Supersedes: NONE

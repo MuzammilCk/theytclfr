@@ -1,7 +1,9 @@
 from celery import Celery
+from celery.signals import setup_logging
 from kombu import Queue
 
 from ytclfr.core.config import Settings, get_settings
+from ytclfr.core.logging import configure_logging
 
 
 def build_celery_app(settings: Settings) -> Celery:
@@ -22,6 +24,22 @@ def build_celery_app(settings: Settings) -> Celery:
         broker_connection_retry_on_startup=True,
     )
     return app
+
+
+@setup_logging.connect  # type: ignore
+def config_celery_logging(**kwargs: object) -> None:
+    """Configure structured logging for Celery worker processes.
+
+    Connected to Celery's setup_logging signal which fires during
+    worker process initialization. This ensures the same JSON/
+    human-readable logging configuration used by the FastAPI
+    application is applied consistently to all worker processes.
+
+    Without this hook, workers use Celery's default unstructured
+    logging and crash/error messages are invisible to log
+    aggregation systems.
+    """
+    configure_logging(get_settings())
 
 
 celery_app = build_celery_app(get_settings())

@@ -8,11 +8,11 @@ def test_run_asr_calls_asr_extractor_and_persists_result():
     job_uuid = uuid4()
     with (
         patch("ytclfr.tasks.extract.get_settings"),
-        patch("ytclfr.tasks.extract.get_db") as mock_get_db,
+        patch("ytclfr.tasks.extract.db_session") as mock_db_session,
         patch("ytclfr.extractors.asr.get_asr_extractor") as mock_get_asr,
     ):
         mock_session = MagicMock()
-        mock_get_db.return_value = iter([mock_session])
+        mock_db_session.return_value.__enter__.return_value = mock_session
 
         mock_job = MagicMock()
         mock_job.local_media_path = "fake.mp4"
@@ -39,12 +39,12 @@ def test_run_ocr_calls_ocr_extractor_and_persists_result():
     job_uuid = uuid4()
     with (
         patch("ytclfr.tasks.extract.get_settings"),
-        patch("ytclfr.tasks.extract.get_db") as mock_get_db,
+        patch("ytclfr.tasks.extract.db_session") as mock_db_session,
         patch("ytclfr.ingestion.temp_storage.TempStorageManager"),
         patch("ytclfr.extractors.ocr.get_ocr_extractor") as mock_get_ocr,
     ):
         mock_session = MagicMock()
-        mock_get_db.return_value = iter([mock_session])
+        mock_db_session.return_value.__enter__.return_value = mock_session
 
         mock_job = MagicMock()
         mock_job.local_media_path = "fake.mp4"
@@ -71,12 +71,12 @@ def test_run_asr_retries_on_unexpected_exception():
     job_uuid = uuid4()
     with (
         patch("ytclfr.tasks.extract.get_settings"),
-        patch("ytclfr.tasks.extract.get_db") as mock_get_db,
+        patch("ytclfr.tasks.extract.db_session") as mock_db_session,
         patch("ytclfr.extractors.asr.get_asr_extractor") as mock_get_asr,
         patch("ytclfr.tasks.extract.run_asr.retry") as mock_retry,
     ):
         mock_session = MagicMock()
-        mock_get_db.return_value = iter([mock_session])
+        mock_db_session.return_value.__enter__.return_value = mock_session
 
         mock_job = MagicMock()
         mock_job.local_media_path = "fake.mp4"
@@ -102,13 +102,13 @@ def test_run_asr_retries_on_unexpected_exception():
 def test_run_audio_classifier_uses_job_metadata():
     job_uuid = uuid4()
     with (
-        patch("ytclfr.tasks.extract.get_db") as mock_get_db,
+        patch("ytclfr.tasks.extract.db_session") as mock_db_session,
         patch(
             "ytclfr.extractors.audio_classifier.classify_audio_from_metadata"
         ) as mock_classify,
     ):
         mock_session = MagicMock()
-        mock_get_db.return_value = iter([mock_session])
+        mock_db_session.return_value.__enter__.return_value = mock_session
 
         mock_job = MagicMock()
         meta = {"acodec": "aac"}
