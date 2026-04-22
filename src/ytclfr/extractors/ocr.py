@@ -43,6 +43,10 @@ class OCRExtractor:
 
         cmd = [
             "ffmpeg",
+            "-threads",
+            "2",       # TUNABLE: cap ffmpeg thread usage on
+                       # single-machine deployments where faster-
+                       # whisper runs concurrently on the same CPU.
             "-i",
             str(video_path),
             "-vf",

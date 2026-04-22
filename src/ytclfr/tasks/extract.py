@@ -75,6 +75,8 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
                     "extractor_type": "asr",
                     "error": str(exc),
                     "segments": [],
+                    "total_duration_seconds": 0.0,
+                    "extracted_at": datetime.now(UTC).isoformat(),
                 }
             raise self.retry(exc=exc)
 
@@ -145,6 +147,8 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
                     "extractor_type": "ocr",
                     "error": str(exc),
                     "segments": [],
+                    "total_duration_seconds": 0.0,
+                    "extracted_at": datetime.now(UTC).isoformat(),
                 }
             raise self.retry(exc=exc)
 
@@ -207,6 +211,8 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
                     "extractor_type": "audio",
                     "error": str(exc),
                     "segments": [],
+                    "total_duration_seconds": 0.0,
+                    "extracted_at": datetime.now(UTC).isoformat(),
                 }
             raise self.retry(exc=exc)
 

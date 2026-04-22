@@ -485,3 +485,36 @@ Scope creep rejected:
 Next session must start by:
   - Reading all four control files
   - Beginning Phase 6: Temporal Alignment Layer
+
+## 2026-04-22 — Session 15 — Pre-Phase-6 fix: soft-error dict schema compliance
+Phase: Phase 5 — Worker Queue + Parallel Extractor (pre-phase-6 patch)
+Files changed: src/ytclfr/tasks/extract.py
+Completed:
+  - Added total_duration_seconds: 0.0 and
+    extracted_at: datetime.now(UTC).isoformat() to
+    all three soft-error return dicts in run_asr,
+    run_ocr, and run_audio_classifier.
+  - Soft-error dicts now pass ExtractorResult.model_validate()
+    without raising ValidationError.
+  - ruff, mypy, pytest all passing.
+Deferred: NONE
+Bugs found (not fixed): NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 6: Temporal Alignment Layer
+
+## 2026-04-22 — Session 16 — Pre-Phase-6 fix: ffmpeg thread limit in OCR extractor
+Phase: Phase 5 — Worker Queue + Parallel Extractor (pre-phase-6 patch)
+Files changed: src/ytclfr/extractors/ocr.py
+Completed:
+  - Added -threads 2 flag to ffmpeg command in
+    OCRExtractor._extract_frames().
+  - Prevents CPU saturation when faster-whisper and
+    ffmpeg run concurrently on a single-machine worker
+    with worker_concurrency=2.
+  - ruff, mypy, pytest all passing.
+Deferred: NONE
+Bugs found (not fixed): NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 6: Temporal Alignment Layer
