@@ -3,7 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from ytclfr.contracts.extractor import (
-    ASRSegment,
+    AudioSegment,
     ExtractorResult,
 )
 from ytclfr.core.logging import get_logger
@@ -23,8 +23,8 @@ def classify_audio_from_metadata(
     Wraps the router's AudioCheckResult in an ExtractorResult
     so audio classification fits the standard pipeline
     contract. The classification is stored as a single
-    ASRSegment with text = "speech" or "music" and
-    confidence from the heuristic.
+    AudioSegment with label = "speech", "music", or "no_audio"
+    and confidence from the heuristic.
 
     This is the V1 heuristic implementation. The function
     signature and return contract are stable — the
@@ -39,10 +39,14 @@ def classify_audio_from_metadata(
         metadata_raw: yt-dlp info dict from job.metadata_raw.
 
     Returns:
-        ExtractorResult with extractor_type="asr" containing
-        a single segment whose text is "speech" or "music".
+        ExtractorResult with extractor_type="audio" containing
+        a single AudioSegment with the classification label.
     """
     audio = check_audio_from_metadata(metadata_raw)
+
+    codec = metadata_raw.get("acodec")
+    bitrate_raw = metadata_raw.get("abr")
+    bitrate_kbps = float(bitrate_raw) if bitrate_raw is not None else None
 
     if not audio.has_audio:
         label = "no_audio"
@@ -54,18 +58,17 @@ def classify_audio_from_metadata(
         label = "speech"
         confidence = 0.70
 
-    segment = ASRSegment(
-        segment_type="asr",
-        start_time=0.0,
-        end_time=0.0,
-        text=label,
+    segment = AudioSegment(
+        segment_type="audio",
+        label=label,
         confidence=confidence,
-        words=[],
+        codec=codec if codec != "none" else None,
+        bitrate_kbps=bitrate_kbps,
     )
 
     return ExtractorResult(
         job_id=job_id,
-        extractor_type="asr",
+        extractor_type="audio",
         segments=[segment],
         total_duration_seconds=float(metadata_raw.get("duration", 0.0) or 0.0),
         extracted_at=datetime.now(UTC),

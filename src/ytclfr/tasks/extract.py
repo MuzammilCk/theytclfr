@@ -186,7 +186,7 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
             logger.info(
                 "Audio classification complete for job %s: label=%s confidence=%.2f",
                 job_id,
-                result.segments[0].text if result.segments else "unknown",
+                result.segments[0].label if result.segments else "unknown",  # type: ignore[union-attr]
                 result.segments[0].confidence if result.segments else 0.0,
             )
             return result.model_dump(mode="json")
