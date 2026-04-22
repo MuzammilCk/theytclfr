@@ -32,6 +32,7 @@ dev = [
     "pytest-asyncio",
     "ruff",
     "mypy",
+    "hypothesis",
 ]
 
 [tool.hatch.build.targets.wheel]

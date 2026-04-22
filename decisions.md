@@ -229,3 +229,36 @@ Consequences: Generator leaks eliminated. Session lifecycle is
   guaranteed by the context manager's finally block. No manual
   session.close() calls in task code.
 Supersedes: NONE
+
+## DR-15 — Property-based testing with hypothesis
+Date: 2026-04-22
+Status: ACCEPTED
+Context: Phase 6 temporal alignment layer requires property-based
+  tests for overlap edge cases per the architecture plan. The
+  hypothesis library is the standard Python property-based testing
+  framework and integrates natively with pytest.
+Decision: hypothesis added to pyproject.toml dev dependencies.
+  Used exclusively in Phase 6 alignment overlap tests. Not a
+  runtime dependency.
+Consequences: Adds one dev-only dependency. Enables exhaustive
+  edge-case testing for interval merge logic. No runtime impact.
+Supersedes: NONE
+
+## DR-16 — Temporal alignment as pure computation module
+Date: 2026-04-22
+Status: ACCEPTED
+Context: Phase 6 builds the temporal alignment layer. The
+  alignment logic could be embedded in the Celery task or
+  extracted as a standalone module. Embedding couples the
+  logic to Celery and makes it untestable without task
+  infrastructure.
+Decision: Alignment logic lives in src/ytclfr/alignment/ as
+  pure Python functions with zero Celery or DB dependencies.
+  The existing build_timeline Celery task in tasks/align.py
+  calls alignment.engine.align() and handles DB status
+  updates. This separation mirrors the extractor pattern
+  from DR-13.
+Consequences: Alignment logic is fully testable without
+  Celery or DB. Pure functions are deterministic and
+  reproducible. The Celery task is a thin wrapper only.
+Supersedes: NONE

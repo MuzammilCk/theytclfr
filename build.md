@@ -1,13 +1,14 @@
 # build.md
 
-CURRENT PHASE: 6 — Temporal Alignment Layer
-STATUS: IN PROGRESS
+CURRENT PHASE: 7 — Confidence Controller
+STATUS: NOT STARTED
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
 (Phase 2 — Ingestion + Temporary Storage: COMPLETE)
 (Phase 3 — Authentication Layer: COMPLETE)
 (Phase 4 — Preflight Router: COMPLETE)
 (Phase 5 — Worker Queue + Parallel Extractor Infrastructure: COMPLETE)
+(Phase 6 — Temporal Alignment Layer: COMPLETE)
 
 ## Phase List
 
@@ -204,21 +205,21 @@ Post-phase hardening fixes applied (Session 14):
 
 ### Phase 6 — Temporal Alignment Layer
 Goal: Combine transcript, OCR, and audio outputs into one shared timeline.
-Status: [ ] In Progress
+Status: [x] Complete
 
 Build:
-  [ ] Timestamp normalization (common time unit)
-  [ ] Overlap detection and resolution
-  [ ] Duplicate evidence merge logic
-  [ ] Segment creation from aligned evidence
-  [ ] AlignedSegment output matching Phase 1 schema
+  [x] Timestamp normalization (common time unit)
+  [x] Overlap detection and resolution
+  [x] Duplicate evidence merge logic
+  [x] Segment creation from aligned evidence
+  [x] AlignedSegment output matching Phase 1 schema
 
 Definition of Done:
-  [ ] One shared timeline exists per video
-  [ ] Overlaps resolved deterministically
-  [ ] Duplicate evidence collapsed
-  [ ] Same input always produces identical output (reproducible)
-  [ ] AlignedSegment conforms to Phase 1 schema
+  [x] One shared timeline exists per video
+  [x] Overlaps resolved deterministically
+  [x] Duplicate evidence collapsed
+  [x] Same input always produces identical output (reproducible)
+  [x] AlignedSegment conforms to Phase 1 schema
 
 Test stack:
   pytest: interval merge tests

@@ -20,10 +20,6 @@ def build_timeline(
     """Chord callback: receives all extractor results
     and builds the unified aligned timeline.
 
-    In Phase 5, this is a stub that logs receipt and
-    updates job status to "aligning". The full
-    temporal alignment logic is implemented in Phase 6.
-
     Args:
         extractor_results: List of serialized
           ExtractorResult dicts from the parallel group.
@@ -39,17 +35,30 @@ def build_timeline(
             job.status = "aligning"
             session.commit()
 
-    logger.info(
-        "Alignment chord callback received %d extractor results "
-        "for job %s. Full alignment deferred to Phase 6.",
-        len(extractor_results),
-        job_id,
+    # Run the alignment engine
+    from ytclfr.alignment.engine import align
+
+    timeline = align(
+        job_id=job_uuid,
+        extractor_results=extractor_results,
     )
 
-    # PHASE-6-TODO: Build unified aligned timeline here.
+    # Update job status to aligned
+    with db_session() as session:
+        job = session.query(Job).filter(
+            Job.id == job_uuid
+        ).first()
+        if job:
+            job.status = "aligned"
+            session.commit()
 
-    return {
-        "job_id": job_id,
-        "status": "aligning",
-        "extractor_count": len(extractor_results),
-    }
+    logger.info(
+        "Alignment complete for job %s: %d segments, has_gaps=%s",
+        job_id,
+        timeline.total_segments,
+        timeline.has_gaps,
+    )
+
+    # PHASE-8-TODO: Persist AlignedTimeline to database.
+
+    return timeline.model_dump(mode="json")

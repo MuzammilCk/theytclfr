@@ -518,3 +518,27 @@ Bugs found (not fixed): NONE
 Next session must start by:
   - Reading all four control files
   - Beginning Phase 6: Temporal Alignment Layer
+
+## 2026-04-22 — Session 17 — Phase 6 Temporal Alignment Layer complete
+Phase: Phase 6 — Temporal Alignment Layer
+Files changed: build.md, decisions.md, pyproject.toml, src/ytclfr/alignment/__init__.py, src/ytclfr/alignment/normalizer.py, src/ytclfr/alignment/overlap.py, src/ytclfr/alignment/deduplicator.py, src/ytclfr/alignment/segmenter.py, src/ytclfr/alignment/engine.py, src/ytclfr/tasks/align.py, tests/unit/alignment/__init__.py, tests/unit/alignment/test_normalizer.py, tests/unit/alignment/test_overlap.py, tests/unit/alignment/test_deduplicator.py, tests/unit/alignment/test_segmenter.py, tests/unit/alignment/test_engine.py, tests/unit/alignment/test_reproducibility.py, tests/integration/test_alignment_integration.py
+Completed:
+  - Part A: Added hypothesis to dev dependencies in pyproject.toml and documented in DR-15.
+  - Part B: normalizer.py implemented to cast extractor dicts to NormalizedEvidence.
+  - Part B: overlap.py implemented to detect and deterministically resolve overlaps keeping highest confidence items.
+  - Part B: deduplicator.py implemented with text similarity for merging cross-modal ASR/OCR evidence.
+  - Part B: segmenter.py implemented to output valid AlignedSegment objects.
+  - Part B: engine.py implemented as pure computation coordinator for the layer.
+  - Part B: build_timeline in tasks/align.py updated to run the engine.
+  - Part B: Added all required unit tests and integration test; full test suite passing.
+  - Part C: Appended DR-15 and DR-16 to decisions.md.
+  - Part C: Updated build.md marking Phase 6 as COMPLETE and transitioning to Phase 7.
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 7: Confidence Controller
