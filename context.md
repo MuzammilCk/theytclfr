@@ -200,8 +200,10 @@ REDIS_URL — Redis connection string (redis://host:port/db) — FastAPI, Celery
 
 ### Temporary Storage
 
-TEMP_MEDIA_PATH — Absolute filesystem path for temporary video/audio downloads — Celery Worker
-TEMP_MEDIA_MAX_AGE_SECONDS — Maximum age before temp files are auto-cleaned — Celery Worker
+AWS_ACCESS_KEY_ID - in .env file
+AWS_SECRET_ACCESS_KEY - in .env file
+AWS_REGION - in .env file
+S3_BUCKET_NAME - in .env file
 
 ### LLM / AI
 
