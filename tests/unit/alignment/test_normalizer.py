@@ -93,3 +93,30 @@ def test_normalize_sorts_by_start_sec():
 def test_normalize_empty_input():
     evidence = normalize_extractor_results([])
     assert len(evidence) == 0
+
+def test_normalize_multiple_results_unique_ids():
+    results = [
+        {
+            "extractor_type": "asr",
+            "error": None,
+            "segments": [
+                {"start_time": 0.0, "end_time": 1.0, "text": "a", "confidence": 0.9},
+                {"start_time": 1.0, "end_time": 2.0, "text": "b", "confidence": 0.9}
+            ]
+        },
+        {
+            "extractor_type": "asr",
+            "error": None,
+            "segments": [
+                {"start_time": 0.0, "end_time": 1.0, "text": "a", "confidence": 0.9}
+            ]
+        }
+    ]
+    evidence = normalize_extractor_results(results)
+    assert len(evidence) == 3
+    ids = [e.segment_id for e in evidence]
+    assert len(set(ids)) == 3, "Segment IDs must be unique across all results"
+    # Should be asr-0, asr-1, asr-2
+    assert "asr-0" in ids
+    assert "asr-1" in ids
+    assert "asr-2" in ids

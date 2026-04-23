@@ -23,7 +23,7 @@ def _do_overlap(a: NormalizedEvidence, b: NormalizedEvidence) -> bool:
 
     return False
 
-def detect_overlaps(
+def _detect_overlaps(
     evidence: list[NormalizedEvidence],
 ) -> list[tuple[NormalizedEvidence, NormalizedEvidence]]:
     """Detect temporal overlaps between NormalizedEvidence items."""

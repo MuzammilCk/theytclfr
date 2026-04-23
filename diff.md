@@ -542,3 +542,22 @@ Scope creep rejected:
 Next session must start by:
   - Reading all four control files
   - Beginning Phase 7: Confidence Controller
+
+---
+
+## 2026-04-22 — Session 16 — Post-Phase-6 Audit fixes
+Phase: Phase 6 — Temporal Alignment Layer
+Files changed: build.md, tests/unit/contracts/test_contracts.py, src/ytclfr/alignment/overlap.py, tests/unit/alignment/test_overlap.py, src/ytclfr/alignment/normalizer.py, tests/unit/alignment/test_normalizer.py
+Completed:
+  - Checked Phase 3 and Phase 4 items in build.md (Issue 4)
+  - Added TestExtractorResultAudio to test_contracts.py to cover the audio fixture (Issue 3)
+  - Renamed detect_overlaps to _detect_overlaps to mark it as private and unused outside of tests (Issue 2)
+  - Fixed segment ID collision in normalizer.py by using a global index for segment IDs, and added a test for it (Issue 1)
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Beginning Phase 7: Confidence Controller

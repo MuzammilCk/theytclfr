@@ -17,6 +17,7 @@ def normalize_extractor_results(
 ) -> list[NormalizedEvidence]:
     """Convert all extractor outputs into a uniform internal representation."""
     evidence_list: list[NormalizedEvidence] = []
+    global_index = 0
 
     for result in extractor_results:
         if result.get("error") is not None:
@@ -27,7 +28,7 @@ def normalize_extractor_results(
             continue
 
         segments = result.get("segments", [])
-        for i, segment in enumerate(segments):
+        for segment in segments:
             if extractor_type == "asr":
                 evidence = NormalizedEvidence(
                     start_sec=segment["start_time"],
@@ -35,9 +36,10 @@ def normalize_extractor_results(
                     source="asr",
                     text=segment["text"],
                     confidence=segment["confidence"],
-                    segment_id=f"asr-{i}"
+                    segment_id=f"asr-{global_index}"
                 )
                 evidence_list.append(evidence)
+                global_index += 1
             elif extractor_type == "ocr":
                 evidence = NormalizedEvidence(
                     start_sec=segment["frame_timestamp"],
@@ -45,9 +47,10 @@ def normalize_extractor_results(
                     source="ocr",
                     text=segment["text"],
                     confidence=segment["confidence"],
-                    segment_id=f"ocr-{i}"
+                    segment_id=f"ocr-{global_index}"
                 )
                 evidence_list.append(evidence)
+                global_index += 1
 
     # Sort output by start_sec ascending. Ties broken by source ("asr" before "ocr")
     evidence_list.sort(key=lambda e: (e.start_sec, e.source))

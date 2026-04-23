@@ -110,19 +110,19 @@ Goal: Protect every user-facing endpoint before any output is exposed.
 Status: [x] Complete
 
 Build:
-  [ ] JWT token creation utility
-  [ ] JWT validation FastAPI dependency
-  [ ] Auth applied by default to all protected routes
-  [ ] 401 and 403 response shapes matching Phase 1 contracts
-  [ ] Rate limiting tied to authenticated identity
-  [ ] JWT env vars wired from context.md
+  [x] JWT token creation utility
+  [x] JWT validation FastAPI dependency
+  [x] Auth applied by default to all protected routes
+  [x] 401 and 403 response shapes matching Phase 1 contracts
+  [x] Rate limiting tied to authenticated identity
+  [x] JWT env vars wired from context.md
 
 Definition of Done:
-  [ ] Unauthenticated request to any protected endpoint returns 401
-  [ ] Invalid token returns 401
-  [ ] Valid token passes through
-  [ ] Rate limit returns 429 after configured threshold
-  [ ] No credentials hardcoded anywhere
+  [x] Unauthenticated request to any protected endpoint returns 401
+  [x] Invalid token returns 401
+  [x] Valid token passes through
+  [x] Rate limit returns 429 after configured threshold
+  [x] No credentials hardcoded anywhere
 
 Test stack:
   pytest
@@ -138,19 +138,19 @@ Goal: Classify the video cheaply before committing to heavy work.
 Status: [x] Complete
 
 Build:
-  [ ] Frame sampler (configurable sample count, not hardcoded)
-  [ ] Basic audio presence / VAD check
-  [ ] Title and description metadata inspection
-  [ ] Content type classifier: speech-heavy, music-heavy, list-edit, slide-presentation, mixed
-  [ ] RouterDecision output matching Phase 1 schema
-  [ ] Confidence score attached to every decision
-  [ ] Low-confidence path explicitly allowed, not rejected
+  [x] Frame sampler (configurable sample count, not hardcoded)
+  [x] Basic audio presence / VAD check
+  [x] Title and description metadata inspection
+  [x] Content type classifier: speech-heavy, music-heavy, list-edit, slide-presentation, mixed
+  [x] RouterDecision output matching Phase 1 schema
+  [x] Confidence score attached to every decision
+  [x] Low-confidence path explicitly allowed, not rejected
 
 Definition of Done:
-  [ ] Router returns exactly one primary route per video
-  [ ] Confidence score is always present
-  [ ] RouterDecision conforms to Phase 1 contract
-  [ ] Router has no dependency on Phase 5 extractors
+  [x] Router returns exactly one primary route per video
+  [x] Confidence score is always present
+  [x] RouterDecision conforms to Phase 1 contract
+  [x] Router has no dependency on Phase 5 extractors
 
 Test stack:
   labeled sample set (min 5 examples per route type)
