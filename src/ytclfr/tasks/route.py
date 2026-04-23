@@ -114,9 +114,7 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
 
             # Step 11: Persist RouterDecisionModel (upsert)
             existing = (
-                session.query(RouterDecisionModel)
-                .filter_by(job_id=job_uuid)
-                .first()
+                session.query(RouterDecisionModel).filter_by(job_id=job_uuid).first()
             )
             if existing:
                 existing.primary_route = decision.primary_route

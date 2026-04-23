@@ -30,9 +30,7 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
 
     with db_session() as session:
         try:
-            job = session.query(Job).filter(
-                Job.id == parsed_job_id
-            ).first()
+            job = session.query(Job).filter(Job.id == parsed_job_id).first()
             if not job:
                 raise ValueError(f"Job not found: {job_id}")
 
@@ -73,6 +71,7 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
             # PHASE-5-TODO: publish VideoIngestedEvent to Redis pub/sub
 
             from ytclfr.tasks.route import classify_video
+
             classify_video.apply_async(
                 args=[job_id],
                 countdown=2,
@@ -81,9 +80,7 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
 
         except IngestionError as e:
             session.rollback()
-            job = session.query(Job).filter(
-                Job.id == parsed_job_id
-            ).first()
+            job = session.query(Job).filter(Job.id == parsed_job_id).first()
             if job:
                 job.status = "failed"
                 job.error_message = str(e)
@@ -94,9 +91,7 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
 
         except Exception as exc:
             session.rollback()
-            job = session.query(Job).filter(
-                Job.id == parsed_job_id
-            ).first()
+            job = session.query(Job).filter(Job.id == parsed_job_id).first()
             if job:
                 job.status = "failed"
                 if self.request.retries >= self.max_retries:

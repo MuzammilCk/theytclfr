@@ -23,7 +23,7 @@ def align(
             segments=[],
             total_segments=0,
             has_gaps=False,
-            aligned_at=datetime.now(UTC)
+            aligned_at=datetime.now(UTC),
         )
 
     # 2. Resolve overlaps deterministically
@@ -44,5 +44,5 @@ def align(
         segments=segments,
         total_segments=len(segments),
         has_gaps=has_gaps,
-        aligned_at=datetime.now(UTC)
+        aligned_at=datetime.now(UTC),
     )

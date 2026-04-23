@@ -28,9 +28,7 @@ def build_timeline(
     job_uuid = uuid.UUID(job_id)
 
     with db_session() as session:
-        job = session.query(Job).filter(
-            Job.id == job_uuid
-        ).first()
+        job = session.query(Job).filter(Job.id == job_uuid).first()
         if job:
             job.status = "aligning"
             session.commit()
@@ -45,9 +43,7 @@ def build_timeline(
 
     # Update job status to aligned
     with db_session() as session:
-        job = session.query(Job).filter(
-            Job.id == job_uuid
-        ).first()
+        job = session.query(Job).filter(Job.id == job_uuid).first()
         if job:
             job.status = "aligned"
             session.commit()
@@ -59,6 +55,44 @@ def build_timeline(
         timeline.has_gaps,
     )
 
-    # PHASE-8-TODO: Persist AlignedTimeline to database.
+    # Run confidence evaluation
+    from ytclfr.confidence.controller import evaluate
 
-    return timeline.model_dump(mode="json")
+    verdict = evaluate(
+        extractor_results=extractor_results,
+        aligned_timeline_dict=timeline.model_dump(mode="json"),
+        current_attempt=0,  # PHASE-8-TODO: read from job metadata
+    )
+
+    logger.info(
+        "Confidence verdict for job %s: overall=%.2f confident=%s should_proceed=%s",
+        job_id,
+        verdict.aggregate_score.overall,
+        verdict.is_confident,
+        verdict.should_proceed,
+    )
+
+    # PHASE-8-TODO: Persist AlignedTimeline to database.
+    # PHASE-8-TODO: dispatch rescan tasks based on verdict.should_proceed
+
+    result = timeline.model_dump(mode="json")
+    result["confidence_verdict"] = {
+        "overall_score": verdict.aggregate_score.overall,
+        "is_confident": verdict.is_confident,
+        "is_uncertain": verdict.aggregate_score.is_uncertain,
+        "should_proceed": verdict.should_proceed,
+        "actions": [
+            {"action": a.action, "reason": a.reason}
+            for a in verdict.branch_decision.actions
+        ],
+        "uncertainty_markers": [
+            {
+                "signal": m.signal_type,
+                "score": m.original_score,
+                "uncertain": m.is_uncertain,
+                "reason": m.reason,
+            }
+            for m in verdict.uncertainty_markers
+        ],
+    }
+    return result

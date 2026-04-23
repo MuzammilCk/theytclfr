@@ -8,13 +8,11 @@ MERGE_WINDOW_MS: int = 2000  # TUNABLE (milliseconds)
 # Minimum text similarity ratio for merge — TUNABLE
 MERGE_SIMILARITY_THRESHOLD: float = 0.6  # TUNABLE
 
+
 def compute_text_similarity(a: str, b: str) -> float:
     """Compute similarity ratio between two texts."""
-    return difflib.SequenceMatcher(
-        None,
-        a.strip().lower(),
-        b.strip().lower()
-    ).ratio()
+    return difflib.SequenceMatcher(None, a.strip().lower(), b.strip().lower()).ratio()
+
 
 def deduplicate_cross_modal(
     evidence: list[NormalizedEvidence],
@@ -43,7 +41,7 @@ def deduplicate_cross_modal(
                         source="merged",
                         text=asr.text if len(asr.text) >= len(ocr.text) else ocr.text,
                         confidence=max(asr.confidence, ocr.confidence),
-                        segment_id=f"{asr.segment_id},{ocr.segment_id}"
+                        segment_id=f"{asr.segment_id},{ocr.segment_id}",
                     )
                     merged_items.append(merged_item)
                     consumed_ids.add(ocr.segment_id)

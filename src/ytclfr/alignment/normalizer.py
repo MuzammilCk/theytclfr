@@ -5,12 +5,14 @@ from typing import Any
 @dataclass(frozen=True)
 class NormalizedEvidence:
     """Single piece of evidence on the timeline."""
-    start_sec: float          # seconds from video start
-    end_sec: float | None     # None for point-in-time (OCR)
-    source: str               # "asr", "ocr", "audio"
+
+    start_sec: float  # seconds from video start
+    end_sec: float | None  # None for point-in-time (OCR)
+    source: str  # "asr", "ocr", "audio"
     text: str
-    confidence: float         # 0.0–1.0
-    segment_id: str           # unique ID for tracing: "{source}-{index}"
+    confidence: float  # 0.0–1.0
+    segment_id: str  # unique ID for tracing: "{source}-{index}"
+
 
 def normalize_extractor_results(
     extractor_results: list[dict[str, Any]],
@@ -36,7 +38,7 @@ def normalize_extractor_results(
                     source="asr",
                     text=segment["text"],
                     confidence=segment["confidence"],
-                    segment_id=f"asr-{global_index}"
+                    segment_id=f"asr-{global_index}",
                 )
                 evidence_list.append(evidence)
                 global_index += 1
@@ -47,7 +49,7 @@ def normalize_extractor_results(
                     source="ocr",
                     text=segment["text"],
                     confidence=segment["confidence"],
-                    segment_id=f"ocr-{global_index}"
+                    segment_id=f"ocr-{global_index}",
                 )
                 evidence_list.append(evidence)
                 global_index += 1

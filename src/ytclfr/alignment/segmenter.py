@@ -6,6 +6,7 @@ from ytclfr.contracts.alignment import AlignedSegment
 # Gap threshold — TUNABLE
 GAP_THRESHOLD_SEC: float = 2.0  # TUNABLE
 
+
 def create_segments(
     evidence: list[NormalizedEvidence],
 ) -> list[AlignedSegment]:
@@ -24,6 +25,7 @@ def create_segments(
 
     segments.sort(key=lambda s: s.timestamp)
     return segments
+
 
 def detect_gaps(
     segments: list[AlignedSegment],

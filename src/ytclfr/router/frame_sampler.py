@@ -16,6 +16,7 @@ logger = get_logger(__name__)
 
 class FrameSamplerError(Exception):
     """Raised when frame sampling fails."""
+
     pass
 
 
@@ -56,8 +57,7 @@ def sample_frames(
 
     if duration <= 0:
         raise FrameSamplerError(
-            f"Video {video_path} has zero or negative duration: "
-            f"{duration}s"
+            f"Video {video_path} has zero or negative duration: {duration}s"
         )
 
     # Calculate the fps value needed to extract exactly sample_count
@@ -70,10 +70,14 @@ def sample_frames(
 
     cmd = [
         "ffmpeg",
-        "-i", str(video_path),
-        "-vf", f"fps={fps_value:.6f}",
-        "-frames:v", str(sample_count),
-        "-q:v", "2",
+        "-i",
+        str(video_path),
+        "-vf",
+        f"fps={fps_value:.6f}",
+        "-frames:v",
+        str(sample_count),
+        "-q:v",
+        "2",
         "-y",
         output_pattern,
     ]
@@ -97,8 +101,7 @@ def sample_frames(
 
     if result.returncode != 0:
         logger.warning(
-            "ffmpeg frame extraction returned non-zero exit code %d "
-            "for %s: %s",
+            "ffmpeg frame extraction returned non-zero exit code %d for %s: %s",
             result.returncode,
             video_path,
             result.stderr[:500],
@@ -136,8 +139,10 @@ def _get_video_duration(video_path: Path) -> float:
     """
     cmd = [
         "ffprobe",
-        "-v", "quiet",
-        "-print_format", "json",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
         "-show_format",
         str(video_path),
     ]
@@ -155,9 +160,7 @@ def _get_video_duration(video_path: Path) -> float:
             "ffprobe not found. Ensure ffmpeg is installed and in PATH."
         ) from exc
     except subprocess.TimeoutExpired as exc:
-        raise FrameSamplerError(
-            f"ffprobe timed out reading {video_path}"
-        ) from exc
+        raise FrameSamplerError(f"ffprobe timed out reading {video_path}") from exc
 
     if result.returncode != 0:
         raise FrameSamplerError(

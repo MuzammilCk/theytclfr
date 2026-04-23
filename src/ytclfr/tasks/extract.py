@@ -62,9 +62,7 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
         except Exception as exc:
             session.rollback()
             if self.request.retries >= self.max_retries:
-                _persist_extractor_error(
-                    session, job_uuid, "asr", str(exc)
-                )
+                _persist_extractor_error(session, job_uuid, "asr", str(exc))
                 logger.error(
                     "Extractor asr exhausted all retries for job %s: %s",
                     job_id,
@@ -134,9 +132,7 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
         except Exception as exc:
             session.rollback()
             if self.request.retries >= self.max_retries:
-                _persist_extractor_error(
-                    session, job_uuid, "ocr", str(exc)
-                )
+                _persist_extractor_error(session, job_uuid, "ocr", str(exc))
                 logger.error(
                     "Extractor ocr exhausted all retries for job %s: %s",
                     job_id,
@@ -198,9 +194,7 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
         except Exception as exc:
             session.rollback()
             if self.request.retries >= self.max_retries:
-                _persist_extractor_error(
-                    session, job_uuid, "audio", str(exc)
-                )
+                _persist_extractor_error(session, job_uuid, "audio", str(exc))
                 logger.error(
                     "Extractor audio exhausted all retries for job %s: %s",
                     job_id,
@@ -264,8 +258,7 @@ def _persist_extractor_error(
     except Exception as persist_exc:
         session.rollback()
         logger.critical(
-            "Failed to persist extractor error state to DB. "
-            "Error record is lost.",
+            "Failed to persist extractor error state to DB. Error record is lost.",
             exc_info=persist_exc,
             extra={
                 "job_id": str(job_id),

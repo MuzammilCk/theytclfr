@@ -3,6 +3,7 @@ from ytclfr.alignment.normalizer import NormalizedEvidence
 # Overlap window tolerance — TUNABLE
 OVERLAP_TOLERANCE_SEC: float = 0.5  # TUNABLE
 
+
 def _do_overlap(a: NormalizedEvidence, b: NormalizedEvidence) -> bool:
     """Check if two NormalizedEvidence items overlap temporally."""
     # Both are point-in-time
@@ -22,6 +23,7 @@ def _do_overlap(a: NormalizedEvidence, b: NormalizedEvidence) -> bool:
         return max(a.start_sec, b.start_sec) <= min(a.end_sec, b.end_sec)
 
     return False
+
 
 def _detect_overlaps(
     evidence: list[NormalizedEvidence],
@@ -43,6 +45,7 @@ def _detect_overlaps(
     # Return list of overlapping pairs, sorted by the earlier start_sec
     overlaps.sort(key=lambda pair: pair[0].start_sec)
     return overlaps
+
 
 def resolve_overlaps(
     evidence: list[NormalizedEvidence],

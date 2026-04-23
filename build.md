@@ -1,6 +1,6 @@
 # build.md
 
-CURRENT PHASE: 7 — Confidence Controller
+CURRENT PHASE: 8 — Storage + Output API
 STATUS: NOT STARTED
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
@@ -231,21 +231,21 @@ Test stack:
 
 ### Phase 7 — Confidence Controller
 Goal: Decide whether to trust, rescan, or downgrade results.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
-  [ ] Confidence scoring rules per signal type
-  [ ] Branch switching logic
-  [ ] Fallback trigger conditions
-  [ ] Rescanning policy (max attempt limit, not infinite)
-  [ ] Partial/uncertain output policy (uncertain is valid, not an error)
+  [x] Confidence scoring rules per signal type
+  [x] Branch switching logic
+  [x] Fallback trigger conditions
+  [x] Rescanning policy (max attempt limit, not infinite)
+  [x] Partial/uncertain output policy (uncertain is valid, not an error)
 
 Definition of Done:
-  [ ] Low-confidence transcript does not terminate pipeline
-  [ ] Low-confidence OCR triggers additional frame sampling
-  [ ] Uncertain output is explicitly marked, never silently dropped
-  [ ] Rescan stops at max attempt limit
-  [ ] Confidence Controller has no DB writes, no queue calls
+  [x] Low-confidence transcript does not terminate pipeline
+  [x] Low-confidence OCR triggers additional frame sampling
+  [x] Uncertain output is explicitly marked, never silently dropped
+  [x] Rescan stops at max attempt limit
+  [x] Confidence Controller has no DB writes, no queue calls
 
 Test stack:
   pytest: scoring rule unit tests

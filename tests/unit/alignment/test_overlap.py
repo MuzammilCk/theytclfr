@@ -2,26 +2,26 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from ytclfr.alignment.normalizer import NormalizedEvidence
-from ytclfr.alignment.overlap import detect_overlaps, resolve_overlaps
+from ytclfr.alignment.overlap import _detect_overlaps, resolve_overlaps
 
 
 def test_detect_overlaps_finds_overlapping_ranges():
     e1 = NormalizedEvidence(0.0, 2.0, "asr", "a", 0.9, "1")
     e2 = NormalizedEvidence(1.0, 3.0, "asr", "b", 0.9, "2")
-    overlaps = detect_overlaps([e1, e2])
+    overlaps = _detect_overlaps([e1, e2])
     assert len(overlaps) == 1
     assert overlaps[0] == (e1, e2)
 
 def test_detect_overlaps_point_in_range():
     e1 = NormalizedEvidence(0.0, 2.0, "asr", "a", 0.9, "1")
     e2 = NormalizedEvidence(1.0, None, "ocr", "b", 0.9, "2")
-    overlaps = detect_overlaps([e1, e2])
+    overlaps = _detect_overlaps([e1, e2])
     assert len(overlaps) == 1
 
 def test_detect_overlaps_no_overlap():
     e1 = NormalizedEvidence(0.0, 1.0, "asr", "a", 0.9, "1")
     e2 = NormalizedEvidence(2.0, 3.0, "asr", "b", 0.9, "2")
-    overlaps = detect_overlaps([e1, e2])
+    overlaps = _detect_overlaps([e1, e2])
     assert len(overlaps) == 0
 
 def test_resolve_overlaps_keeps_higher_confidence():

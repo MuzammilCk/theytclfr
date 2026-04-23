@@ -561,3 +561,22 @@ Scope creep rejected:
   - NONE
 Next session must start by:
   - Beginning Phase 7: Confidence Controller
+
+
+## Session 16 (Phase 7)
+Date: 2026-04-23
+Phase: 7
+
+### Files Changed
+- src/ytclfr/confidence/__init__.py: Created.
+- src/ytclfr/confidence/scorer.py: Created with pure logic for signal scoring.
+- src/ytclfr/confidence/rules.py: Created branch decision rules.
+- src/ytclfr/confidence/policy.py: Created rescan policy rules.
+- src/ytclfr/confidence/controller.py: Created top-level evaluate entry point.
+- src/ytclfr/tasks/align.py: Wired confidence evaluation to build_timeline.
+- 	ests/unit/confidence/*: Added comprehensive test coverage.
+- decisions.md: Appended DR-17.
+- uild.md: Marked Phase 7 complete.
+
+### Summary
+Implemented the Confidence Controller as a pure logic module. It evaluates the unified timeline and extractor results to decide whether to trust, rescan, or downgrade. Unit tests cover all fallback and threshold logic.

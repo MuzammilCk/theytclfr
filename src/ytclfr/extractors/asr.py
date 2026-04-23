@@ -104,10 +104,8 @@ class ASRExtractor:
         )
 
 
-
-
-
 @lru_cache(maxsize=1)
 def get_asr_extractor() -> ASRExtractor:
     from ytclfr.core.config import get_settings
+
     return ASRExtractor(get_settings())

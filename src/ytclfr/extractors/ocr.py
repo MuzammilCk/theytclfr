@@ -44,9 +44,9 @@ class OCRExtractor:
         cmd = [
             "ffmpeg",
             "-threads",
-            "2",       # TUNABLE: cap ffmpeg thread usage on
-                       # single-machine deployments where faster-
-                       # whisper runs concurrently on the same CPU.
+            "2",  # TUNABLE: cap ffmpeg thread usage on
+            # single-machine deployments where faster-
+            # whisper runs concurrently on the same CPU.
             "-i",
             str(video_path),
             "-vf",
@@ -179,9 +179,7 @@ class OCRExtractor:
                     )
                 )
 
-        deduplicated = self._deduplicate_segments(
-            ocr_segments
-        )
+        deduplicated = self._deduplicate_segments(ocr_segments)
         # Estimate duration from last frame timestamp
         total_duration = frames[-1][1] if frames else 0.0
 
@@ -195,10 +193,8 @@ class OCRExtractor:
         )
 
 
-
-
-
 @lru_cache(maxsize=1)
 def get_ocr_extractor() -> OCRExtractor:
     from ytclfr.core.config import get_settings
+
     return OCRExtractor(get_settings())
