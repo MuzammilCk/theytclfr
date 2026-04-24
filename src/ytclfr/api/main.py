@@ -1,15 +1,26 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
+import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from ytclfr.api.rate_limit import limiter
 from ytclfr.api.v1.router import v1_router
 from ytclfr.core.config import get_settings
-from ytclfr.core.logging import configure_logging
+from ytclfr.core.logging import configure_logging, trace_id_var
+
+
+class TraceIdMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        req_id = uuid.uuid4()
+        trace_id_var.set(str(req_id))
+        response = await call_next(request)
+        response.headers["X-Trace-ID"] = str(req_id)
+        return response
 
 
 @asynccontextmanager
@@ -43,6 +54,7 @@ def create_app() -> FastAPI:
         RateLimitExceeded,
         _rate_limit_exceeded_handler,  # type: ignore
     )
+    app.add_middleware(TraceIdMiddleware)
     app.include_router(v1_router, prefix="/api/v1")
 
     return app

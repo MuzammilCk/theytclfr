@@ -36,6 +36,7 @@ dev = [
     "ruff",
     "mypy",
     "hypothesis",
+    "bandit",
 ]
 
 [tool.hatch.build.targets.wheel]

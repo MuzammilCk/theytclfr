@@ -57,7 +57,37 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
             job.status = "classifying"
             session.commit()
 
-            # Step 5: Download video from S3 for frame sampling
+            # Step 5: Check idempotency
+            existing = (
+                session.query(RouterDecisionModel).filter_by(job_id=job_uuid).first()
+            )
+            if existing:
+                logger.info("Idempotency hit: RouterDecisionModel already exists")
+                from celery import chord, group
+                from ytclfr.tasks.align import build_timeline
+                from ytclfr.tasks.extract import (
+                    run_asr,
+                    run_audio_classifier,
+                    run_ocr,
+                )
+
+                extractor_group = group(
+                    run_asr.s(job_id),
+                    run_ocr.s(job_id),
+                    run_audio_classifier.s(job_id),
+                )
+                chord(extractor_group)(build_timeline.s(job_id))
+
+                job.status = "extracting"
+                session.commit()
+
+                return {
+                    "job_id": job_id,
+                    "status": "classified",
+                    "route": existing.primary_route,
+                    "confidence": existing.confidence,
+                }
+
             if not job.s3_video_uri:
                 job.status = "failed"
                 job.error_message = "No S3 video URI — upload may have failed"
@@ -120,28 +150,17 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
                 video_duration_seconds=sampled.video_duration_seconds,
             )
 
-            # Step 11: Persist RouterDecisionModel (upsert)
-            existing = (
-                session.query(RouterDecisionModel).filter_by(job_id=job_uuid).first()
+            # Step 11: Persist RouterDecisionModel (insert)
+            db_decision = RouterDecisionModel(
+                job_id=job_uuid,
+                primary_route=decision.primary_route,
+                confidence=decision.confidence,
+                speech_density=decision.speech_density,
+                ocr_density=decision.ocr_density,
+                routing_notes=decision.routing_notes,
+                decided_at=decision.decided_at,
             )
-            if existing:
-                existing.primary_route = decision.primary_route
-                existing.confidence = decision.confidence
-                existing.speech_density = decision.speech_density
-                existing.ocr_density = decision.ocr_density
-                existing.routing_notes = decision.routing_notes
-                existing.decided_at = decision.decided_at
-            else:
-                db_decision = RouterDecisionModel(
-                    job_id=job_uuid,
-                    primary_route=decision.primary_route,
-                    confidence=decision.confidence,
-                    speech_density=decision.speech_density,
-                    ocr_density=decision.ocr_density,
-                    routing_notes=decision.routing_notes,
-                    decided_at=decision.decided_at,
-                )
-                session.add(db_decision)
+            session.add(db_decision)
             session.commit()
 
             # Step 12: Update job status
@@ -203,8 +222,11 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
             try:
                 job = session.query(Job).filter(Job.id == job_uuid).first()
                 if job:
-                    job.status = "failed"
-                    job.error_message = str(exc)
+                    if self.request.retries >= self.max_retries:
+                        job.status = "dead_letter"
+                        job.error_message = str(exc)
+                    else:
+                        job.status = "failed"
                     session.commit()
             except Exception:
                 pass

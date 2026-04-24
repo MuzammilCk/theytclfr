@@ -660,7 +660,23 @@ Bugs found (not fixed):
 Scope creep rejected:
 - NONE
 Next session must start by:
-- Executing Phase 9: End-to-End Hardening.
+- Next steps TBD.
+
+## Session 26 - End-to-End Hardening
+Date: 2026-04-24
+Changes:
+- Added andit to dev dependencies.
+- Added contextvars tracing across API and Celery workers.
+- Implemented idempotency checks in ingestion, classification, and extraction tasks.
+- Introduced dead_letter status for failed jobs exhausting retries.
+- Created /api/v1/jobs/{job_id}/retry endpoint for partial-result recovery.
+- Created /api/v1/metrics endpoint for pipeline metrics via PostgreSQL.
+- Authored docs/runbook.md and chaos tests in 	ests/integration/test_chaos.py.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- Added observability using existing frozen stack instead of new dependencies.
+
 
 ## Session 24 - Output Store & Temp Storage Bug Fixes
 Date: 2026-04-24
@@ -670,4 +686,20 @@ Changes:
 - Fixed lingering OCR frames directory bug in src/ytclfr/tasks/extract.py's run_ocr by explicitly removing ocr_frames_dir.
 
 Next session must start by:
-- Executing Phase 9: End-to-End Hardening.
+- Next steps TBD.
+
+## Session 26 - End-to-End Hardening
+Date: 2026-04-24
+Changes:
+- Added andit to dev dependencies.
+- Added contextvars tracing across API and Celery workers.
+- Implemented idempotency checks in ingestion, classification, and extraction tasks.
+- Introduced dead_letter status for failed jobs exhausting retries.
+- Created /api/v1/jobs/{job_id}/retry endpoint for partial-result recovery.
+- Created /api/v1/metrics endpoint for pipeline metrics via PostgreSQL.
+- Authored docs/runbook.md and chaos tests in 	ests/integration/test_chaos.py.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- Added observability using existing frozen stack instead of new dependencies.
+

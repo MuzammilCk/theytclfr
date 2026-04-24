@@ -358,3 +358,17 @@ Status: ACCEPTED
 Context: Phase 8 requires full-text keyword search over aligned video segments. V1 architecture limits the introduction of new large services like Elasticsearch (DR-9).
 Decision: Full-text search is implemented using Postgres GIN indexes and the to_tsvector function natively in Postgres.
 Consequences: Provides robust full-text search without needing a separate search cluster. Maintains the single-database deployment strategy.
+
+## DR-23 â€” Lightweight Observability & DLQ
+Date: 2026-04-24
+Status: ACCEPTED
+Context: Phase 9 end-to-end hardening requires tracing and retry mechanisms without introducing heavy external dependencies (Prometheus, Grafana, Jaeger) per the frozen stack constraint.
+Decision: We use Python's built-in contextvars to inject a 	race_id (usually the job_id) across logs in FastAPI and Celery. Pipeline metrics are served via a lightweight PostgreSQL query endpoint (GET /api/v1/metrics). Dead Letter Queue (DLQ) is implemented logically by transitioning exhausted retries to a dead_letter status in the DB, allowing the new /retry endpoint to recover jobs from partial checkpoints using idempotency logic.
+Consequences: High observability and fault tolerance achieved within existing infrastructure. No new deployments needed.
+
+## DR-23 — Lightweight Observability & DLQ
+Date: 2026-04-24
+Status: ACCEPTED
+Context: Phase 9 end-to-end hardening requires tracing and retry mechanisms without introducing heavy external dependencies (Prometheus, Grafana, Jaeger) per the frozen stack constraint.
+Decision: We use Python's built-in contextvars to inject a 	race_id (usually the job_id) across logs in FastAPI and Celery. Pipeline metrics are served via a lightweight PostgreSQL query endpoint (GET /api/v1/metrics). Dead Letter Queue (DLQ) is implemented logically by transitioning exhausted retries to a dead_letter status in the DB, allowing the new /retry endpoint to recover jobs from partial checkpoints using idempotency logic.
+Consequences: High observability and fault tolerance achieved within existing infrastructure. No new deployments needed.

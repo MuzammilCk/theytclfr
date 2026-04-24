@@ -36,6 +36,12 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
             job.status = "downloading"
             session.commit()
 
+            if job.s3_video_uri is not None and job.status not in ["pending", "downloading"]:
+                logger.info("Idempotency hit: video already in S3")
+                from ytclfr.tasks.route import classify_video
+                classify_video.apply_async(args=[job_id], countdown=2)
+                return {"job_id": job_id, "status": "downloaded"}
+
             temp_manager.get_job_dir(parsed_job_id)
             job_dir_created = True
 
@@ -106,9 +112,11 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
             session.rollback()
             job = session.query(Job).filter(Job.id == parsed_job_id).first()
             if job:
-                job.status = "failed"
                 if self.request.retries >= self.max_retries:
+                    job.status = "dead_letter"
                     job.error_message = str(exc)
+                else:
+                    job.status = "failed"
                 session.commit()
 
             if self.request.retries >= self.max_retries and job_dir_created:

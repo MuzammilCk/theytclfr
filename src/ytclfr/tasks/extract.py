@@ -47,6 +47,15 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
                     f"Job {job_id} has no S3 video URI — upload may have failed"
                 )
 
+            existing = session.query(ExtractorResultModel).filter_by(job_id=job_uuid, extractor_type="asr").first()
+            if existing and not existing.error_message:
+                logger.info("Idempotency hit: ExtractorResultModel for ASR already exists")
+                return {
+                    "job_id": str(job_id),
+                    "extractor_type": "asr",
+                    "status": "success",
+                }
+
             # Download video from S3 to transient local path
             from ytclfr.ingestion.s3_storage import S3StorageManager
 
@@ -88,6 +97,13 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
             session.rollback()
             if self.request.retries >= self.max_retries:
                 _persist_extractor_error(session, job_uuid, "asr", str(exc))
+                try:
+                    job_obj = session.query(Job).filter(Job.id == job_uuid).first()
+                    if job_obj:
+                        job_obj.status = "dead_letter"
+                        session.commit()
+                except Exception:
+                    pass
                 logger.error(
                     "Extractor asr exhausted all retries for job %s: %s",
                     job_id,
@@ -138,6 +154,15 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
                     f"Job {job_id} has no S3 video URI — upload may have failed"
                 )
 
+            existing = session.query(ExtractorResultModel).filter_by(job_id=job_uuid, extractor_type="ocr").first()
+            if existing and not existing.error_message:
+                logger.info("Idempotency hit: ExtractorResultModel for OCR already exists")
+                return {
+                    "job_id": str(job_id),
+                    "extractor_type": "ocr",
+                    "status": "success",
+                }
+
             # Download video from S3 to transient local path
             from ytclfr.ingestion.s3_storage import S3StorageManager
 
@@ -180,6 +205,13 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
             session.rollback()
             if self.request.retries >= self.max_retries:
                 _persist_extractor_error(session, job_uuid, "ocr", str(exc))
+                try:
+                    job_obj = session.query(Job).filter(Job.id == job_uuid).first()
+                    if job_obj:
+                        job_obj.status = "dead_letter"
+                        session.commit()
+                except Exception:
+                    pass
                 logger.error(
                     "Extractor ocr exhausted all retries for job %s: %s",
                     job_id,
@@ -227,6 +259,15 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
             if not job:
                 raise ValueError(f"Job {job_id} not found")
 
+            existing = session.query(ExtractorResultModel).filter_by(job_id=job_uuid, extractor_type="audio").first()
+            if existing and not existing.error_message:
+                logger.info("Idempotency hit: ExtractorResultModel for audio already exists")
+                return {
+                    "job_id": str(job_id),
+                    "extractor_type": "audio",
+                    "status": "success",
+                }
+
             from ytclfr.extractors.audio_classifier import (
                 classify_audio_from_metadata,
             )
@@ -257,6 +298,13 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
             session.rollback()
             if self.request.retries >= self.max_retries:
                 _persist_extractor_error(session, job_uuid, "audio", str(exc))
+                try:
+                    job_obj = session.query(Job).filter(Job.id == job_uuid).first()
+                    if job_obj:
+                        job_obj.status = "dead_letter"
+                        session.commit()
+                except Exception:
+                    pass
                 logger.error(
                     "Extractor audio exhausted all retries for job %s: %s",
                     job_id,

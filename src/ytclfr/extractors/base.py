@@ -2,7 +2,7 @@ from typing import Any
 
 from celery import Task
 
-from ytclfr.core.logging import get_logger
+from ytclfr.core.logging import get_logger, trace_id_var
 
 logger = get_logger(__name__)
 
@@ -24,6 +24,11 @@ class BaseExtractorTask(Task):  # type: ignore[misc]
     abstract = True
     max_retries = 3
     default_retry_delay = 30
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        job_id = args[0] if args else kwargs.get("job_id", "unknown")
+        trace_id_var.set(str(job_id))
+        return super().__call__(*args, **kwargs)
 
     def on_failure(
         self,
