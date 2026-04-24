@@ -344,3 +344,17 @@ Consequences: Redis memory usage drops dramatically. Chord
   `list[dict]`, but the data is fetched from DB inside
   `build_timeline` instead of passed through Redis.
 Supersedes: NONE (refines DR-10 chord pattern)
+
+## DR-21 — Embedding via Ollama
+Date: 2026-04-24
+Status: ACCEPTED
+Context: Phase 8 requires vector embeddings for semantic similarity search over aligned video segments. The system already uses Ollama for local LLM inference (DR-4).
+Decision: We use the existing local Ollama instance for embedding generation, using the nomic-embed-text model. The embedding dimension is configured via EMBEDDING_DIM (default 768). Embeddings are clamped to this dimension before persistence.
+Consequences: Enables semantic search without external API dependencies. Reuses existing local infrastructure.
+
+## DR-22 — Postgres GIN search
+Date: 2026-04-24
+Status: ACCEPTED
+Context: Phase 8 requires full-text keyword search over aligned video segments. V1 architecture limits the introduction of new large services like Elasticsearch (DR-9).
+Decision: Full-text search is implemented using Postgres GIN indexes and the to_tsvector function natively in Postgres.
+Consequences: Provides robust full-text search without needing a separate search cluster. Maintains the single-database deployment strategy.

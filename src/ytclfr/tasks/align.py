@@ -93,11 +93,8 @@ def build_timeline(
         verdict.should_proceed,
     )
 
-    # PHASE-8-TODO: Persist AlignedTimeline to database.
-    # PHASE-8-TODO: dispatch rescan tasks based on verdict.should_proceed
-
     result = timeline.model_dump(mode="json")
-    result["confidence_verdict"] = {
+    confidence_dict = {
         "overall_score": verdict.aggregate_score.overall,
         "is_confident": verdict.is_confident,
         "is_uncertain": verdict.aggregate_score.is_uncertain,
@@ -116,8 +113,27 @@ def build_timeline(
             for m in verdict.uncertainty_markers
         ],
     }
+    result["confidence_verdict"] = confidence_dict
 
-    # PHASE-8-TODO: Pass this result dict to the DB persistence layer.
+    from ytclfr.storage.segment_store import save_aligned_segments
+    from ytclfr.storage.output_store import assemble_and_save_final_output
+    from ytclfr.cache.result_cache import invalidate_result
+    from sqlalchemy.sql import func
+
+    with db_session() as session:
+        settings = get_settings()
+        
+        save_aligned_segments(job_uuid, timeline, settings, session)
+        
+        assemble_and_save_final_output(job_uuid, timeline, confidence_dict, session)
+        
+        job = session.query(Job).filter(Job.id == job_uuid).first()
+        if job:
+            job.status = "completed"
+            job.updated_at = func.now()
+            session.commit()
+            
+    invalidate_result(job_uuid)
 
     try:
         s3_manager = S3StorageManager(get_settings())

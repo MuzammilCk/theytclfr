@@ -25,6 +25,7 @@ dependencies = [
     "python-multipart",
     "httpx",
     "boto3",
+    "pgvector",
 ]
 
 [project.optional-dependencies]

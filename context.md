@@ -216,6 +216,9 @@ GROQ_API_KEY — Groq cloud API key — Celery Worker
 GROQ_MODEL — Groq model name (llama-3.3-70b-versatile) — Celery Worker
 LLM_REQUEST_TIMEOUT_SECONDS — Max wait time for LLM responses — Celery Worker
 LLM_MAX_RETRIES — Max retry attempts for failed LLM calls — Celery Worker
+OLLAMA_EMBEDDING_MODEL — Ollama model name for embedding generation (nomic-embed-text) — Celery Worker
+EMBEDDING_DIM — Vector embedding dimension matching the embedding model output (768 for nomic-embed-text) — Celery Worker, Alembic migration
+REDIS_RESULT_CACHE_TTL — Completed-result cache TTL in seconds (default 3600) — FastAPI
 
 ### ASR
 

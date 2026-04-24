@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     groq_model: str = "llama-3.3-70b-versatile"
     llm_request_timeout_seconds: int = 120
     llm_max_retries: int = 3
+    ollama_embedding_model: str = "nomic-embed-text"
+    embedding_dim: int = 768
+    redis_result_cache_ttl: int = 3600
     whisper_model_size: str = "small"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"

@@ -632,3 +632,16 @@ Scope creep rejected:
   - NONE
 Next session must start by:
   - Executing Phase 8: Storage + Output API.
+
+## Session 22
+Date: 2026-04-24
+Goal: Execute Phase 8 Storage + Output API.
+Changes:
+- Added new DB models for AlignedSegments and FinalOutputs.
+- Created Alembic migrations for pgvector and GIN indexes.
+- Implemented embeddings generation module.
+- Implemented query layer and redis cache layer.
+- Integrated storage persistence into alignment Celery task.
+- Added output API endpoints with caching.
+- Promoted Phase 7 and 10 to COMPLETE.
+- Updated context.md, build.md, config.py, .env.example, and pyproject.toml.

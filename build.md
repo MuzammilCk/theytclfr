@@ -1,7 +1,7 @@
 # build.md
 
 CURRENT PHASE: 8 — Storage + Output API
-STATUS: NOT STARTED
+STATUS: IN PROGRESS
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
 (Phase 2 — Ingestion + Temporary Storage: COMPLETE)
@@ -259,26 +259,26 @@ Test stack:
 
 ### Phase 8 — Storage + Output API
 Goal: Persist structured knowledge to Postgres and expose it to authenticated users.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
-  [ ] PostgreSQL schema (aligned_timelines table via Alembic migration)
-  [ ] pgvector integration for semantic retrieval on AlignedSegment embeddings
-  [ ] PostgreSQL GIN index for fast keyword search on timeline text
-  [ ] FastAPI output layer with Phase 3 auth on all routes
-  [ ] Redis cache for repeated identical queries
-  [ ] FinalOutput JSON response matching Phase 1 contract (including provenance/confidence)
-  [ ] Query endpoints: by job_id, by time range, by semantic similarity (pgvector)
-  [ ] tasks/align.py updated to persist final timeline to DB
+  [x] PostgreSQL schema (aligned_timelines table via Alembic migration)
+  [x] pgvector integration for semantic retrieval on AlignedSegment embeddings
+  [x] PostgreSQL GIN index for fast keyword search on timeline text
+  [x] FastAPI output layer with Phase 3 auth on all routes
+  [x] Redis cache for repeated identical queries
+  [x] FinalOutput JSON response matching Phase 1 contract (including provenance/confidence)
+  [x] Query endpoints: by job_id, by time range, by semantic similarity (pgvector)
+  [x] tasks/align.py updated to persist final timeline to DB
 
 Definition of Done:
-  [ ] Results queryable by job_id and time range
-  [ ] Output conforms to Phase 1 FinalOutput schema
-  [ ] Repeated requests served from Redis cache
-  [ ] All routes protected by Phase 3 auth
-  [ ] Alembic migration runs clean from zero
-  [ ] No Base.metadata.create_all() anywhere in codebase
-  [ ] Zero references to OpenSearch/Elasticsearch
+  [x] Results queryable by job_id and time range
+  [x] Output conforms to Phase 1 FinalOutput schema
+  [x] Repeated requests served from Redis cache
+  [x] All routes protected by Phase 3 auth
+  [x] Alembic migration runs clean from zero
+  [x] No Base.metadata.create_all() anywhere in codebase
+  [x] Zero references to OpenSearch/Elasticsearch
 
 Test stack:
   Alembic migration tests (upgrade and downgrade)
