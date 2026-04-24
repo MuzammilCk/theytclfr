@@ -645,3 +645,19 @@ Changes:
 - Added output API endpoints with caching.
 - Promoted Phase 7 and 10 to COMPLETE.
 - Updated context.md, build.md, config.py, .env.example, and pyproject.toml.
+
+
+## Session 23
+Date: 2026-04-24
+Goal: Post-Phase 8 Bug Fixes
+Changes:
+- Fixed parallel directory deletion race condition in extract tasks (run_asr, run_ocr).
+- Implemented S3 directory deletion for proper cleanup in S3StorageManager.
+- Fixed Ollama 404 error suppression by logging the response body in embeddings generation.
+- Fixed SQLite Alembic guards in migration 0005.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- NONE
+Next session must start by:
+- Executing Phase 9: End-to-End Hardening.

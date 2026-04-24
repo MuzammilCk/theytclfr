@@ -94,3 +94,26 @@ class S3StorageManager:
             raise S3StorageError(
                 f"Failed to download s3://{self.bucket_name}/{object_key}: {exc}"
             ) from exc
+
+    def delete_directory(self, prefix: str) -> None:
+        """Deletes all objects with a specific prefix (simulates directory deletion)."""
+        try:
+            paginator = self._client.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=self.bucket_name, Prefix=prefix)
+            delete_us = dict(Objects=[])
+            
+            for item in pages.search('Contents'):
+                if item:
+                    delete_us['Objects'].append({'Key': item['Key']})
+                    # S3 allows deleting max 1000 objects per request
+                    if len(delete_us['Objects']) >= 1000:
+                        self._client.delete_objects(Bucket=self.bucket_name, Delete=delete_us)
+                        delete_us = dict(Objects=[])
+                        
+            if len(delete_us['Objects']):
+                self._client.delete_objects(Bucket=self.bucket_name, Delete=delete_us)
+                
+            logger.info("Successfully cleaned up S3 prefix: %s", prefix)
+        except Exception as e:
+            logger.error("Failed to clean up S3 prefix %s: %s", prefix, e)
+            raise S3StorageError(f"Cleanup failed: {e}")

@@ -101,17 +101,13 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
             raise self.retry(exc=exc)
 
         finally:
-            # Phase 10: Always clean up local video to prevent
-            # disk exhaustion on worker nodes (DR-18).
+            # Phase 10 Bugfix: Only unlink the specific file this task downloaded
+            # to avoid race conditions with parallel tasks sharing the job dir.
             if local_video_path and local_video_path.exists():
                 try:
-                    TempStorageManager(settings).cleanup_job(job_uuid)
+                    local_video_path.unlink(missing_ok=True)
                 except Exception as cleanup_exc:
-                    logger.warning(
-                        "Failed to clean up local files for job %s: %s",
-                        job_id,
-                        cleanup_exc,
-                    )
+                    logger.warning("Failed to clean up local file %s: %s", local_video_path, cleanup_exc)
 
 
 @celery_app.task(  # type: ignore
@@ -197,16 +193,13 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
             raise self.retry(exc=exc)
 
         finally:
-            # Phase 10: Always clean up local files (DR-18).
+            # Phase 10 Bugfix: Only unlink the specific file this task downloaded
+            # to avoid race conditions with parallel tasks sharing the job dir.
             if local_video_path and local_video_path.exists():
                 try:
-                    TempStorageManager(settings).cleanup_job(job_uuid)
+                    local_video_path.unlink(missing_ok=True)
                 except Exception as cleanup_exc:
-                    logger.warning(
-                        "Failed to clean up local files for job %s: %s",
-                        job_id,
-                        cleanup_exc,
-                    )
+                    logger.warning("Failed to clean up local file %s: %s", local_video_path, cleanup_exc)
 
 
 @celery_app.task(  # type: ignore

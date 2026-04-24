@@ -48,7 +48,7 @@ def upgrade() -> None:
     # So I need to add guards!
     
     bind = op.get_bind()
-    if bind.engine.name != 'sqlite':
+    if bind.dialect.name != 'sqlite':
         op.execute(
             "CREATE INDEX ix_aligned_segments_embedding_hnsw "
             "ON aligned_segments "
@@ -65,12 +65,12 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     bind = op.get_bind()
-    if bind.engine.name != 'sqlite':
+    if bind.dialect.name != 'sqlite':
         op.execute("DROP INDEX IF EXISTS ix_aligned_segments_text_gin")
         op.execute("DROP INDEX IF EXISTS ix_aligned_segments_embedding_hnsw")
     
     op.drop_index('ix_aligned_segments_job_id', table_name='aligned_segments')
     op.drop_table('aligned_segments')
     
-    if bind.engine.name != 'sqlite':
+    if bind.dialect.name != 'sqlite':
         op.execute("DROP EXTENSION IF EXISTS vector")

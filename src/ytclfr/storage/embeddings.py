@@ -25,6 +25,8 @@ def generate_embedding(text: str, settings: Settings) -> list[float] | None:
         try:
             with httpx.Client(timeout=settings.llm_request_timeout_seconds) as client:
                 response = client.post(endpoint, json=payload)
+                if response.status_code != 200:
+                    logger.warning("Ollama API Error %s: %s", response.status_code, response.text)
                 response.raise_for_status()
                 data = response.json()
                 embedding = data.get("embedding")
