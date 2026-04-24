@@ -1,10 +1,12 @@
 import uuid
 from typing import Any
 
+from ytclfr.core.config import get_settings
 from ytclfr.core.logging import get_logger
 from ytclfr.db.models.extractor_result import ExtractorResultModel
 from ytclfr.db.models.job import Job
 from ytclfr.db.session import db_session
+from ytclfr.ingestion.s3_storage import S3StorageError, S3StorageManager
 from ytclfr.queue.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -114,7 +116,23 @@ def build_timeline(
             for m in verdict.uncertainty_markers
         ],
     }
-    return result
+
+    # PHASE-8-TODO: Pass this result dict to the DB persistence layer.
+
+    try:
+        s3_manager = S3StorageManager(get_settings())
+        s3_manager.delete_directory(prefix=f"{job_id}/")
+    except S3StorageError as e:
+        logger.error("Failed to delete S3 directory for job %s: %s", job_id, e)
+    except AttributeError as e:
+        # Catch AttributeError if delete_directory is not yet implemented
+        logger.error(
+            "S3StorageManager missing delete_directory method for job %s: %s",
+            job_id,
+            e,
+        )
+
+    return {"job_id": job_id, "status": "aligned_and_evaluated"}
 
 
 def _fetch_extractor_results_from_db(

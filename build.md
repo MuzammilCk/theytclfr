@@ -258,25 +258,27 @@ Test stack:
 ---
 
 ### Phase 8 — Storage + Output API
-Goal: Persist structured knowledge and expose it to authenticated users.
+Goal: Persist structured knowledge to Postgres and expose it to authenticated users.
 Status: [ ] Not Started
 
 Build:
-  [ ] PostgreSQL schema (jobs, metadata, results via Alembic)
-  [ ] pgvector for semantic retrieval on AlignedSegment embeddings
+  [ ] PostgreSQL schema (aligned_timelines table via Alembic migration)
+  [ ] pgvector integration for semantic retrieval on AlignedSegment embeddings
+  [ ] PostgreSQL GIN index for fast keyword search on timeline text
   [ ] FastAPI output layer with Phase 3 auth on all routes
   [ ] Redis cache for repeated identical queries
-  [ ] FinalOutput JSON response matching Phase 1 schema
-  [ ] Query endpoints: by job_id, by time range, by similarity
-  [ ] GET /api/v1/jobs/{job_id}/result endpoint
+  [ ] FinalOutput JSON response matching Phase 1 contract (including provenance/confidence)
+  [ ] Query endpoints: by job_id, by time range, by semantic similarity (pgvector)
+  [ ] tasks/align.py updated to persist final timeline to DB
 
 Definition of Done:
-  [ ] Results queryable by job_id and by time range
+  [ ] Results queryable by job_id and time range
   [ ] Output conforms to Phase 1 FinalOutput schema
   [ ] Repeated requests served from Redis cache
   [ ] All routes protected by Phase 3 auth
   [ ] Alembic migration runs clean from zero
   [ ] No Base.metadata.create_all() anywhere in codebase
+  [ ] Zero references to OpenSearch/Elasticsearch
 
 Test stack:
   Alembic migration tests (upgrade and downgrade)
