@@ -12,15 +12,20 @@ def test_get_final_output_by_job_id():
     mock_model = MagicMock()
     mock_model.output_json = {
         "job_id": str(uuid.uuid4()),
-        "content_type": "transcript",
-        "overall_confidence": 0.9,
-        "items": []
+        "content_type": "script",
+        "video_metadata": {"title": "test"},
+        "confidence": 0.9,
+        "provenance": [{"source": "asr"}],
+        "processed_at": "2026-04-24T00:00:00Z",
+        "processing_duration_seconds": 10.0,
+        "items": [],
+        "script": []
     }
     mock_session.query.return_value.filter.return_value.first.return_value = mock_model
     
     output = get_final_output_by_job_id(uuid.uuid4(), mock_session)
     assert output is not None
-    assert output.content_type == "transcript"
+    assert output.content_type == "script"
 
 def test_get_segments_by_time_range():
     mock_session = MagicMock()

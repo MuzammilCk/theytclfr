@@ -1,5 +1,6 @@
 import uuid
 from unittest.mock import MagicMock
+from datetime import datetime, timezone
 from ytclfr.contracts.alignment import AlignedTimeline, AlignedSegment
 from ytclfr.core.config import Settings
 from ytclfr.storage.segment_store import save_aligned_segments
@@ -18,11 +19,13 @@ def test_save_aligned_segments(mocker):
     
     job_id = uuid.uuid4()
     timeline = AlignedTimeline(
+        job_id=job_id,
         segments=[
-            AlignedSegment(start_seconds=0.0, end_seconds=1.0, text="test", source="asr", confidence=0.9)
+            AlignedSegment(timestamp=0.0, end_timestamp=1.0, text="test", source="asr", confidence=0.9, original_segment_ids=["1"])
         ],
         total_segments=1,
-        has_gaps=False
+        has_gaps=False,
+        aligned_at=datetime.now(timezone.utc)
     )
     
     count = save_aligned_segments(job_id, timeline, settings, mock_session)

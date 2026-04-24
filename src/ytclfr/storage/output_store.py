@@ -31,11 +31,11 @@ def assemble_and_save_final_output(job_id: UUID, timeline: AlignedTimeline, conf
     prov_list = []
     
     for seg in timeline.segments:
-        prov_list.append({"start_seconds": seg.start_seconds, "end_seconds": seg.end_seconds, "source": seg.source})
+        prov_list.append({"start_seconds": seg.timestamp, "end_seconds": seg.end_timestamp, "source": seg.source})
         if content_type == "script":
-            script_items.append(ScriptSegment(timestamp=seg.start_seconds, end_timestamp=seg.end_seconds, text=seg.text, confidence=seg.confidence))
+            script_items.append(ScriptSegment(timestamp=seg.timestamp, end_timestamp=seg.end_timestamp, text=seg.text, confidence=seg.confidence))
         else:
-            list_items.append(ListItem(title=seg.text, timestamp=seg.start_seconds, confidence=seg.confidence))
+            list_items.append(ListItem(title=seg.text, timestamp=seg.timestamp, confidence=seg.confidence))
 
     overall_confidence = confidence_verdict.get("overall_score", 0.0)
     

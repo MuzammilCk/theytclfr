@@ -19,8 +19,8 @@ def save_aligned_segments(job_id: UUID, timeline: AlignedTimeline, settings: Set
         models.append(
             AlignedSegmentModel(
                 job_id=job_id,
-                start_seconds=seg.start_seconds,
-                end_seconds=seg.end_seconds,
+                start_seconds=seg.timestamp,
+                end_seconds=seg.end_timestamp,
                 text=seg.text,
                 source=seg.source,
                 confidence=seg.confidence,
