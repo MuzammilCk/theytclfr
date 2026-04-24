@@ -39,10 +39,19 @@ def assemble_and_save_final_output(job_id: UUID, timeline: AlignedTimeline, conf
 
     overall_confidence = confidence_verdict.get("overall_score", 0.0)
     
+    video_meta = {}
+    if job:
+        video_meta = {
+            "title": job.video_title if job.video_title else "Unknown",
+            "channel": job.channel_name if job.channel_name else "Unknown",
+            "duration": job.duration_seconds if job.duration_seconds else 0.0,
+            "thumbnail_url": job.thumbnail_url if job.thumbnail_url else ""
+        }
+
     output = FinalOutput(
         job_id=job_id,
         content_type=content_type, # type: ignore
-        video_metadata={"title": job.video_metadata.get("title") if job and job.video_metadata else "Unknown"} if job else {},
+        video_metadata=video_meta,
         items=list_items if content_type != "script" else None,
         script=script_items if content_type == "script" else None,
         confidence=overall_confidence,

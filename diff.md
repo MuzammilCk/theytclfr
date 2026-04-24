@@ -661,3 +661,13 @@ Scope creep rejected:
 - NONE
 Next session must start by:
 - Executing Phase 9: End-to-End Hardening.
+
+## Session 24 - Output Store & Temp Storage Bug Fixes
+Date: 2026-04-24
+Changes:
+- Fixed ORM mapping hallucination in src/ytclfr/storage/output_store.py by explicitly accessing individual attributes on the Job model.
+- Fixed directory deletion race condition in src/ytclfr/tasks/route.py's classification task by safely unlinking only the downloaded video and frames_dir.
+- Fixed lingering OCR frames directory bug in src/ytclfr/tasks/extract.py's run_ocr by explicitly removing ocr_frames_dir.
+
+Next session must start by:
+- Executing Phase 9: End-to-End Hardening.

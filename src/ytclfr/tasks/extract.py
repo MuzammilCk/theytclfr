@@ -193,13 +193,16 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
             raise self.retry(exc=exc)
 
         finally:
-            # Phase 10 Bugfix: Only unlink the specific file this task downloaded
-            # to avoid race conditions with parallel tasks sharing the job dir.
+            # Phase 10 Bugfix: Only unlink specific files.
             if local_video_path and local_video_path.exists():
                 try:
                     local_video_path.unlink(missing_ok=True)
                 except Exception as cleanup_exc:
                     logger.warning("Failed to clean up local file %s: %s", local_video_path, cleanup_exc)
+            
+            if 'ocr_frames_dir' in locals() and ocr_frames_dir.exists():
+                import shutil
+                shutil.rmtree(ocr_frames_dir, ignore_errors=True)
 
 
 @celery_app.task(  # type: ignore

@@ -1,6 +1,6 @@
 # build.md
 
-CURRENT PHASE: 8 — Storage + Output API
+CURRENT PHASE: 9 — End-to-End Hardening
 STATUS: IN PROGRESS
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
@@ -10,6 +10,7 @@ STATUS: IN PROGRESS
 (Phase 5 — Worker Queue + Parallel Extractor Infrastructure: COMPLETE)
 (Phase 6 — Temporal Alignment Layer: COMPLETE)
 (Phase 7 — Confidence Controller: COMPLETE)
+(Phase 8 — Storage + Output API: COMPLETE)
 (Phase 10 — V2 Distributed Scaling: COMPLETE)
 
 ## Phase List
@@ -291,7 +292,7 @@ Test stack:
 
 ### Phase 9 — End-to-End Hardening
 Goal: Make the system production-safe, observable, and recoverable.
-Status: [ ] Not Started
+Status: In Progress
 
 Build:
   [ ] Distributed tracing (trace ID in all logs and responses)

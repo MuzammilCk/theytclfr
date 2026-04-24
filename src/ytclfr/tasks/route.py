@@ -211,15 +211,14 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
             raise self.retry(exc=exc)
 
         finally:
-            # Phase 10: Always clean up local video to prevent
-            # disk exhaustion on worker nodes (DR-18).
+            # Phase 10 Bugfix: Only delete the specific files this task created.
+            # DO NOT use cleanup_job() as it causes race conditions with parallel extractors.
             if local_video_path and local_video_path.exists():
                 try:
-                    temp_manager_cleanup = TempStorageManager(settings)
-                    temp_manager_cleanup.cleanup_job(job_uuid)
+                    local_video_path.unlink(missing_ok=True)
                 except Exception as cleanup_exc:
-                    logger.warning(
-                        "Failed to clean up local files for job %s: %s",
-                        job_id,
-                        cleanup_exc,
-                    )
+                    logger.warning("Failed to clean up local file %s: %s", local_video_path, cleanup_exc)
+            
+            if 'frames_dir' in locals() and frames_dir.exists():
+                import shutil
+                shutil.rmtree(frames_dir, ignore_errors=True)
