@@ -1,6 +1,7 @@
 """Celery task for preflight video classification."""
 
 import uuid
+from pathlib import Path
 from typing import Any
 
 from ytclfr.core.config import get_settings
@@ -32,9 +33,8 @@ logger = get_logger(__name__)
 def classify_video(self: Any, job_id: str) -> dict[str, object]:
     """Classify a downloaded video using lightweight heuristics.
 
-    Reads metadata from the database, samples frames via ffmpeg,
-    checks audio presence, inspects keywords, and produces a
-    RouterDecision stored back in the database.
+    Phase 10: Downloads the video from S3 to a transient local path
+    for frame sampling, then deletes it in the finally block.
 
     Args:
         job_id: String UUID of the job to classify.
@@ -44,6 +44,7 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
     """
     settings = get_settings()
     job_uuid = uuid.UUID(job_id)
+    local_video_path: Path | None = None
 
     with db_session() as session:
         try:
@@ -56,10 +57,10 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
             job.status = "classifying"
             session.commit()
 
-            # Step 5: Check media path
-            if job.local_media_path is None:
+            # Step 5: Download video from S3 for frame sampling
+            if not job.s3_video_uri:
                 job.status = "failed"
-                job.error_message = "No media path — download may have failed"
+                job.error_message = "No S3 video URI — upload may have failed"
                 session.commit()
                 return {
                     "job_id": job_id,
@@ -67,17 +68,24 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
                     "error": job.error_message,
                 }
 
-            # Step 6: Create frames directory
-            from pathlib import Path
+            from ytclfr.ingestion.s3_storage import S3StorageManager
 
+            s3_manager = S3StorageManager(settings)
             temp_manager = TempStorageManager(settings)
-            frames_dir = temp_manager.get_job_dir(job_uuid) / "router_frames"
+            local_dir = temp_manager.get_job_dir(job_uuid)
+            local_video_path = local_dir / "video.mp4"
+
+            s3_object_key = f"{job_id}/video.mp4"
+            s3_manager.download_file(s3_object_key, local_video_path)
+
+            # Step 6: Create frames directory
+            frames_dir = local_dir / "router_frames"
             frames_dir.mkdir(parents=True, exist_ok=True)
 
             # Step 7: Sample frames
             try:
                 sampled = sample_frames(
-                    video_path=Path(job.local_media_path),
+                    video_path=local_video_path,
                     output_dir=frames_dir,
                     sample_count=settings.router_frame_sample_count,
                 )
@@ -201,3 +209,17 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
             except Exception:
                 pass
             raise self.retry(exc=exc)
+
+        finally:
+            # Phase 10: Always clean up local video to prevent
+            # disk exhaustion on worker nodes (DR-18).
+            if local_video_path and local_video_path.exists():
+                try:
+                    temp_manager_cleanup = TempStorageManager(settings)
+                    temp_manager_cleanup.cleanup_job(job_uuid)
+                except Exception as cleanup_exc:
+                    logger.warning(
+                        "Failed to clean up local files for job %s: %s",
+                        job_id,
+                        cleanup_exc,
+                    )

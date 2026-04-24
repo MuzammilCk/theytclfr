@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     celery_task_time_limit: int = 1800
     log_level: str = "INFO"
     environment: str = "development"
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    aws_region: str = "us-east-1"
+    s3_bucket_name: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

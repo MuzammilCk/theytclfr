@@ -282,3 +282,65 @@ Consequences: Confidence scoring is fully testable without
   constants. The controller never writes to DB or enqueues
   tasks directly. Rescan dispatch is deferred to Phase 8.
 Supersedes: NONE
+
+---
+
+## DR-18 — Replace local storage with S3 object storage
+Date: 2026-04-24
+Status: ACCEPTED
+Context: The V1 architecture (DR-3) used local filesystem storage
+  at TEMP_MEDIA_PATH. In a distributed Kubernetes deployment with
+  multiple Celery worker nodes, the ingestion worker downloads the
+  video to its local disk, but the ASR/OCR workers run on different
+  nodes and cannot access that path. Local filesystem transport is
+  a catastrophic bottleneck for distributed scaling.
+Decision: After download, the ingestion task uploads the video to
+  S3 with object key `{job_id}/video.mp4` via boto3, stores the
+  S3 URI in `job.s3_video_uri`, and immediately deletes the local
+  file. Extraction tasks download the video from S3 to a transient
+  local path before processing and delete it in a `finally` block.
+  `job.local_media_path` is set to None after S3 upload.
+Consequences: Workers are fully stateless with respect to media
+  files. Requires AWS credentials and an S3 bucket. boto3 added
+  to frozen stack. DR-3 local-only strategy is superseded for
+  production deployments.
+Supersedes: DR-3
+
+## DR-19 — Heterogeneous Celery queue topology
+Date: 2026-04-24
+Status: ACCEPTED
+Context: V1 used two queues (fast, heavy) on a single machine
+  (DR-2, DR-10). In a distributed deployment, different worker
+  types need different resource profiles: ingest workers need
+  network bandwidth, ASR/OCR workers need CPU/GPU, and fast
+  workers need minimal resources.
+Decision: The queue topology remains `fast` and `heavy` but
+  workers are deployed as separate Kubernetes node pools with
+  different resource allocations. The Celery app configuration
+  supports this without code changes — only deployment manifests
+  change. Tasks are already assigned to queues via their decorators.
+Consequences: Horizontal scaling per worker type is possible.
+  No code changes required beyond what DR-18 enables (S3 transport).
+  Deployment manifests (Phase 9) will define the node pool specs.
+Supersedes: DR-2, DR-10 (extends, does not invalidate)
+
+## DR-20 — Database-backed Celery chord payloads
+Date: 2026-04-24
+Status: ACCEPTED
+Context: The V1 chord pattern (DR-10) returned full
+  ExtractorResult.model_dump(mode="json") from each extractor
+  task. These payloads (ASR transcripts, OCR results) can be
+  50MB+ and are serialized through Redis as chord arguments.
+  This causes Redis OOM evictions under load and wastes bandwidth.
+Decision: Extractor tasks return only a lightweight status dict:
+  `{"job_id": str, "extractor_type": str, "status": str}`.
+  The full results are already persisted to the `extractor_results`
+  Postgres table by each task. The `build_timeline` chord callback
+  queries `extractor_results` from Postgres by job_id instead of
+  reading from the chord arguments.
+Consequences: Redis memory usage drops dramatically. Chord
+  payloads are ~100 bytes instead of ~50MB. Alignment engine
+  `align()` function signature is unchanged — it still receives
+  `list[dict]`, but the data is fetched from DB inside
+  `build_timeline` instead of passed through Redis.
+Supersedes: NONE (refines DR-10 chord pattern)

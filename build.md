@@ -9,6 +9,8 @@ STATUS: NOT STARTED
 (Phase 4 — Preflight Router: COMPLETE)
 (Phase 5 — Worker Queue + Parallel Extractor Infrastructure: COMPLETE)
 (Phase 6 — Temporal Alignment Layer: COMPLETE)
+(Phase 7 — Confidence Controller: COMPLETE)
+(Phase 10 — V2 Distributed Scaling: COMPLETE)
 
 ## Phase List
 
@@ -313,6 +315,40 @@ Test stack:
   recovery tests: resume from checkpoint per phase
   load tests: sustained 2x peak for 10 minutes
   cost profiling: cost per video within acceptable range
+
+---
+
+### Phase 10 — V2 Distributed Scaling
+Goal: Eliminate local filesystem coupling between Celery workers and enable distributed multi-node deployment via S3 object storage and lightweight chord payloads.
+Status: [x] Complete
+
+Build:
+  [x] AWS S3 settings added to Settings class (config.py)
+  [x] S3StorageManager created (ingestion/s3_storage.py)
+  [x] Alembic migration 0004: s3_video_uri column on jobs table
+  [x] Ingestion task uploads video to S3, cleans local copy immediately
+  [x] Router and extract tasks download video from S3 before processing
+  [x] Chord payloads reduced to lightweight dicts (no JSON in Redis)
+  [x] build_timeline fetches extractor results from Postgres instead of chord args
+  [x] Proxy-aware rate limiting (X-Forwarded-For)
+  [x] boto3 added to pyproject.toml dependencies
+  [x] DR-18, DR-19, DR-20 written to decisions.md
+  [x] diff.md updated
+
+Definition of Done:
+  [x] No local filesystem path is shared between Celery workers
+  [x] Video files transit through S3 between ingestion and extraction
+  [x] Chord callback receives only lightweight status dicts, not full JSON payloads
+  [x] Alignment engine reads extractor data from Postgres, not from Redis chord args
+  [x] Rate limiter uses real client IP behind load balancer
+  [x] All existing Phase 6 and Phase 7 tests still pass
+  [x] ruff check passes
+  [x] mypy passes
+
+Test stack:
+  ruff check
+  mypy
+  pytest (existing alignment, confidence, extractor tests must not break)
 
 ---
 

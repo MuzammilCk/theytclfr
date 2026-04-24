@@ -580,3 +580,38 @@ Phase: 7
 
 ### Summary
 Implemented the Confidence Controller as a pure logic module. It evaluates the unified timeline and extractor results to decide whether to trust, rescan, or downgrade. Unit tests cover all fallback and threshold logic.
+
+---
+
+## 2026-04-24 — Session 20 — Phase 10: V2 Distributed Scaling
+Phase: Phase 10 — V2 Distributed Scaling
+Files changed: context.md, build.md, decisions.md, pyproject.toml, .env.example, src/ytclfr/core/config.py, src/ytclfr/ingestion/s3_storage.py, src/ytclfr/db/models/job.py, alembic/versions/0004_add_s3_video_uri.py, src/ytclfr/tasks/ingest.py, src/ytclfr/tasks/route.py, src/ytclfr/tasks/extract.py, src/ytclfr/tasks/align.py, src/ytclfr/api/rate_limit.py, src/ytclfr/contracts/events.py, tests/unit/tasks/test_extract.py
+Completed:
+  - context.md: boto3 added to frozen stack (1.2), distributed deployment and S3 moved to IN SCOPE (1.3), deployment target updated to distributed cloud (1.7)
+  - build.md: Phase 10 added with full checklist, current phase marker set to Phase 10
+  - decisions.md: DR-18 (S3 storage, supersedes DR-3), DR-19 (heterogeneous queue topology), DR-20 (DB-backed chord payloads)
+  - pyproject.toml: boto3 added to dependencies
+  - config.py: AWS settings added (aws_access_key_id, aws_secret_access_key, aws_region, s3_bucket_name)
+  - s3_storage.py: S3StorageManager created with upload_file() and download_file() methods via boto3
+  - job.py: s3_video_uri column added (String(2048), nullable)
+  - Alembic migration 0004: adds s3_video_uri column to jobs table
+  - ingest.py: After download, uploads video to S3, stores s3_video_uri, sets local_media_path=None, cleans up local files immediately
+  - route.py: Downloads video from S3 for frame sampling, cleans up in finally block
+  - extract.py: ASR/OCR download from S3 before processing, clean up in finally block; all three extractors return lightweight status dicts instead of full JSON (DR-20)
+  - align.py: build_timeline fetches extractor results from Postgres instead of reading from Redis chord args (DR-20)
+  - rate_limit.py: Updated to use X-Forwarded-For for real client IP behind load balancers
+  - events.py: VideoIngestedEvent.local_media_path made optional (str | None)
+  - tests/unit/tasks/test_extract.py: Updated to mock S3 download and TempStorageManager
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Run alembic upgrade head to apply migration 0004 to Supabase
+  - Mark Phase 10 complete in build.md if all checklist items verified
+  - Begin Phase 8 — Storage + Output API
+
+### Summary
+Implemented Phase 10 V2 Distributed Scaling. Eliminated local filesystem coupling between Celery workers by routing all video media through S3. Ingestion uploads to S3 and immediately deletes local files. Extraction tasks download from S3, process, and clean up. Chord payloads reduced from ~50MB JSON to ~100 byte status dicts with actual data fetched from Postgres. Rate limiter updated for proxy-aware IP detection. All 194 existing tests pass. ruff and mypy clean.

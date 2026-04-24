@@ -24,6 +24,7 @@ dependencies = [
     "python-jose[cryptography]",
     "python-multipart",
     "httpx",
+    "boto3",
 ]
 
 [project.optional-dependencies]

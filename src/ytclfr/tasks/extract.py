@@ -12,6 +12,7 @@ from ytclfr.db.models.extractor_result import (
 from ytclfr.db.models.job import Job
 from ytclfr.db.session import db_session
 from ytclfr.extractors.base import BaseExtractorTask
+from ytclfr.ingestion.temp_storage import TempStorageManager
 from ytclfr.queue.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -26,18 +27,36 @@ logger = get_logger(__name__)
 def run_asr(self: Any, job_id: str) -> dict[str, object]:
     """Run ASR transcription on the downloaded video.
 
-    Reads job.local_media_path from DB.
-    Writes ExtractorResultModel to DB on completion.
-    Returns serialized ExtractorResult dict.
+    Phase 10: Downloads video from S3 to a transient local path,
+    runs ASR, persists result to DB, then deletes local file.
+    Returns only a lightweight status dict (DR-20).
     """
 
+    settings = get_settings()
     job_uuid = uuid.UUID(job_id)
+    local_video_path: Path | None = None
 
     with db_session() as session:
         try:
             job = session.query(Job).filter(Job.id == job_uuid).first()
-            if not job or not job.local_media_path:
-                raise ValueError(f"Job {job_id} not found or has no media path")
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+
+            if not job.s3_video_uri:
+                raise ValueError(
+                    f"Job {job_id} has no S3 video URI — upload may have failed"
+                )
+
+            # Download video from S3 to transient local path
+            from ytclfr.ingestion.s3_storage import S3StorageManager
+
+            s3_manager = S3StorageManager(settings)
+            temp_manager = TempStorageManager(settings)
+            local_dir = temp_manager.get_job_dir(job_uuid)
+            local_video_path = local_dir / "video.mp4"
+
+            s3_object_key = f"{job_id}/video.mp4"
+            s3_manager.download_file(s3_object_key, local_video_path)
 
             from ytclfr.extractors.asr import (
                 get_asr_extractor,
@@ -46,7 +65,7 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
             extractor = get_asr_extractor()
             result = extractor.extract(
                 job_id=job_uuid,
-                video_path=Path(job.local_media_path),
+                video_path=local_video_path,
             )
 
             _persist_extractor_result(session, result)
@@ -57,7 +76,13 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
                 job_id,
                 len(result.segments),
             )
-            return result.model_dump(mode="json")
+            # Phase 10 (DR-20): Return lightweight dict only.
+            # Full results are already persisted to extractor_results table.
+            return {
+                "job_id": str(job_id),
+                "extractor_type": "asr",
+                "status": "success",
+            }
 
         except Exception as exc:
             session.rollback()
@@ -69,14 +94,24 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
                     str(exc),
                 )
                 return {
-                    "job_id": job_id,
+                    "job_id": str(job_id),
                     "extractor_type": "asr",
-                    "error": str(exc),
-                    "segments": [],
-                    "total_duration_seconds": 0.0,
-                    "extracted_at": datetime.now(UTC).isoformat(),
+                    "status": "failed",
                 }
             raise self.retry(exc=exc)
+
+        finally:
+            # Phase 10: Always clean up local video to prevent
+            # disk exhaustion on worker nodes (DR-18).
+            if local_video_path and local_video_path.exists():
+                try:
+                    TempStorageManager(settings).cleanup_job(job_uuid)
+                except Exception as cleanup_exc:
+                    logger.warning(
+                        "Failed to clean up local files for job %s: %s",
+                        job_id,
+                        cleanup_exc,
+                    )
 
 
 @celery_app.task(  # type: ignore
@@ -88,25 +123,36 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
 def run_ocr(self: Any, job_id: str) -> dict[str, object]:
     """Run OCR frame extraction on the downloaded video.
 
-    Creates an ocr_frames subdirectory inside the job's
-    temp directory. Writes ExtractorResultModel to DB.
-    Returns serialized ExtractorResult dict.
+    Phase 10: Downloads video from S3, extracts frames,
+    runs OCR, persists to DB, deletes local files.
+    Returns only a lightweight status dict (DR-20).
     """
     settings = get_settings()
     job_uuid = uuid.UUID(job_id)
+    local_video_path: Path | None = None
 
     with db_session() as session:
         try:
             job = session.query(Job).filter(Job.id == job_uuid).first()
-            if not job or not job.local_media_path:
-                raise ValueError(f"Job {job_id} not found or has no media path")
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
 
-            from ytclfr.ingestion.temp_storage import (
-                TempStorageManager,
-            )
+            if not job.s3_video_uri:
+                raise ValueError(
+                    f"Job {job_id} has no S3 video URI — upload may have failed"
+                )
 
+            # Download video from S3 to transient local path
+            from ytclfr.ingestion.s3_storage import S3StorageManager
+
+            s3_manager = S3StorageManager(settings)
             temp_manager = TempStorageManager(settings)
-            ocr_frames_dir = temp_manager.get_job_dir(job_uuid) / "ocr_frames"
+            local_dir = temp_manager.get_job_dir(job_uuid)
+            local_video_path = local_dir / "video.mp4"
+            ocr_frames_dir = local_dir / "ocr_frames"
+
+            s3_object_key = f"{job_id}/video.mp4"
+            s3_manager.download_file(s3_object_key, local_video_path)
 
             from ytclfr.extractors.ocr import (
                 get_ocr_extractor,
@@ -115,7 +161,7 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
             extractor = get_ocr_extractor()
             result = extractor.extract(
                 job_id=job_uuid,
-                video_path=Path(job.local_media_path),
+                video_path=local_video_path,
                 output_dir=ocr_frames_dir,
             )
 
@@ -127,7 +173,12 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
                 job_id,
                 len(result.segments),
             )
-            return result.model_dump(mode="json")
+            # Phase 10 (DR-20): Return lightweight dict only.
+            return {
+                "job_id": str(job_id),
+                "extractor_type": "ocr",
+                "status": "success",
+            }
 
         except Exception as exc:
             session.rollback()
@@ -139,14 +190,23 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
                     str(exc),
                 )
                 return {
-                    "job_id": job_id,
+                    "job_id": str(job_id),
                     "extractor_type": "ocr",
-                    "error": str(exc),
-                    "segments": [],
-                    "total_duration_seconds": 0.0,
-                    "extracted_at": datetime.now(UTC).isoformat(),
+                    "status": "failed",
                 }
             raise self.retry(exc=exc)
+
+        finally:
+            # Phase 10: Always clean up local files (DR-18).
+            if local_video_path and local_video_path.exists():
+                try:
+                    TempStorageManager(settings).cleanup_job(job_uuid)
+                except Exception as cleanup_exc:
+                    logger.warning(
+                        "Failed to clean up local files for job %s: %s",
+                        job_id,
+                        cleanup_exc,
+                    )
 
 
 @celery_app.task(  # type: ignore
@@ -161,6 +221,7 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
     Uses the yt-dlp metadata heuristic (V1).
     # PHASE-9-TODO: Replace with YAMNet.
     Runs on the fast queue — no heavy I/O.
+    No S3 download needed — uses DB metadata only.
     """
     job_uuid = uuid.UUID(job_id)
 
@@ -189,7 +250,12 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
                 result.segments[0].label if result.segments else "unknown",  # type: ignore[union-attr]
                 result.segments[0].confidence if result.segments else 0.0,
             )
-            return result.model_dump(mode="json")
+            # Phase 10 (DR-20): Return lightweight dict only.
+            return {
+                "job_id": str(job_id),
+                "extractor_type": "audio",
+                "status": "success",
+            }
 
         except Exception as exc:
             session.rollback()
@@ -201,12 +267,9 @@ def run_audio_classifier(self: Any, job_id: str) -> dict[str, object]:
                     str(exc),
                 )
                 return {
-                    "job_id": job_id,
+                    "job_id": str(job_id),
                     "extractor_type": "audio",
-                    "error": str(exc),
-                    "segments": [],
-                    "total_duration_seconds": 0.0,
-                    "extracted_at": datetime.now(UTC).isoformat(),
+                    "status": "failed",
                 }
             raise self.retry(exc=exc)
 

@@ -15,7 +15,7 @@ class VideoIngestedEvent(BaseModel):
     channel_name: str
     duration_seconds: float
     thumbnail_url: str | None = None
-    local_media_path: str
+    local_media_path: str | None = None
     ingested_at: datetime
     metadata_raw: dict[str, object]
 
