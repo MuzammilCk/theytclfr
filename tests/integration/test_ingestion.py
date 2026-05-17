@@ -13,7 +13,7 @@ from ytclfr.api.main import app
 from ytclfr.db.models.job import Job
 from ytclfr.db.session import get_db
 
-TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "")
 if not TEST_DATABASE_URL:
     pytest.skip(
         "TEST_DATABASE_URL environment variable is not set", allow_module_level=True
