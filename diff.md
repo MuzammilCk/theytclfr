@@ -703,3 +703,25 @@ Bugs found (not fixed):
 Scope creep rejected:
 - Added observability using existing frozen stack instead of new dependencies.
 
+
+## Session 27 - V2 Stage A: Signal Census Implementation
+Date: 2026-05-23
+Changes:
+- Created V2/ directory and all control files (context.md, claude.md, build.md, diff.md, decisions.md) to govern V2.
+- Defined `SignalManifest` Pydantic model in `src/ytclfr/contracts/manifest.py`.
+- Added `signal_manifests` table and its Alembic migration `alembic/versions/6c08e88f31be_add_signal_manifests.py`.
+- Created repository `SignalManifestStore` in `src/ytclfr/storage/manifest_store.py`.
+- Upgraded probing modules with Windows-compatible `threading.Timer` timeouts:
+  - `src/ytclfr/probing/audio_checker.py` (VAD via webrtcvad, music detection via librosa).
+  - `src/ytclfr/probing/frame_sampler.py` (visual cuts, motion score, faces via OpenCV, text density).
+  - `src/ytclfr/probing/metadata_probe.py` (duration, format, subtitles, chapters via yt-dlp).
+- Created orchestrator Celery task `run_signal_census` in `src/ytclfr/tasks/stage_a.py`.
+- Implemented status enums and stage transition schemas in `src/ytclfr/contracts/events.py`.
+- Created `tests/fixtures/signal_manifest_golden.json` and 27 robust unit tests under `tests/unit/stage_a/`.
+- Verified that all 27 new tests and 200+ pre-existing unit tests pass successfully.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- webrtcvad-wheels and librosa installed but kept frozen stack clean by deferring pyproject.toml updates.
+Next session must start by:
+- Initiating Stage B - Targeted Extraction.

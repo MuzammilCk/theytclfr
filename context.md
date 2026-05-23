@@ -253,6 +253,48 @@ ENVIRONMENT — Deployment environment name (development, staging, production) �
 
 The system targets distributed cloud deployment with distinct worker node pools. The FastAPI API server, Celery ingest workers, Celery heavy workers (ASR/OCR), and Celery fast workers run on separate nodes. Temporary media is uploaded to S3 after download and retrieved by workers from S3 before processing. PostgreSQL runs on Supabase (hosted). Redis serves as the Celery broker. Local filesystem is used only for transient scratch files that are deleted after each task completes.
 
+## 1.9 — V2 Architecture (Stage A — Signal Census Complete)
+
+### V2 Philosophy: Evidence-Based Late Binding
+To solve the V1 premature commitment problem (where a video is classified early by a simple heuristic and all extractors are blindly run in parallel), V2 transitions to a four-stage late-binding pipeline. We do not guess or classify first. First, we detect what physical signals are present (Stage A). Then, we run only the extractors matching those signals (Stage B). Then, we fuse all evidence (Stage C). Finally, we perform structured taxonomy/intent classification backed by the fused evidence (Stage D).
+
+### V2 Pipeline Stages
+
+```
+URL
+ → Ingestion (unchanged)
+ → Stage A: Signal Census         [COMPLETE]   ← cheap physical signal detection (VAD, faces, cuts, motion, metadata)
+ → Stage B: Targeted Extraction   [IN PROGRESS] ← dynamic Celery group (only run needed extractors)
+ → Stage C: Evidence Fusion       [PLANNED]     ← temporal alignment, entity extraction, Groq reasoner
+ → Stage D: Taxonomy + Intent     [PLANNED]     ← final classification backed by evidence graph
+ → Final Output + Persistence
+```
+
+### Key V2 Contracts
+
+#### SignalManifest (replaces RouterDecisionModel)
+Stage A cheap probing produces a `SignalManifest` which is persisted in the PostgreSQL database:
+- `audio_type`: speech_only, music_only, speech_music, sfx, ambient, silent
+- `language`: detected language code
+- `has_speech` / `has_music` / `has_burned_in_text` / `has_subtitle_track` / `has_faces`: boolean signal presence indicators
+- `motion_density` / `motion_score`: visual dynamics
+- `aspect_ratio`: 16:9, 9:16, 1:1
+- `content_format`: live_action, animation, screen_recording, mixed
+- `scene_cut_count`: int
+- `duration_seconds`: float
+- `probing_confidence`: float
+
+### Key V2 Directory Conventions
+- `src/ytclfr/contracts/`: Pydantic schemas only (e.g. `contracts/manifest.py`)
+- `src/ytclfr/probing/`: Cheap signal detectors (Stage A probers: audio_checker, frame_sampler, metadata_probe)
+- `src/ytclfr/extractors/`: Heavy extractors (Stage B tools)
+- `src/ytclfr/fusion/`: Evidence fusion layer (Stage C)
+- `src/ytclfr/taxonomy/`: Taxonomy + intent mapping (Stage D)
+- `src/ytclfr/tasks/`: Celery task definitions (one file per stage, e.g., `stage_a.py`)
+- `src/ytclfr/storage/`: DB persistence layer (`manifest_store.py`)
+
+---
+
 ## 1.8 — Session Protocol
 
 EVERY SESSION MUST START BY:

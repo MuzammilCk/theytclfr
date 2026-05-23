@@ -1,6 +1,6 @@
 # build.md
 
-CURRENT PHASE: 9 — End-to-End Hardening
+CURRENT PHASE: V2 Stage B — Targeted Extraction
 STATUS: IN PROGRESS
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
@@ -11,7 +11,9 @@ STATUS: IN PROGRESS
 (Phase 6 — Temporal Alignment Layer: COMPLETE)
 (Phase 7 — Confidence Controller: COMPLETE)
 (Phase 8 — Storage + Output API: COMPLETE)
+(Phase 9 — End-to-End Hardening: COMPLETE)
 (Phase 10 — V2 Distributed Scaling: COMPLETE)
+(V2 Stage A — Signal Census: COMPLETE)
 
 ## Phase List
 
@@ -352,6 +354,106 @@ Test stack:
   ruff check
   mypy
   pytest (existing alignment, confidence, extractor tests must not break)
+
+---
+
+### V2 Stage A — Signal Census
+Goal: Replace the V1 preflight router with a lightweight probing layer that detects what signals physically exist in the video before any expensive extraction runs.
+Status: [x] Complete
+
+Build:
+  [x] A-1: Define `SignalManifest` Pydantic model (`contracts/manifest.py`)
+  [x] A-2: Add `signal_manifests` Alembic migration (`migrations/`)
+  [x] A-3: Add `SignalManifestRepository` to storage layer (`storage/manifest_store.py`)
+  [x] A-4: Upgrade `audio_checker.py` — VAD + music detection (`probing/audio_checker.py`)
+  [x] A-5: Upgrade `frame_sampler.py` — motion + face + text density (`probing/frame_sampler.py`)
+  [x] A-6: Add `metadata_probe.py` — yt-dlp metadata parser (`probing/metadata_probe.py`)
+  [x] A-7: Write `tasks/stage_a.py` Celery task (orchestrates A-4/A-5/A-6, saves manifest) (`tasks/stage_a.py`)
+  [x] A-8: Add SSE event types for Stage A (`contracts/events.py`)
+  [x] A-9: Golden JSON fixture + unit tests for SignalManifest (`tests/fixtures/signal_manifest.json`, `tests/test_stage_a.py`)
+
+Definition of Done:
+  [x] All Stage A micro-tasks complete.
+  [x] 27 unit tests for Stage A pass without error.
+  [x] V1 regression tests pass with no regressions.
+  [x] All intermediate results (SignalManifest) persisted to PostgreSQL.
+  [x] SSE events emitted at every step of Stage A.
+
+Test stack:
+  pytest tests/unit/stage_a/
+  pytest tests/ -q
+
+---
+
+### V2 Stage B — Targeted Extraction
+Goal: Read the `SignalManifest` and dynamically build a Celery group of only the extractors needed. No extractor runs unless its signal was confirmed in Stage A.
+Status: [ ] In Progress
+
+Build:
+  [ ] B-1: Define extractor output Pydantic models (`ASROutput`, `OCROutput`, `VisualOutput`) (`contracts/extractor_outputs.py`)
+  [ ] B-2: Add extractor output tables (Alembic migration) (`migrations/`)
+  [ ] B-3: Refactor `tasks/asr.py` to V2 contract (`tasks/asr.py`)
+  [ ] B-4: Refactor `tasks/ocr.py` to V2 contract (`tasks/ocr.py`)
+  [ ] B-5: Add `tasks/visual_extractor.py` (scene cut + face detection) (`tasks/visual_extractor.py`)
+  [ ] B-6: Write `tasks/stage_b.py` — reads manifest, builds dynamic Celery group (`tasks/stage_b.py`)
+  [ ] B-7: Add SSE event types for Stage B (`contracts/events.py`)
+  [ ] B-8: Golden JSON fixtures + unit tests for Stage B (`tests/fixtures/`, `tests/test_stage_b.py`)
+
+Definition of Done:
+  [ ] Extractors only run if the corresponding signal is active in the manifest.
+  [ ] Extractor results are persisted as separate records linked to the job in the DB.
+  [ ] Tasks are highly robust and run in parallel via Celery groups.
+  [ ] SSE events emitted correctly.
+
+Test stack:
+  pytest tests/
+
+---
+
+### V2 Stage C — Evidence Fusion
+Goal: Take all extractor outputs and produce a single fused evidence graph with aligned timestamps, extracted entities, and confidence scores. LLM call via Groq to answer "what is this video about?"
+Status: [ ] Planned
+
+Build:
+  [ ] C-1: Define `EvidenceGraph`, `FusedSegment`, `ExtractedEntity` Pydantic models (`contracts/evidence.py`)
+  [ ] C-2: Add `evidence_graphs` Alembic migration (`migrations/`)
+  [ ] C-3: Upgrade `alignment/engine.py` to V2 temporal alignment (`alignment/engine.py`)
+  [ ] C-4: Write `fusion/entity_extractor.py` (extracts products, people, places from transcript) (`fusion/entity_extractor.py`)
+  [ ] C-5: Write `fusion/groq_reasoner.py` (Groq API call: dominant subject + scene summary) (`fusion/groq_reasoner.py`)
+  [ ] C-6: Write `tasks/stage_c.py` — fuses all evidence, saves EvidenceGraph (`tasks/stage_c.py`)
+  [ ] C-7: Add SSE event types for Stage C (`contracts/events.py`)
+  [ ] C-8: Golden JSON fixtures + unit tests for Stage C (`tests/fixtures/`, `tests/test_stage_c.py`)
+
+---
+
+### V2 Stage D — Taxonomy + Intent Mapping
+Goal: Use the `EvidenceGraph` to produce a final structured classification: parent category, child category, intent. This is the last step — classification happens only after evidence is complete.
+Status: [ ] Planned
+
+Build:
+  [ ] D-1: Define enriched `FinalOutput` Pydantic model (`contracts/output.py`)
+  [ ] D-2: Update `final_outputs` table (Alembic migration) (`migrations/`)
+  [ ] D-3: Write `taxonomy/mapper.py` — Groq-powered taxonomy classification (`taxonomy/mapper.py`)
+  [ ] D-4: Write `taxonomy/intent_resolver.py` — resolves intent from evidence (`taxonomy/intent_resolver.py`)
+  [ ] D-5: Write `tasks/stage_d.py` — runs mapper, saves FinalOutput (`tasks/stage_d.py`)
+  [ ] D-6: Update `storage/output_store.py` to V2 schema (remove hardcoded `content_type_map`) (`storage/output_store.py`)
+  [ ] D-7: Add SSE event types for Stage D + job completion (`contracts/events.py`)
+  [ ] D-8: Golden JSON fixtures + unit tests for Stage D (`tests/fixtures/`, `tests/test_stage_d.py`)
+
+---
+
+### V2 Pipeline Wiring
+Goal: Wire the four independent stages together using Celery callback mechanisms and update job state machines.
+Status: [ ] Planned
+
+Build:
+  [ ] W-1: Update `tasks/route.py` to trigger Stage A instead of old group (`tasks/route.py`)
+  [ ] W-2: Wire Stage A completion → Stage B trigger via Celery callback (`tasks/stage_a.py`)
+  [ ] W-3: Wire Stage B completion → Stage C trigger (`tasks/stage_b.py`)
+  [ ] W-4: Wire Stage C completion → Stage D trigger (`tasks/stage_c.py`)
+  [ ] W-5: Update job status state machine in DB (`storage/job_store.py`)
+  [ ] W-6: Update FastAPI job status endpoint to return new fields (`api/jobs.py`)
+  [ ] W-7: Integration test: full pipeline on a short test video (`tests/test_pipeline_integration.py`)
 
 ---
 

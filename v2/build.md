@@ -141,11 +141,11 @@ All V2 control files live in `V2/`:
 ## Stage A Start Checklist
 
 Before running the Stage A prompt, verify:
-- [ ] PostgreSQL is running and accessible.
-- [ ] Redis is running.
-- [ ] `alembic.ini` is configured with correct `DATABASE_URL`.
-- [ ] `config.py` has `GROQ_API_KEY` and `OLLAMA_BASE_URL` populated.
-- [ ] V1 tests pass: `pytest tests/ -q` shows zero failures.
-- [ ] `ffprobe` is available on system PATH.
-- [ ] `opencv-python-headless` is installed.
-- [ ] `webrtcvad` and `librosa` are installed or ready to install.
+- [x] PostgreSQL is running and accessible.
+- [x] Redis is running.
+- [x] `alembic.ini` is configured with correct `DATABASE_URL`.
+- [x] `config.py` has `GROQ_API_KEY` and `OLLAMA_BASE_URL` populated.
+- [x] V1 tests pass: `pytest tests/ -q` shows zero failures.
+- [x] `ffprobe` is available on system PATH.
+- [x] `opencv-python-headless` is installed.
+- [x] `webrtcvad` and `librosa` are installed or ready to install.

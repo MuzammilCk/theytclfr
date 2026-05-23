@@ -4,7 +4,7 @@
 
 Each architectural decision uses this format:
 
-## DR-[N] â€” [decision title]
+## DR-[N] Ã¢â‚¬â€� [decision title]
 Date: [YYYY-MM-DD]
 Status: ACCEPTED / SUPERSEDED / UNDER REVIEW
 Context: [why this decision was needed]
@@ -14,7 +14,7 @@ Supersedes: [DR-N if applicable, else NONE]
 
 ---
 
-## DR-1 â€” Primary database choice
+## DR-1 Ã¢â‚¬â€� Primary database choice
 Date: 2026-04-20
 Status: SUPERSEDED by DR-1-REV
 Context: The system needs a primary relational database to store job records, video metadata, transcript segments, OCR results, aligned timelines, structured extraction output, and confidence scores. The database must support JSONB for flexible structured data storage and the pgvector extension for future vector/semantic search capability. It must run on a single laptop alongside all other services.
@@ -22,7 +22,7 @@ Decision: PostgreSQL 16 as the primary relational database. All persistent appli
 Consequences: Enables relational integrity, JSONB flexibility, and vector search in a single database engine. Rules out NoSQL-first approaches. Requires PostgreSQL to be running locally (native install). All future schema changes must use Alembic migrations.
 Supersedes: NONE
 
-## DR-1-REV â€” Primary database choice (revised)
+## DR-1-REV Ã¢â‚¬â€� Primary database choice (revised)
 Date: 2026-04-20
 Status: ACCEPTED
 Context: Local PostgreSQL installation on Windows/WSL adds
@@ -46,7 +46,7 @@ Supersedes: DR-1
 
 ---
 
-## DR-2 â€” Task queue and worker system
+## DR-2 Ã¢â‚¬â€� Task queue and worker system
 Date: 2026-04-20
 Status: ACCEPTED
 Context: Video processing involves multiple long-running steps (download, ASR, OCR, LLM calls) that cannot run in the API request cycle. A task queue is needed to enqueue jobs from the FastAPI API and execute them asynchronously in worker processes. The system runs on a single laptop, so the solution must be lightweight.
@@ -56,65 +56,65 @@ Supersedes: NONE
 
 ---
 
-## DR-3 â€” Temporary media storage strategy
+## DR-3 Ã¢â‚¬â€� Temporary media storage strategy
 Date: 2026-04-20
 Status: ACCEPTED
-Context: Downloaded YouTube videos and extracted audio files need temporary storage during processing. After all extraction steps (ASR, OCR) are complete, the media files must be deleted. The system runs on a single laptop â€” cloud storage (S3) adds unnecessary complexity for V1.
+Context: Downloaded YouTube videos and extracted audio files need temporary storage during processing. After all extraction steps (ASR, OCR) are complete, the media files must be deleted. The system runs on a single laptop Ã¢â‚¬â€� cloud storage (S3) adds unnecessary complexity for V1.
 Decision: Local filesystem storage at the path specified by the TEMP_MEDIA_PATH environment variable. Files are organized by job_id in subdirectories. Cleanup is triggered after all extraction tasks for a job complete. TEMP_MEDIA_MAX_AGE_SECONDS provides a safety net for orphaned files.
-Consequences: Enables simple, fast I/O for video processing on a single machine. Rules out S3-compatible storage in V1 (deferred to future multi-machine deployment). Requires sufficient local disk space for concurrent video downloads. Media files are ephemeral â€” the system is NOT a video hosting or storage service.
+Consequences: Enables simple, fast I/O for video processing on a single machine. Rules out S3-compatible storage in V1 (deferred to future multi-machine deployment). Requires sufficient local disk space for concurrent video downloads. Media files are ephemeral Ã¢â‚¬â€� the system is NOT a video hosting or storage service.
 Supersedes: NONE
 
 ---
 
-## DR-4 â€” LLM/AI provider choice
+## DR-4 Ã¢â‚¬â€� LLM/AI provider choice
 Date: 2026-04-20
 Status: ACCEPTED
 Context: The system uses LLMs to parse aligned timeline content (ASR + OCR) and extract structured data (recipes, movie lists, scripts, etc.). Two tiers of LLM capability are needed: a local model for routine extraction tasks and a cloud model for hard reasoning tasks requiring higher accuracy or longer context windows.
-Decision: Two-tier LLM strategy. Tier 1 (local): Ollama running llama3.1:8b on the same laptop â€” used for routine extraction, classification support, and simple structuring tasks. Tier 2 (cloud): Groq API running llama-3.3-70b-versatile â€” used for hard reasoning tasks, complex multi-item extraction, and fallback when local model confidence is low. Escalation logic: try Ollama first, escalate to Groq when local results fail parsing or fall below confidence threshold.
+Decision: Two-tier LLM strategy. Tier 1 (local): Ollama running llama3.1:8b on the same laptop Ã¢â‚¬â€� used for routine extraction, classification support, and simple structuring tasks. Tier 2 (cloud): Groq API running llama-3.3-70b-versatile Ã¢â‚¬â€� used for hard reasoning tasks, complex multi-item extraction, and fallback when local model confidence is low. Escalation logic: try Ollama first, escalate to Groq when local results fail parsing or fall below confidence threshold.
 Consequences: Enables cost-effective local processing for most tasks while retaining access to a more powerful model for difficult cases. Rules out OpenAI, Anthropic, and other commercial LLM providers in V1. Requires Ollama to be installed and running locally with the llama3.1:8b model pulled. Requires a valid GROQ_API_KEY for cloud escalation. Groq usage incurs API costs on their pay-as-you-go plan.
 Supersedes: NONE
 
 ---
 
-## DR-5 â€” OCR engine choice
+## DR-5 Ã¢â‚¬â€� OCR engine choice
 Date: 2026-04-20
 Status: ACCEPTED
-Context: The system needs to extract on-screen text from video frames â€” titles, overlays, ingredient lists, graphics, captions rendered into the video itself (not subtitle tracks). The OCR engine must run locally on a CPU-only laptop with no external API dependency.
+Context: The system needs to extract on-screen text from video frames Ã¢â‚¬â€� titles, overlays, ingredient lists, graphics, captions rendered into the video itself (not subtitle tracks). The OCR engine must run locally on a CPU-only laptop with no external API dependency.
 Decision: Tesseract 5 via the pytesseract Python wrapper. Video frames are sampled at a configurable rate (OCR_FRAME_SAMPLE_RATE env var), extracted using ffmpeg, and passed to Tesseract for text recognition. Adjacent duplicate text is deduplicated to avoid repeating static overlays.
-Consequences: Enables local, offline OCR with no API cost. Tesseract handles Latin-script languages well out of the box. Rules out cloud OCR services (Google Vision, AWS Textract) in V1. Accuracy on stylized or low-contrast text may be limited â€” this is an acceptable tradeoff for V1. May require Tesseract language packs for non-English videos.
+Consequences: Enables local, offline OCR with no API cost. Tesseract handles Latin-script languages well out of the box. Rules out cloud OCR services (Google Vision, AWS Textract) in V1. Accuracy on stylized or low-contrast text may be limited Ã¢â‚¬â€� this is an acceptable tradeoff for V1. May require Tesseract language packs for non-English videos.
 Supersedes: NONE
 
 ---
 
-## DR-6 â€” ASR / transcript engine choice
+## DR-6 Ã¢â‚¬â€� ASR / transcript engine choice
 Date: 2026-04-20
 Status: ACCEPTED
-Context: The system needs to transcribe spoken content from YouTube videos with word-level timestamps. The ASR engine must run locally on a CPU-only laptop with no external API dependency. Accuracy must be sufficient for downstream LLM structuring â€” the transcript does not need to be publishing-quality, but must be good enough for entity extraction.
+Context: The system needs to transcribe spoken content from YouTube videos with word-level timestamps. The ASR engine must run locally on a CPU-only laptop with no external API dependency. Accuracy must be sufficient for downstream LLM structuring Ã¢â‚¬â€� the transcript does not need to be publishing-quality, but must be good enough for entity extraction.
 Decision: faster-whisper with model=small and device=cpu. This is a confirmed decision. faster-whisper is a CTranslate2-optimized implementation of OpenAI Whisper, providing significantly faster CPU inference than the original Whisper. The small model balances accuracy and CPU performance. Word-level timestamps are extracted for provenance tracking.
 Consequences: Enables local, offline ASR with no API cost. CPU inference with model=small is viable on a modern laptop (expected ~2-4x slower than real-time). Rules out cloud ASR services (Google STT, AWS Transcribe, AssemblyAI) in V1. Rules out larger Whisper models (medium, large) due to CPU performance constraints. Accuracy on heavily accented or multi-speaker audio may be limited.
 Supersedes: NONE
 
 ---
 
-## DR-7 â€” Authentication mechanism
+## DR-7 Ã¢â‚¬â€� Authentication mechanism
 Date: 2026-04-20
 Status: SUPERSEDED by DR-7-REV
 Context: The output API must be protected to prevent unauthorized access to job submission and result retrieval. The auth mechanism must be stateless (no server-side session storage), simple to implement, and suitable for both developer API usage and frontend UI authentication.
 Decision: JWT (JSON Web Tokens) with HS256 signing. Protected endpoints: POST /api/v1/jobs, GET /api/v1/jobs/{job_id}, GET /api/v1/jobs/{job_id}/result. Unprotected endpoints: GET /api/v1/health, GET /docs, GET /openapi.json, static frontend assets. JWT secret is stored in JWT_SECRET_KEY env var. Token expiry is configurable via JWT_EXPIRY_MINUTES. No refresh token mechanism in V1.
-Consequences: Enables stateless authentication suitable for API and UI consumers. Rules out OAuth2 flows (deferred to future version if third-party integrations are needed). Rules out API key authentication (less flexible than JWT). No user registration or login flow is defined in V1 â€” token generation mechanism is left to Phase 2 implementation (could be a simple admin-generated token or a basic login endpoint).
+Consequences: Enables stateless authentication suitable for API and UI consumers. Rules out OAuth2 flows (deferred to future version if third-party integrations are needed). Rules out API key authentication (less flexible than JWT). No user registration or login flow is defined in V1 Ã¢â‚¬â€� token generation mechanism is left to Phase 2 implementation (could be a simple admin-generated token or a basic login endpoint).
 Supersedes: NONE
 
-## DR-7-REV â€” Authentication mechanism (revised)
+## DR-7-REV Ã¢â‚¬â€� Authentication mechanism (revised)
 Date: 2026-04-20
 Status: ACCEPTED
 Context: The output API must be protected. Building custom user registration and login flows is unnecessary when Supabase provides a fully managed authentication service that issues standard JWTs.
-Decision: Phase 3 will validate Supabase-issued JWTs using the Supabase JWT secret. We are not building custom token generation, user registration, or login endpoints. The FastAPI auth dependency reads the JWT secret from the JWT_SECRET_KEY environment variable â€” which will be the Supabase JWT secret from the dashboard, not a custom-generated one.
+Decision: Phase 3 will validate Supabase-issued JWTs using the Supabase JWT secret. We are not building custom token generation, user registration, or login endpoints. The FastAPI auth dependency reads the JWT secret from the JWT_SECRET_KEY environment variable Ã¢â‚¬â€� which will be the Supabase JWT secret from the dashboard, not a custom-generated one.
 Consequences: Simplifies the backend by removing user management. The python-jose library is still used. Nothing in pyproject.toml changes. Our API will trust tokens signed by Supabase.
 Supersedes: DR-7
 
 ---
 
-## DR-8 â€” Schema validation approach
+## DR-8 Ã¢â‚¬â€� Schema validation approach
 Date: 2026-04-20
 Status: ACCEPTED
 Context: The system needs robust runtime validation for API request/response payloads, database models, LLM output parsing, and structured extraction schemas. The validation library must integrate naturally with the chosen API framework (FastAPI) and support JSON Schema generation for API documentation.
@@ -124,25 +124,25 @@ Supersedes: NONE
 
 ---
 
-## DR-9 â€” Search and retrieval layer
+## DR-9 Ã¢â‚¬â€� Search and retrieval layer
 Date: 2026-04-20
 Status: ACCEPTED
-Context: The system needs to support searching across extracted content â€” finding specific segments, items, or timestamps within processed videos. A dedicated search layer enables future features like cross-video search and semantic similarity queries. The V1 deployment is single-machine, so a separate search cluster (OpenSearch/Elasticsearch) adds significant resource overhead.
+Context: The system needs to support searching across extracted content Ã¢â‚¬â€� finding specific segments, items, or timestamps within processed videos. A dedicated search layer enables future features like cross-video search and semantic similarity queries. The V1 deployment is single-machine, so a separate search cluster (OpenSearch/Elasticsearch) adds significant resource overhead.
 Decision: pgvector extension within PostgreSQL for V1. Vector embeddings are stored alongside extracted content in PostgreSQL. GIN indexes support full-text search on transcript and OCR text. Semantic similarity search uses pgvector's cosine distance operator. No separate OpenSearch or Elasticsearch cluster in V1. SCOPE REVIEW: OpenSearch may be added in a future version for cross-video search at scale, but is deferred from V1 to keep the single-machine footprint minimal.
-Consequences: Enables both full-text and vector similarity search within the existing PostgreSQL database. No additional service to manage or monitor. Rules out OpenSearch/Elasticsearch in V1 (deferred). Search performance is bounded by PostgreSQL capabilities â€” acceptable for V1 single-user/small-team usage. Embedding generation requires a model (could use Ollama or a lightweight sentence-transformer â€” to be decided in Phase 7).
+Consequences: Enables both full-text and vector similarity search within the existing PostgreSQL database. No additional service to manage or monitor. Rules out OpenSearch/Elasticsearch in V1 (deferred). Search performance is bounded by PostgreSQL capabilities Ã¢â‚¬â€� acceptable for V1 single-user/small-team usage. Embedding generation requires a model (could use Ollama or a lightweight sentence-transformer Ã¢â‚¬â€� to be decided in Phase 7).
 Supersedes: NONE
 
 ---
 
-## DR-10 â€” Task queue and worker system choice
+## DR-10 Ã¢â‚¬â€� Task queue and worker system choice
 Date: 2026-04-20
 Status: ACCEPTED
-Context: This decision elaborates on DR-2 by specifying the worker execution strategy and task orchestration model. The pipeline has multiple sequential stages (download â†’ ASR â†’ OCR â†’ align â†’ classify â†’ LLM structure â†’ confidence score) that must execute in order for each job, with some stages (ASR, OCR) potentially running in parallel.
-Decision: Celery task chains and chords for pipeline orchestration. Sequential stages are linked via Celery chains. ASR and OCR tasks run in parallel via a Celery chord, with the temporal alignment task as the chord callback. Worker concurrency is controlled via WORKER_CONCURRENCY env var. Task time limits are enforced via CELERY_TASK_TIME_LIMIT. Failed tasks update job status and halt the pipeline for that job. No automatic retry of the full pipeline â€” individual task retries are configured per task.
+Context: This decision elaborates on DR-2 by specifying the worker execution strategy and task orchestration model. The pipeline has multiple sequential stages (download Ã¢â€ â€™ ASR Ã¢â€ â€™ OCR Ã¢â€ â€™ align Ã¢â€ â€™ classify Ã¢â€ â€™ LLM structure Ã¢â€ â€™ confidence score) that must execute in order for each job, with some stages (ASR, OCR) potentially running in parallel.
+Decision: Celery task chains and chords for pipeline orchestration. Sequential stages are linked via Celery chains. ASR and OCR tasks run in parallel via a Celery chord, with the temporal alignment task as the chord callback. Worker concurrency is controlled via WORKER_CONCURRENCY env var. Task time limits are enforced via CELERY_TASK_TIME_LIMIT. Failed tasks update job status and halt the pipeline for that job. No automatic retry of the full pipeline Ã¢â‚¬â€� individual task retries are configured per task.
 Consequences: Enables parallel execution of ASR and OCR stages while maintaining sequential ordering for dependent stages. Celery's built-in retry, timeout, and error handling mechanisms reduce custom orchestration code. Rules out custom pipeline orchestration frameworks. Rules out fully parallel execution of all stages (some stages depend on outputs of prior stages). Pipeline monitoring is available through Celery's built-in inspection API.
 Supersedes: NONE (extends DR-2 with execution strategy details)
 
-## DR-12 â€” Rate limiting library
+## DR-12 Ã¢â‚¬â€� Rate limiting library
 Date: 2026-04-20
 Status: ACCEPTED
 Context: Phase 3 requires rate limiting on the job submission and status endpoints to prevent abuse. A lightweight library that integrates natively with FastAPI/Starlette is needed.
@@ -152,7 +152,7 @@ Supersedes: NONE
 
 ---
 
-## DR-11 — YouTube cookie authentication strategy
+## DR-11 â€” YouTube cookie authentication strategy
 Date: 2026-04-21
 Status: ACCEPTED
 Context: YouTube's bot detection system rejects all
@@ -170,7 +170,7 @@ Consequences: Downloads succeed on most YouTube
   videos. Requires Firefox and periodic refresh.
   cookies.txt must never be committed.
 Supersedes: NONE
-## DR-12 â€” Phase 4 router bug-fix: yt-dlp metadata format
+## DR-12 Ã¢â‚¬â€� Phase 4 router bug-fix: yt-dlp metadata format
 Date: 2026-04-21
 Status: ACCEPTED
 Context: Session 10 implemented check_audio_from_metadata()
@@ -206,7 +206,7 @@ Consequences: Router correctly classifies music content
   requires genuine multi-word list phrases.
 Supersedes: NONE. Corrects implementation of DR-10.
 
-## DR-13 â€” Extractor task base class pattern
+## DR-13 Ã¢â‚¬â€� Extractor task base class pattern
 Date: 2026-04-21
 Status: ACCEPTED
 Context: Phase 5 adds three new Celery extractor tasks (ASR, OCR, audio classifier). Each task needs identical retry policy (max_retries=3, retry_backoff), structured on_failure and on_retry logging, and failure isolation. Copy-pasting this boilerplate into three tasks creates maintenance risk.
@@ -214,7 +214,7 @@ Decision: A BaseExtractorTask(Task) class in extractors/base.py provides shared 
 Consequences: Extractor logic is fully testable without Celery. New extractors (YAMNet, object detection) added in V2 follow the same pattern. BaseExtractorTask is abstract=True so it cannot be used as a task itself.
 Supersedes: NONE
 
-## DR-14 — Celery task DB session pattern (context manager)
+## DR-14 â€” Celery task DB session pattern (context manager)
 Date: 2026-04-22
 Status: ACCEPTED
 Context: All Celery tasks were using a generator-based session
@@ -230,7 +230,7 @@ Consequences: Generator leaks eliminated. Session lifecycle is
   session.close() calls in task code.
 Supersedes: NONE
 
-## DR-15 — Property-based testing with hypothesis
+## DR-15 â€” Property-based testing with hypothesis
 Date: 2026-04-22
 Status: ACCEPTED
 Context: Phase 6 temporal alignment layer requires property-based
@@ -244,7 +244,7 @@ Consequences: Adds one dev-only dependency. Enables exhaustive
   edge-case testing for interval merge logic. No runtime impact.
 Supersedes: NONE
 
-## DR-16 — Temporal alignment as pure computation module
+## DR-16 â€” Temporal alignment as pure computation module
 Date: 2026-04-22
 Status: ACCEPTED
 Context: Phase 6 builds the temporal alignment layer. The
@@ -263,7 +263,7 @@ Consequences: Alignment logic is fully testable without
   reproducible. The Celery task is a thin wrapper only.
 Supersedes: NONE
 
-## DR-17 — Confidence Controller as pure logic module
+## DR-17 â€” Confidence Controller as pure logic module
 Date: 2026-04-23
 Status: ACCEPTED
 Context: Phase 7 builds the confidence controller that decides
@@ -285,7 +285,7 @@ Supersedes: NONE
 
 ---
 
-## DR-18 — Replace local storage with S3 object storage
+## DR-18 â€” Replace local storage with S3 object storage
 Date: 2026-04-24
 Status: ACCEPTED
 Context: The V1 architecture (DR-3) used local filesystem storage
@@ -306,7 +306,7 @@ Consequences: Workers are fully stateless with respect to media
   production deployments.
 Supersedes: DR-3
 
-## DR-19 — Heterogeneous Celery queue topology
+## DR-19 â€” Heterogeneous Celery queue topology
 Date: 2026-04-24
 Status: ACCEPTED
 Context: V1 used two queues (fast, heavy) on a single machine
@@ -317,14 +317,14 @@ Context: V1 used two queues (fast, heavy) on a single machine
 Decision: The queue topology remains `fast` and `heavy` but
   workers are deployed as separate Kubernetes node pools with
   different resource allocations. The Celery app configuration
-  supports this without code changes — only deployment manifests
+  supports this without code changes â€” only deployment manifests
   change. Tasks are already assigned to queues via their decorators.
 Consequences: Horizontal scaling per worker type is possible.
   No code changes required beyond what DR-18 enables (S3 transport).
   Deployment manifests (Phase 9) will define the node pool specs.
 Supersedes: DR-2, DR-10 (extends, does not invalidate)
 
-## DR-20 — Database-backed Celery chord payloads
+## DR-20 â€” Database-backed Celery chord payloads
 Date: 2026-04-24
 Status: ACCEPTED
 Context: The V1 chord pattern (DR-10) returned full
@@ -340,19 +340,19 @@ Decision: Extractor tasks return only a lightweight status dict:
   reading from the chord arguments.
 Consequences: Redis memory usage drops dramatically. Chord
   payloads are ~100 bytes instead of ~50MB. Alignment engine
-  `align()` function signature is unchanged — it still receives
+  `align()` function signature is unchanged â€” it still receives
   `list[dict]`, but the data is fetched from DB inside
   `build_timeline` instead of passed through Redis.
 Supersedes: NONE (refines DR-10 chord pattern)
 
-## DR-21 � Embedding via Ollama
+## DR-21 — Embedding via Ollama
 Date: 2026-04-24
 Status: ACCEPTED
 Context: Phase 8 requires vector embeddings for semantic similarity search over aligned video segments. The system already uses Ollama for local LLM inference (DR-4).
 Decision: We use the existing local Ollama instance for embedding generation, using the nomic-embed-text model. The embedding dimension is configured via EMBEDDING_DIM (default 768). Embeddings are clamped to this dimension before persistence.
 Consequences: Enables semantic search without external API dependencies. Reuses existing local infrastructure.
 
-## DR-22 � Postgres GIN search
+## DR-22 — Postgres GIN search
 Date: 2026-04-24
 Status: ACCEPTED
 Context: Phase 8 requires full-text keyword search over aligned video segments. V1 architecture limits the introduction of new large services like Elasticsearch (DR-9).
@@ -366,9 +366,32 @@ Context: Phase 9 end-to-end hardening requires tracing and retry mechanisms with
 Decision: We use Python's built-in contextvars to inject a 	race_id (usually the job_id) across logs in FastAPI and Celery. Pipeline metrics are served via a lightweight PostgreSQL query endpoint (GET /api/v1/metrics). Dead Letter Queue (DLQ) is implemented logically by transitioning exhausted retries to a dead_letter status in the DB, allowing the new /retry endpoint to recover jobs from partial checkpoints using idempotency logic.
 Consequences: High observability and fault tolerance achieved within existing infrastructure. No new deployments needed.
 
-## DR-23 � Lightweight Observability & DLQ
-Date: 2026-04-24
+---
+
+## DR-V2-01 — Evidence-Based Late Binding replaces RouterDecision
+Date: 2026-05-23
 Status: ACCEPTED
-Context: Phase 9 end-to-end hardening requires tracing and retry mechanisms without introducing heavy external dependencies (Prometheus, Grafana, Jaeger) per the frozen stack constraint.
-Decision: We use Python's built-in contextvars to inject a 	race_id (usually the job_id) across logs in FastAPI and Celery. Pipeline metrics are served via a lightweight PostgreSQL query endpoint (GET /api/v1/metrics). Dead Letter Queue (DLQ) is implemented logically by transitioning exhausted retries to a dead_letter status in the DB, allowing the new /retry endpoint to recover jobs from partial checkpoints using idempotency logic.
-Consequences: High observability and fault tolerance achieved within existing infrastructure. No new deployments needed.
+Context: V1 RouterDecision forces a single content-type label before content analysis runs. This produces incorrect output when signals do not match the title heuristic.
+Decision: V1 contracts/router.py and router/classifier.py are deprecated. Stage A produces a SignalManifest — a multi-signal evidence object — with no content-type classification. Classification runs only in Stage D after all evidence exists.
+Consequences: No extractor runs before a manifest exists. The manifest drives Stage B's dynamic Celery group. V1 tables remain until a cleanup migration removes them after V2 is live.
+Supersedes: NONE
+
+---
+
+## DR-V2-02 — Probers are pure functions with no infrastructure deps
+Date: 2026-05-23
+Status: ACCEPTED
+Context: probe_audio, probe_visual, and probe_metadata could be written as Celery tasks or as plain functions. Making them Celery tasks adds broker overhead and makes unit testing harder.
+Decision: All three probers are pure functions that accept file paths and return dataclass results. The single Celery task `run_signal_census` orchestrates them sequentially. This keeps probing logic testable without Redis/PostgreSQL infrastructure.
+Consequences: Probers run in-process inside the Celery worker. They cannot be distributed across multiple workers. This is acceptable because probe_audio and probe_visual together complete in < 90s on the ThinkPad L13.
+Supersedes: NONE
+
+---
+
+## DR-V2-03 — Windows-compatible timeout via threading.Timer
+Date: 2026-05-23
+Status: ACCEPTED
+Context: The original design used `signal.alarm()` for timeout guards in probe_audio and probe_visual. `signal.alarm()` is not available on Windows, which is the primary development platform (ThinkPad L13).
+Decision: Replace `signal.alarm()` with `threading.Timer` + `threading.Event` for timeout detection. A daemon timer sets an event flag; each major probe step checks the flag and raises an internal `_TimeoutError` if set.
+Consequences: Timeout granularity is limited to the check points between probe steps (not truly preemptive). A single long-running OpenCV or librosa call cannot be interrupted mid-operation. This is acceptable because each individual operation has its own subprocess timeout (ffprobe: 30s, ffmpeg: 60s) or data cap (librosa: duration=60.0s).
+Supersedes: NONE
