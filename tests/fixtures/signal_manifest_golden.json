@@ -1,0 +1,18 @@
+{
+    "job_id": "00000000-0000-0000-0000-000000000099",
+    "audio_type": "speech_only",
+    "language": "en",
+    "has_speech": true,
+    "has_music": false,
+    "has_burned_in_text": true,
+    "has_subtitle_track": false,
+    "has_faces": true,
+    "motion_density": 4.2,
+    "motion_score": 0.31,
+    "aspect_ratio": "16:9",
+    "content_format": "live_action",
+    "scene_cut_count": 17,
+    "duration_seconds": 842.0,
+    "probing_confidence": 0.78,
+    "created_at": "2025-01-01T10:00:00Z"
+}

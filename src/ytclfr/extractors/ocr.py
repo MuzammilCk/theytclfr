@@ -43,6 +43,7 @@ class OCRExtractor:
 
         cmd = [
             "ffmpeg",
+            "-nostdin",
             "-threads",
             "2",  # TUNABLE: cap ffmpeg thread usage on
             # single-machine deployments where faster-

@@ -122,13 +122,30 @@ Once all four stages are built independently and tested, wire them into the full
 
 ---
 
+## V2 Control Files Reference
+
+All V2 control files live in `V2/`:
+
+| File | Purpose |
+|---|---|
+| `V2/context.md` | Frozen stack, V2 pipeline definition, data contracts |
+| `V2/claude.md` | Behavioral rules and code standards for the AI |
+| `V2/build.md` | This file — stage plan and checklists |
+| `V2/diff.md` | Append-only session changelog |
+| `V2/decisions.md` | Decision Records (DR-V2-XX) — created in Stage A, Part C |
+
+**Session Protocol:** Every Antigravity session starts by reading all five files. Every session ends by appending to `V2/diff.md` and, if an architectural decision was made, appending to `V2/decisions.md`.
+
+---
+
 ## Stage A Start Checklist
 
-Before running Stage A prompts, verify:
+Before running the Stage A prompt, verify:
 - [ ] PostgreSQL is running and accessible.
 - [ ] Redis is running.
 - [ ] `alembic.ini` is configured with correct `DATABASE_URL`.
 - [ ] `config.py` has `GROQ_API_KEY` and `OLLAMA_BASE_URL` populated.
-- [ ] V1 tests still pass (do not break existing behavior during Stage A build).
-- [ ] `ffprobe` is available on system PATH (needed for audio probing).
-- [ ] `opencv-python-headless` is installed (needed for frame probing).
+- [ ] V1 tests pass: `pytest tests/ -q` shows zero failures.
+- [ ] `ffprobe` is available on system PATH.
+- [ ] `opencv-python-headless` is installed.
+- [ ] `webrtcvad` and `librosa` are installed or ready to install.

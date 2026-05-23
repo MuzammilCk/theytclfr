@@ -70,6 +70,7 @@ def sample_frames(
 
     cmd = [
         "ffmpeg",
+        "-nostdin",
         "-i",
         str(video_path),
         "-vf",
@@ -139,6 +140,7 @@ def _get_video_duration(video_path: Path) -> float:
     """
     cmd = [
         "ffprobe",
+        "-nostdin",
         "-v",
         "quiet",
         "-print_format",
