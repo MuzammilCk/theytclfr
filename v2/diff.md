@@ -128,4 +128,37 @@ Keep entries in chronological order. Never edit a past entry.
 **Date:** 2026-05-23
 **Files:**
 - `V2/decisions.md` — created
-**Summary:** Three decision records: DR-V2-01 (Evidence-Based Late Binding), DR-V2-02 (pure function probers), DR-V2-03 (Windows threading timeout).
+**Summary:** Three decision records: DR-V2-01 (Evidence-Based Late Binding), DR-V2-02 (pure function probers), DR-V2-03 (Windows threading timeout).
+
+### FIX-01 — Celery task registration for stage_a
+**Date:** 2026-05-24
+**Files:**
+- `src/ytclfr/queue/celery_app.py` — modified
+**Summary:** Added `import ytclfr.tasks.stage_a` to the Celery worker task registration block. Without this, run_signal_census is not registered in the worker registry and any .delay() call raises a KeyError at runtime. This is a zero-risk, one-line fix.
+**Issue resolved:** Audit Issue 3 — Celery Task Registration Omission.
+
+### FIX-02 — Thread-safe visual probing in frame_sampler.py
+**Date:** 2026-05-24
+**Files:**
+- `src/ytclfr/probing/frame_sampler.py` — modified
+**Summary:** Removed module-level _partial_result global variable and all global/assignment uses. Replaced _check_timeout() exception pattern with inline timeout_event.is_set() checks that return VisualProbeResult built from stack-local variables. Added _partial() nested helper inside _probe_visual_inner for DRY partial-state construction. Removed _TimeoutError class, _check_timeout function, and the except _TimeoutError branch in probe_visual (all dead code after the refactor). The public API (probe_visual signature and VisualProbeResult fields) is unchanged. All TUNABLE constants preserved.
+**Issue resolved:** Audit Issue 4 — Global State Thread-Safety Risk.
+
+### FIX-03 — Dict-based metadata probe (eliminate .info.json dep)
+**Date:** 2026-05-24
+**Files:**
+- `src/ytclfr/probing/metadata_probe.py` — modified (added probe_metadata_dict function)
+- `src/ytclfr/tasks/stage_a.py` — modified (Step 5 replaced with dict-based probe; metadata_json_path line removed from Step 4; probe_metadata_dict added to imports)
+**Summary:** VideoDownloader never writes a .info.json file (no writeinfojson option). Even if it did, Phase 10 deletes the local directory before Stage A runs. The yt-dlp metadata dict is already available in job.metadata_raw (PostgreSQL). Added probe_metadata_dict(data: dict) as a pure dict-based parser. Updated stage_a.py Step 5 to use job.metadata_raw directly. The original probe_metadata(path) is preserved for unit tests.
+**Issue resolved:** Audit Issue 2 — Metadata File-on-Disk Fallacy.
+
+### FIX-04 — S3-aware media path resolution in stage_a.py
+**Date:** 2026-05-24
+**Files:**
+- `src/ytclfr/tasks/stage_a.py` — modified
+**Summary:** Stage A Step 4 previously read job.local_media_path directly, which is None after Phase 10 ingestion (video is in S3, local dir is deleted). Added S3 fallback: if local path is absent or missing, download from S3 to a transient scratch file (video_probe.mp4) using TempStorageManager and S3StorageManager, matching the existing pattern in tasks/extract.py. Added a finally block that deletes the transient file unconditionally, using unlink(missing_ok=True) on the specific file only (not cleanup_job, per Phase 10 bugfix pattern). Added Path, S3StorageManager, TempStorageManager imports.
+**Issue resolved:** Audit Issue 1 — S3/Distributed Media Transport Coupling Gap.
+
+
+
+

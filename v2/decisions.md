@@ -65,3 +65,25 @@ Consequences: Timeout granularity is limited to the check points
   subprocess timeout (ffprobe: 30s, ffmpeg: 60s) or data cap
   (librosa: duration=60.0s).
 Supersedes: NONE
+
+---
+
+## DR-V2-04 — Stage A downloads from S3 transiently for probing
+Date: 2026-05-24
+Status: ACCEPTED
+Context: Phase 10 (DR-18) makes all workers stateless — videos
+  are deleted locally after S3 upload. Stage A needs the video
+  file to run probe_audio and probe_visual. job.local_media_path
+  is None on all post-ingestion worker nodes.
+Decision: If job.local_media_path is absent or does not exist,
+  Stage A downloads the video from S3 to a transient scratch path
+  (TempStorageManager + S3StorageManager). The file is named
+  video_probe.mp4 to avoid colliding with video.mp4 used by
+  extract tasks. The finally block deletes it unconditionally,
+  keeping the node stateless.
+Consequences: Stage A adds one S3 download round-trip per job.
+  This is the same pattern as run_asr and run_ocr (tasks/extract.py).
+  CPU-only nodes never accumulate video files. No local path is
+  assumed or required.
+Supersedes: NONE
+

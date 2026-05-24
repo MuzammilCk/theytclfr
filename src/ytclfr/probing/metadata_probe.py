@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ def probe_metadata(metadata_json_path: str) -> MetadataProbeResult:
         raise FileNotFoundError(
             f"yt-dlp metadata not found: {metadata_json_path}"
         )
-    with open(metadata_json_path, "r", encoding="utf-8") as f:
+    with open(metadata_json_path, encoding="utf-8") as f:
         try:
             data = json.load(f)
         except json.JSONDecodeError as exc:
@@ -108,3 +109,77 @@ def probe_metadata(metadata_json_path: str) -> MetadataProbeResult:
         upload_date=str(upload_date) if upload_date else None,
         confidence=0.95,
     )
+
+
+def probe_metadata_dict(data: dict[str, Any]) -> MetadataProbeResult:
+    """Parse a metadata dictionary and extract signal metadata.
+
+    Accepts the raw yt-dlp metadata dict (job.metadata_raw from
+    PostgreSQL) directly, eliminating any file-on-disk dependency.
+
+    Unlike probe_metadata(), this function never raises.
+    All field failures degrade gracefully to safe defaults.
+
+    Args:
+        data: The raw yt-dlp info dict stored in job.metadata_raw.
+
+    Returns:
+        MetadataProbeResult with confidence=0.95.
+    """
+    # Duration
+    duration_seconds = float(data.get("duration") or 0.0)
+
+    # Aspect ratio from width/height
+    width = data.get("width") or 0
+    height = data.get("height") or 0
+    if width > 0 and height > 0:
+        ratio = width / height
+        if 1.70 <= ratio <= 1.82:
+            aspect_ratio = "16:9"
+        elif 0.54 <= ratio <= 0.58:
+            aspect_ratio = "9:16"
+        elif 0.95 <= ratio <= 1.05:
+            aspect_ratio = "1:1"
+        else:
+            aspect_ratio = f"{width}:{height}"
+    else:
+        aspect_ratio = "unknown"
+
+    # Subtitle and caption detection
+    subtitles = data.get("subtitles") or {}
+    automatic_captions = data.get("automatic_captions") or {}
+    has_subtitle_track = bool(
+        subtitles and any(v for v in subtitles.values())
+    )
+    has_auto_captions = bool(
+        automatic_captions
+        and any(v for v in automatic_captions.values())
+    )
+    language = (
+        next(iter(subtitles.keys()), None) if subtitles else None
+    )
+
+    # Chapters
+    chapters = data.get("chapters") or []
+    has_chapters = len(chapters) > 1
+    chapter_count = len(chapters)
+
+    # Tags, title, upload_date
+    tags = [str(t) for t in (data.get("tags") or [])]
+    title = str(data.get("title") or "")
+    upload_date = data.get("upload_date")
+
+    return MetadataProbeResult(
+        duration_seconds=duration_seconds,
+        aspect_ratio=aspect_ratio,
+        has_subtitle_track=has_subtitle_track,
+        has_auto_captions=has_auto_captions,
+        language=language,
+        has_chapters=has_chapters,
+        chapter_count=chapter_count,
+        tags=tags,
+        title=title,
+        upload_date=str(upload_date) if upload_date else None,
+        confidence=0.95,
+    )
+

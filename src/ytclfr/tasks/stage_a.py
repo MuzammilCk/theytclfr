@@ -9,8 +9,9 @@ job_id, it overwrites it.
 """
 
 import json
-import logging
+import logging  # noqa: F401
 import os
+from pathlib import Path
 from uuid import UUID
 
 from ytclfr.contracts.events import StageAEvent, StageAStatus
@@ -19,9 +20,14 @@ from ytclfr.core.config import get_settings
 from ytclfr.core.logging import get_logger
 from ytclfr.db.models.job import Job
 from ytclfr.db.session import db_session
+from ytclfr.ingestion.s3_storage import S3StorageManager
+from ytclfr.ingestion.temp_storage import TempStorageManager
 from ytclfr.probing.audio_checker import probe_audio
 from ytclfr.probing.frame_sampler import probe_visual
-from ytclfr.probing.metadata_probe import probe_metadata
+from ytclfr.probing.metadata_probe import (
+    probe_metadata,  # noqa: F401
+    probe_metadata_dict,
+)
 from ytclfr.queue.celery_app import celery_app
 from ytclfr.storage.manifest_store import SignalManifestStore
 
@@ -91,8 +97,9 @@ def run_signal_census(
 
     # Step 2 — Load settings and open DB session
     settings = get_settings()
-
     with db_session() as session:
+        local_video_path: Path | None = None
+        is_transient_download: bool = False
         try:
             # Step 3 — Fetch job record
             job = (
@@ -106,44 +113,70 @@ def run_signal_census(
             job.status = "stage_a_running"
             session.commit()
 
-            # Step 4 — Resolve file paths
-            video_path = job.local_media_path
-            if not video_path:
-                raise ValueError(
-                    f"No local media path for job: {job_id}"
+            # Step 4 — Resolve media path (local or S3)
+            # Phase 10: after ingestion the video is in S3 and
+            # job.local_media_path is None on extraction workers.
+            # Download to a transient scratch path and clean up in finally.
+            if job.local_media_path and os.path.exists(job.local_media_path):
+                # Local path still exists (e.g. same node, pre-Phase-10 path)
+                video_path = job.local_media_path
+            else:
+                # Video is in S3 — download transiently for probing
+                if not job.s3_video_uri:
+                    raise ValueError(
+                        f"No media available for job {job_id}: "
+                        "local_media_path is None and s3_video_uri is None. "
+                        "Ingestion may have failed."
+                    )
+                s3_manager = S3StorageManager(settings)
+                temp_manager = TempStorageManager(settings)
+                local_dir = temp_manager.get_job_dir(UUID(job_id))
+                local_video_path = local_dir / "video_probe.mp4"
+                s3_object_key = f"{job_id}/video.mp4"
+                s3_manager.download_file(s3_object_key, local_video_path)
+                video_path = str(local_video_path)
+                is_transient_download = True
+                logger.info(
+                    "Downloaded video from S3 for probing: job=%s path=%s",
+                    job_id,
+                    local_video_path,
                 )
 
-            # Derive audio path — try sidecar formats
+            # Derive audio path from the resolved video path
             base_path = os.path.splitext(video_path)[0]
-            audio_path = video_path  # default: probe from video
-            for ext in (".m4a", ".webm", ".mp4"):
+            audio_path = video_path  # default: probe audio from video container
+            for ext in (".m4a", ".webm"):
                 candidate = base_path + ext
                 if os.path.exists(candidate):
                     audio_path = candidate
                     break
 
-            # Derive metadata JSON path
-            metadata_json_path = base_path + ".info.json"
-
-            # Step 5 — Run probe_metadata (cheapest)
+            # Step 5 — Run probe_metadata_dict from job.metadata_raw
+            # Uses the yt-dlp dict already stored in PostgreSQL.
+            # No .info.json file is ever written to disk (DR-V2-02).
             metadata_result = None
-            try:
-                metadata_result = probe_metadata(
-                    metadata_json_path
-                )
-                _emit_sse(
-                    StageAEvent(
-                        event_type=StageAStatus.PROBE_METADATA_COMPLETE,
-                        job_id=job_id,
+            if job.metadata_raw and isinstance(job.metadata_raw, dict):
+                try:
+                    metadata_result = probe_metadata_dict(job.metadata_raw)
+                    _emit_sse(
+                        StageAEvent(
+                            event_type=StageAStatus.PROBE_METADATA_COMPLETE,
+                            job_id=job_id,
+                        )
                     )
-                )
-            except (FileNotFoundError, ValueError) as exc:
+                except Exception as exc:
+                    logger.warning(
+                        "Metadata dict probe failed for job %s: %s",
+                        job_id,
+                        exc,
+                    )
+                    metadata_result = None
+            else:
                 logger.warning(
-                    "Metadata probe failed for job %s: %s",
+                    "job.metadata_raw is empty or non-dict for job %s — "
+                    "metadata probe skipped",
                     job_id,
-                    exc,
                 )
-                metadata_result = None
 
             # Step 6 — Run probe_audio
             metadata_dict = (
@@ -183,7 +216,7 @@ def run_signal_census(
             # Step 8 — Merge into SignalManifest
             manifest = SignalManifest(
                 job_id=UUID(job_id),
-                audio_type=audio_result.audio_type,
+                audio_type=audio_result.audio_type,  # type: ignore[arg-type]
                 language=(
                     (
                         metadata_result.language
@@ -211,7 +244,7 @@ def run_signal_census(
                     and metadata_result.aspect_ratio != "unknown"
                     else visual_result.aspect_ratio
                 ),
-                content_format=visual_result.content_format,
+                content_format=visual_result.content_format,  # type: ignore[arg-type]
                 scene_cut_count=visual_result.scene_cut_count,
                 duration_seconds=(
                     (
@@ -292,3 +325,26 @@ def run_signal_census(
                 )
             )
             raise self.retry(exc=exc, countdown=30)  # type: ignore
+        finally:
+            # Clean up transient S3 download to keep node stateless.
+            # Uses unlink() on the specific file only — not cleanup_job()
+            # which causes race conditions (Phase 10 bugfix pattern).
+            if (
+                is_transient_download
+                and local_video_path is not None
+                and local_video_path.exists()
+            ):
+                try:
+                    local_video_path.unlink(missing_ok=True)
+                    logger.debug(
+                        "Cleaned up transient probe file for job %s",
+                        job_id,
+                    )
+                except Exception as cleanup_exc:
+                    logger.warning(
+                        "Failed to clean up transient probe file "
+                        "%s for job %s: %s",
+                        local_video_path,
+                        job_id,
+                        cleanup_exc,
+                    )

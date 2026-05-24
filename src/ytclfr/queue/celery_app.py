@@ -47,3 +47,5 @@ import ytclfr.tasks.align  # noqa: F401, E402
 import ytclfr.tasks.extract  # noqa: F401, E402
 import ytclfr.tasks.ingest  # noqa: F401, E402
 import ytclfr.tasks.route  # noqa: F401, E402
+import ytclfr.tasks.stage_a  # noqa: F401, E402 — V2 Stage A Signal Census
+
