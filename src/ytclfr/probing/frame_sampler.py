@@ -14,7 +14,7 @@ No module-level globals are written during probe execution.
 import logging
 import threading
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,13 @@ class VisualProbeResult:
     motion_density: float
     scene_cut_count: int
     aspect_ratio: str
-    content_format: str
+    content_format: Literal[
+        "live_action",
+        "animation",
+        "screen_recording",
+        "mixed",
+        "unknown",
+    ]
     frame_count_sampled: int
     confidence: float
 

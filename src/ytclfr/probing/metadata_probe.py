@@ -86,7 +86,9 @@ def probe_metadata(metadata_json_path: str) -> MetadataProbeResult:
     )
 
     # Step 6.5 — Chapters
-    chapters = data.get("chapters") or []
+    chapters = data.get("chapters")
+    if not isinstance(chapters, list):
+        chapters = []
     has_chapters = len(chapters) > 1
     chapter_count = len(chapters)
 
@@ -160,7 +162,9 @@ def probe_metadata_dict(data: dict[str, Any]) -> MetadataProbeResult:
     )
 
     # Chapters
-    chapters = data.get("chapters") or []
+    chapters = data.get("chapters")
+    if not isinstance(chapters, list):
+        chapters = []
     has_chapters = len(chapters) > 1
     chapter_count = len(chapters)
 

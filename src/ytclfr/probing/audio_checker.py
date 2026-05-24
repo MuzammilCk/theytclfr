@@ -16,6 +16,7 @@ import logging
 import subprocess
 import threading
 from dataclasses import dataclass
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,14 @@ class AudioProbeResult:
 
     has_speech: bool
     has_music: bool
-    audio_type: str  # one of the SignalManifest audio_type literals
+    audio_type: Literal[
+        "speech_only",
+        "music_only",
+        "speech_music",
+        "sfx",
+        "ambient",
+        "silent",
+    ]  # one of the SignalManifest audio_type literals
     language: str | None
     duration_seconds: float
     confidence: float

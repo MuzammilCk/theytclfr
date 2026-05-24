@@ -216,7 +216,7 @@ def run_signal_census(
             # Step 8 — Merge into SignalManifest
             manifest = SignalManifest(
                 job_id=UUID(job_id),
-                audio_type=audio_result.audio_type,  # type: ignore[arg-type]
+                audio_type=audio_result.audio_type,
                 language=(
                     (
                         metadata_result.language
@@ -244,7 +244,7 @@ def run_signal_census(
                     and metadata_result.aspect_ratio != "unknown"
                     else visual_result.aspect_ratio
                 ),
-                content_format=visual_result.content_format,  # type: ignore[arg-type]
+                content_format=visual_result.content_format,
                 scene_cut_count=visual_result.scene_cut_count,
                 duration_seconds=(
                     (
