@@ -87,3 +87,61 @@ Consequences: Stage A adds one S3 download round-trip per job.
   assumed or required.
 Supersedes: NONE
 
+---
+
+## DR-V2-05 — Stage B uses dynamic Celery group, not static chord
+Date: 2026-05-24
+Status: ACCEPTED
+Context: V1 classify_video blindly fires group(run_asr, run_ocr,
+  run_audio_classifier) for every video regardless of content.
+  A music-only video does not need ASR. A silent screen recording
+  does not need audio classification.
+Decision: Stage B reads the SignalManifest and builds a list of
+  extractors dynamically using _build_extractor_names(manifest).
+  has_speech → run_asr. has_burned_in_text → run_ocr.
+  has_speech OR has_music → run_audio_classifier.
+  If all signals are False → run_audio_classifier as fallback
+  (it uses DB metadata only, no S3 download required).
+  The dynamic list is passed to Celery group(*tasks_to_run).
+Consequences: CPU usage scales with content. A silent video
+  skips both Whisper (ASR) and Tesseract (OCR). The fallback
+  guarantees build_timeline always receives at least one chord
+  result. Duplicate extractor names are impossible by construction.
+Supersedes: NONE
+
+---
+
+## DR-V2-06 — Stage B chord callback is build_timeline (temporary)
+Date: 2026-05-24
+Status: ACCEPTED
+Context: Stage C (Evidence Fusion) does not exist yet. The chord
+  group needs a callback that runs after all extractors complete.
+  The existing build_timeline function in tasks/align.py already
+  performs temporal alignment and confidence evaluation.
+Decision: Stage B fires chord(group(*))(build_timeline.s(job_id)).
+  build_timeline is the temporary Stage C placeholder. It is
+  marked # STAGE-C-TODO in tasks/stage_b.py. When Stage C is
+  built, this single line changes to run_fuse_evidence.s(job_id).
+Consequences: V1 alignment engine remains active in the V2 path.
+  Stage C can be plugged in with a one-line change. V1 output
+  quality is preserved while Stage B is being validated.
+Supersedes: NONE
+
+---
+
+## DR-V2-07 — _build_extractor_names is a pure testable function
+Date: 2026-05-24
+Status: ACCEPTED
+Context: The dynamic group logic (which extractors fire for which
+  signals) is the critical business logic of Stage B. Embedding it
+  inside the Celery task body makes it impossible to unit-test
+  without mocking Celery, DB, and Redis.
+Decision: The selection logic lives in _build_extractor_names(manifest)
+  — a pure function with no infrastructure dependencies. The Celery
+  task calls this function and then maps names to .s(job_id) signatures.
+  This enables direct unit testing against the golden fixture.
+Consequences: Selection logic is covered by 7 unit tests. Adding a
+  new extractor type in Stage C/D requires only adding a branch in
+  _build_extractor_names and a test. No Celery mocking needed.
+Supersedes: NONE
+

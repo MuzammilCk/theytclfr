@@ -287,8 +287,12 @@ def run_signal_census(
                 )
             )
 
-            # STAGE-B-TODO: trigger run_targeted_extraction.delay(job_id)
-            # here once tasks/stage_b.py is built and confirmed stable.
+            # Stage B trigger — dispatch targeted extraction
+            from ytclfr.tasks.stage_b import run_targeted_extraction
+            run_targeted_extraction.delay(job_id)
+            logger.info(
+                "Stage B triggered for job %s", job_id
+            )
 
             # Step 12 — Return
             return {

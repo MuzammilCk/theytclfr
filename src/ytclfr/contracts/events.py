@@ -53,3 +53,30 @@ class StageAEvent(BaseModel):
     manifest_id: str | None = None
     error: str | None = None
     details: dict = Field(default_factory=dict)
+
+
+# ── Stage B — Targeted Extraction events ──────────────────────
+
+
+class StageBStatus(str, Enum):
+    """Status codes for Stage B targeted extraction lifecycle."""
+
+    STARTED = "stage_b_started"
+    MANIFEST_LOADED = "stage_b_manifest_loaded"
+    GROUP_BUILT = "stage_b_group_built"
+    DISPATCHED = "stage_b_dispatched"
+    FAILED = "stage_b_failed"
+
+
+class StageBEvent(BaseModel):
+    """SSE event emitted by tasks/stage_b.py."""
+
+    model_config = ConfigDict(use_enum_values=True)
+
+    event_type: StageBStatus
+    job_id: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    extractors_dispatched: list[str] = Field(default_factory=list)
+    error: str | None = None
+    details: dict = Field(default_factory=dict)
+

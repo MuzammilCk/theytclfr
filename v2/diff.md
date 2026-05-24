@@ -160,5 +160,37 @@ Keep entries in chronological order. Never edit a past entry.
 **Issue resolved:** Audit Issue 1 — S3/Distributed Media Transport Coupling Gap.
 
 
+### B-1 — Stage B SSE Events
+**Date:** 2026-05-24
+**Files:**
+- `src/ytclfr/contracts/events.py` — modified
+**Summary:** Added StageBStatus enum (5 statuses: STARTED, MANIFEST_LOADED, GROUP_BUILT, DISPATCHED, FAILED) and StageBEvent Pydantic v2 model with extractors_dispatched field. All V1 and Stage A events preserved intact.
+
+### B-2 — tasks/stage_b.py: run_targeted_extraction
+**Date:** 2026-05-24
+**Files:**
+- `src/ytclfr/tasks/stage_b.py` — created
+**Summary:** Celery task on fast queue. Reads SignalManifest from DB, calls _build_extractor_names to determine dynamic extractor set, fires chord(group(*))(build_timeline.s(job_id)). Idempotent: skips if job already in post-Stage-B status. SSE at every transition. STAGE-C-TODO marks build_timeline as placeholder. _build_extractor_names is a pure function for isolated testing.
+
+### B-3 — Wire Stage A → Stage B (tasks/stage_a.py)
+**Date:** 2026-05-24
+**Files:**
+- `src/ytclfr/tasks/stage_a.py` — modified
+**Summary:** Replaced the STAGE-B-TODO comment at Step 11 with a lazy import + run_targeted_extraction.delay(job_id) call. Stage A now triggers Stage B automatically on completion.
+
+### B-4 — Celery registration for stage_b
+**Date:** 2026-05-24
+**Files:**
+- `src/ytclfr/queue/celery_app.py` — modified
+**Summary:** Added import ytclfr.tasks.stage_b to the worker registration block so run_targeted_extraction is discoverable by Celery workers at startup.
+
+### B-5 — Stage B unit tests
+**Date:** 2026-05-24
+**Files:**
+- `tests/unit/stage_b/__init__.py` — created
+- `tests/unit/stage_b/test_stage_b_events.py` — created
+- `tests/unit/stage_b/test_extractor_selection.py` — created
+**Summary:** 5 SSE event tests and 7 extractor selection tests. All test _build_extractor_names pure function against the golden fixture. No Celery or DB mocking required. All tests pass.
+
 
 

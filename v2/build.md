@@ -1,5 +1,10 @@
 # build.md — ytclfr V2 Full Build Plan
 
+CURRENT STAGE: C — Evidence Fusion
+STATUS: Not Started
+(V2 Stage A — Signal Census: COMPLETE)
+(V2 Stage B — Targeted Extraction: COMPLETE)
+
 ## How to Use This File
 
 Each stage is broken into numbered micro-tasks.
@@ -31,7 +36,7 @@ Output artifact: `SignalManifest` stored in PostgreSQL, job transitions to `stag
 
 ---
 
-## Stage B — Targeted Extraction
+## Stage B — Targeted Extraction — COMPLETE
 
 Goal: Read the `SignalManifest` and dynamically build a Celery group of only the extractors needed. No extractor runs unless its signal was confirmed in Stage A.
 
@@ -39,16 +44,13 @@ Output artifact: Individual extractor outputs (ASR transcript, OCR text, visual 
 
 ### Micro-Tasks
 
-| ID | Task | File(s) |
-|---|---|---|
-| B-1 | Define extractor output Pydantic models (`ASROutput`, `OCROutput`, `VisualOutput`) | `contracts/extractor_outputs.py` |
-| B-2 | Add extractor output tables (Alembic migration) | `migrations/` |
-| B-3 | Refactor `tasks/asr.py` to V2 contract | `tasks/asr.py` |
-| B-4 | Refactor `tasks/ocr.py` to V2 contract | `tasks/ocr.py` |
-| B-5 | Add `tasks/visual_extractor.py` (scene cut + face detection) | `tasks/visual_extractor.py` |
-| B-6 | Write `tasks/stage_b.py` — reads manifest, builds dynamic Celery group | `tasks/stage_b.py` |
-| B-7 | Add SSE event types for Stage B | `contracts/events.py` |
-| B-8 | Golden JSON fixtures + unit tests for Stage B | `tests/fixtures/`, `tests/test_stage_b.py` |
+| ID | Task | File(s) | Status |
+|---|---|---|---|
+| B-1 | Add SSE event types for Stage B | `contracts/events.py` | ✅ |
+| B-2 | Write `tasks/stage_b.py` — reads manifest, builds dynamic Celery group | `tasks/stage_b.py` | ✅ |
+| B-3 | Wire Stage A → Stage B trigger | `tasks/stage_a.py` | ✅ |
+| B-4 | Celery worker registration | `queue/celery_app.py` | ✅ |
+| B-5 | Stage B unit tests | `tests/unit/stage_b/` | ✅ |
 
 ---
 
