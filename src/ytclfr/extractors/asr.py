@@ -28,6 +28,7 @@ class ASRExtractor:
             settings.whisper_model_size,
             device=settings.whisper_device,
             compute_type=settings.whisper_compute_type,
+            cpu_threads=4,
         )
         self._settings = settings
         logger.info(
@@ -62,10 +63,26 @@ class ASRExtractor:
             str(video_path),
             word_timestamps=True,
             beam_size=5,
+            vad_filter=True,
+            vad_parameters=dict(min_silence_duration_ms=500),
         )
 
         asr_segments: list = []  # type: ignore
+        last_logged_minute = 0
+
         for seg in segments_raw:
+            current_minute = int(seg.end // 60)
+            if current_minute > last_logged_minute:
+                progress_pct = round((seg.end / info.duration) * 100, 1) if info.duration > 0 else 0
+                logger.info(
+                    "ASR progress for job %s: %d%% (%.1f / %.1f sec)",
+                    job_id,
+                    progress_pct,
+                    seg.end,
+                    info.duration,
+                )
+                last_logged_minute = current_minute
+
             words_data: list = []  # type: ignore
             if seg.words:
                 for word in seg.words:

@@ -104,14 +104,16 @@ To run the full pipeline locally, you need to start the API server and the Celer
 
 ### Terminal 1: FastAPI Server
 ```bash
-uvicorn src.ytclfr.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn ytclfr.api.main:app --app-dir src --reload --host 0.0.0.0 --port 8000
 ```
 The API documentation will be available at `http://localhost:8000/docs`.
 
 ### Terminal 2: Celery Worker
 Ensure Redis is running, then start the worker:
 ```bash
-celery -A src.ytclfr.worker worker --loglevel=info --concurrency=2
+# On Windows, --pool=solo is REQUIRED because Celery multiprocessing is not supported.
+# On Linux/WSL/macOS, you can use --concurrency=2 instead.
+celery --workdir src -A ytclfr.queue.celery_app worker --pool=solo --loglevel=info
 ```
 
 ## 8. Running Tests

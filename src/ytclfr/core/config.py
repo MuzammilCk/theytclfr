@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     s3_bucket_name: str | None = None
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
     )

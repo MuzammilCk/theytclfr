@@ -52,103 +52,117 @@ def build_timeline(
 
     # Phase 10 (DR-20): Fetch actual extractor results from Postgres
     # instead of reading from chord arguments.
-    db_extractor_results = _fetch_extractor_results_from_db(job_uuid)
-
-    # Run the alignment engine with the DB-fetched results
-    from ytclfr.alignment.engine import align
-
-    timeline = align(
-        job_id=job_uuid,
-        extractor_results=db_extractor_results,
-    )
-
-    # Update job status to aligned
-    with db_session() as session:
-        job = session.query(Job).filter(Job.id == job_uuid).first()
-        if job:
-            job.status = "aligned"
-            session.commit()
-
-    logger.info(
-        "Alignment complete for job %s: %d segments, has_gaps=%s",
-        job_id,
-        timeline.total_segments,
-        timeline.has_gaps,
-    )
-
-    # Run confidence evaluation
-    from ytclfr.confidence.controller import evaluate
-
-    verdict = evaluate(
-        extractor_results=db_extractor_results,
-        aligned_timeline_dict=timeline.model_dump(mode="json"),
-        current_attempt=0,  # PHASE-8-TODO: read from job metadata
-    )
-
-    logger.info(
-        "Confidence verdict for job %s: overall=%.2f confident=%s should_proceed=%s",
-        job_id,
-        verdict.aggregate_score.overall,
-        verdict.is_confident,
-        verdict.should_proceed,
-    )
-
-    result = timeline.model_dump(mode="json")
-    confidence_dict = {
-        "overall_score": verdict.aggregate_score.overall,
-        "is_confident": verdict.is_confident,
-        "is_uncertain": verdict.aggregate_score.is_uncertain,
-        "should_proceed": verdict.should_proceed,
-        "actions": [
-            {"action": a.action, "reason": a.reason}
-            for a in verdict.branch_decision.actions
-        ],
-        "uncertainty_markers": [
-            {
-                "signal": m.signal_type,
-                "score": m.original_score,
-                "uncertain": m.is_uncertain,
-                "reason": m.reason,
-            }
-            for m in verdict.uncertainty_markers
-        ],
-    }
-    result["confidence_verdict"] = confidence_dict
-
-    from ytclfr.storage.segment_store import save_aligned_segments
-    from ytclfr.storage.output_store import assemble_and_save_final_output
-    from ytclfr.cache.result_cache import invalidate_result
-    from sqlalchemy.sql import func
-
-    with db_session() as session:
-        settings = get_settings()
-        
-        save_aligned_segments(job_uuid, timeline, settings, session)
-        
-        assemble_and_save_final_output(job_uuid, timeline, confidence_dict, session)
-        
-        job = session.query(Job).filter(Job.id == job_uuid).first()
-        if job:
-            job.status = "completed"
-            job.updated_at = func.now()
-            session.commit()
-            
-    invalidate_result(job_uuid)
-
     try:
-        s3_manager = S3StorageManager(get_settings())
-        s3_manager.delete_directory(prefix=f"{job_id}/")
-    except S3StorageError as e:
-        logger.error("Failed to delete S3 directory for job %s: %s", job_id, e)
-    except AttributeError as e:
-        # Catch AttributeError if delete_directory is not yet implemented
-        logger.error(
-            "S3StorageManager missing delete_directory method for job %s: %s",
-            job_id,
-            e,
+        db_extractor_results = _fetch_extractor_results_from_db(job_uuid)
+
+        # Run the alignment engine with the DB-fetched results
+        from ytclfr.alignment.engine import align
+
+        timeline = align(
+            job_id=job_uuid,
+            extractor_results=db_extractor_results,
         )
 
-    return {"job_id": job_id, "status": "aligned_and_evaluated"}
+        # Update job status to aligned
+        with db_session() as session:
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if job:
+                job.status = "aligned"
+                session.commit()
+
+        logger.info(
+            "Alignment complete for job %s: %d segments, has_gaps=%s",
+            job_id,
+            timeline.total_segments,
+            timeline.has_gaps,
+        )
+
+        # Run confidence evaluation
+        from ytclfr.confidence.controller import evaluate
+
+        verdict = evaluate(
+            extractor_results=db_extractor_results,
+            aligned_timeline_dict=timeline.model_dump(mode="json"),
+            current_attempt=0,  # PHASE-8-TODO: read from job metadata
+        )
+
+        logger.info(
+            "Confidence verdict for job %s: overall=%.2f confident=%s should_proceed=%s",
+            job_id,
+            verdict.aggregate_score.overall,
+            verdict.is_confident,
+            verdict.should_proceed,
+        )
+
+        result = timeline.model_dump(mode="json")
+        confidence_dict = {
+            "overall_score": verdict.aggregate_score.overall,
+            "is_confident": verdict.is_confident,
+            "is_uncertain": verdict.aggregate_score.is_uncertain,
+            "should_proceed": verdict.should_proceed,
+            "actions": [
+                {"action": a.action, "reason": a.reason}
+                for a in verdict.branch_decision.actions
+            ],
+            "uncertainty_markers": [
+                {
+                    "signal": m.signal_type,
+                    "score": m.original_score,
+                    "uncertain": m.is_uncertain,
+                    "reason": m.reason,
+                }
+                for m in verdict.uncertainty_markers
+            ],
+        }
+        result["confidence_verdict"] = confidence_dict
+
+        from ytclfr.storage.segment_store import save_aligned_segments
+        from ytclfr.storage.output_store import assemble_and_save_final_output
+        from ytclfr.cache.result_cache import invalidate_result
+        from sqlalchemy.sql import func
+
+        with db_session() as session:
+            settings = get_settings()
+            
+            save_aligned_segments(job_uuid, timeline, settings, session)
+            
+            assemble_and_save_final_output(job_uuid, timeline, confidence_dict, session)
+            
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if job:
+                job.status = "completed"
+                job.updated_at = func.now()
+                session.commit()
+                
+        invalidate_result(job_uuid)
+
+        try:
+            s3_manager = S3StorageManager(get_settings())
+            s3_manager.delete_directory(prefix=f"{job_id}/")
+        except S3StorageError as e:
+            logger.error("Failed to delete S3 directory for job %s: %s", job_id, e)
+        except AttributeError as e:
+            # Catch AttributeError if delete_directory is not yet implemented
+            logger.error(
+                "S3StorageManager missing delete_directory method for job %s: %s",
+                job_id,
+                e,
+            )
+
+        return {"job_id": job_id, "status": "aligned_and_evaluated"}
+
+    except Exception as exc:
+        logger.error("Alignment/evaluation failed for job %s: %s", job_id, exc, exc_info=True)
+        try:
+            with db_session() as err_session:
+                job_err = err_session.query(Job).filter(Job.id == job_uuid).first()
+                if job_err:
+                    job_err.status = "alignment_failed"
+                    job_err.error_message = str(exc)
+                    err_session.commit()
+        except Exception:
+            pass
+        raise
 
 
 def _fetch_extractor_results_from_db(

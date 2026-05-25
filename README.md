@@ -46,11 +46,11 @@ To quickly get the pipeline running locally:
    ```
 5. Start the API server:
    ```bash
-   uvicorn src.ytclfr.main:app --reload --host 0.0.0.0 --port 8000
+   uvicorn ytclfr.api.main:app --app-dir src --reload --host 0.0.0.0 --port 8000
    ```
 6. Start the Celery Worker (in a separate terminal):
    ```bash
-   celery -A src.ytclfr.worker worker --loglevel=info
+   celery --workdir src -A ytclfr.queue.celery_app worker --loglevel=info
    ```
 
 *For detailed setup instructions, please refer to the [Local Setup Guide](docs/LOCAL_SETUP.md).*
