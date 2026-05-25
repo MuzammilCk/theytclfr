@@ -281,11 +281,12 @@ def run_fuse_evidence(
             },
         ))
 
-        # Step 13 — STAGE-D-TODO and return
-        # STAGE-D-TODO: trigger run_taxonomy_mapping.delay(job_id)
-        # here once tasks/stage_d.py is built and confirmed stable.
-        # At that point Stage D reads the EvidenceGraph and produces
-        # the V2 FinalOutput (taxonomy + intent + structured items).
+        # Step 13 — Stage D trigger — dispatch taxonomy mapping
+        from ytclfr.tasks.stage_d import run_taxonomy_mapping  # lazy
+        run_taxonomy_mapping.delay(job_id)
+        logger.info(
+            "Stage D triggered for job %s", job_id
+        )
 
         return {
             "job_id": job_id,

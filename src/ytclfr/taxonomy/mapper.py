@@ -1,0 +1,211 @@
+"""Groq-powered taxonomy classification for Stage D.
+
+Pure function — no Celery, no DB.
+Accepts EvidenceGraph fields and returns TaxonomyResult.
+Degrades gracefully: if Groq fails, the rule-based resolver
+in intent_resolver.py provides a fallback TaxonomyResult.
+
+Never raises to its caller.
+"""
+import logging
+from dataclasses import dataclass
+
+from ytclfr.core.config import Settings
+from ytclfr.taxonomy.intent_resolver import TaxonomyFallback
+
+logger = logging.getLogger(__name__)
+
+# ── TUNABLE CONSTANTS ──────────────────────────────────────
+
+GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_TAXONOMY_TEMPERATURE: float = 0.1
+GROQ_TAXONOMY_MAX_TOKENS: int = 500
+MAX_ENTITIES_IN_PROMPT: int = 8
+MAX_SUMMARY_CHARS: int = 500
+
+VALID_PARENT_CATEGORIES: frozenset[str] = frozenset({
+    "Education", "Shopping", "Sports", "Music",
+    "Film", "Technology", "Food", "Health", "News", "Other",
+})
+
+# ── Output dataclass ───────────────────────────────────────
+
+@dataclass
+class GroqTaxonomyResult:
+    """Raw parsed result from the Groq taxonomy call."""
+    parent_category: str
+    child_category: str
+    intent: str
+    confidence: float
+    fallback_notes: list[str]
+    groq_used: bool = True
+
+# ── Public function ─────────────────────────────────────────
+
+def classify_taxonomy(
+    dominant_subject: str | None,
+    groq_summary: str | None,
+    entities: list[dict[str, str]],  # [{"name": str, "type": str}]
+    has_speech: bool,
+    has_music: bool,
+    settings: Settings,
+) -> GroqTaxonomyResult:
+    """Classify video taxonomy using Groq. Degrades gracefully.
+
+    Never raises — any failure returns a fallback result
+    with groq_used=False.
+
+    Args:
+        dominant_subject: From EvidenceGraph.dominant_subject.
+        groq_summary: From EvidenceGraph.groq_summary.
+        entities: Simplified entity dicts from EvidenceGraph.
+        has_speech: From SignalManifest (via EvidenceGraph context).
+        has_music: From SignalManifest (via EvidenceGraph context).
+        settings: App settings with groq_api_key.
+
+    Returns:
+        GroqTaxonomyResult. groq_used=False if Groq unavailable.
+    """
+    if not settings.groq_api_key:
+        logger.warning(
+            "GROQ_API_KEY not configured — using rule-based taxonomy"
+        )
+        fallback = _make_fallback_result(
+            dominant_subject, has_speech, has_music,
+            note="Groq API key not configured"
+        )
+        return GroqTaxonomyResult(
+            parent_category=fallback.parent_category,
+            child_category=fallback.child_category,
+            intent=fallback.intent,
+            confidence=fallback.confidence,
+            fallback_notes=fallback.fallback_notes,
+            groq_used=False,
+        )
+
+    try:
+        prompt = _build_taxonomy_prompt(
+            dominant_subject, groq_summary, entities
+        )
+        raw = _call_groq(prompt, settings)
+        return _parse_taxonomy_response(raw)
+    except Exception as exc:
+        logger.warning(
+            "Groq taxonomy classification failed: %s. "
+            "Using rule-based fallback.",
+            exc,
+        )
+        fallback = _make_fallback_result(
+            dominant_subject, has_speech, has_music,
+            note=f"Groq failed: {exc}"
+        )
+        return GroqTaxonomyResult(
+            parent_category=fallback.parent_category,
+            child_category=fallback.child_category,
+            intent=fallback.intent,
+            confidence=fallback.confidence,
+            fallback_notes=fallback.fallback_notes,
+            groq_used=False,
+        )
+
+# ── Private helpers ─────────────────────────────────────────
+
+def _build_taxonomy_prompt(
+    dominant_subject: str | None,
+    groq_summary: str | None,
+    entities: list[dict[str, str]],
+) -> str:
+    subject_str = (dominant_subject or "unknown")[:200]
+    summary_str = (groq_summary or "No summary available")[
+        :MAX_SUMMARY_CHARS
+    ]
+    entity_str = ", ".join(
+        e.get("name", "") for e in entities[:MAX_ENTITIES_IN_PROMPT]
+    ) or "none"
+
+    return (
+        "Classify this YouTube video into a taxonomy.\n\n"
+        f"DOMINANT SUBJECT: {subject_str}\n"
+        f"SUMMARY: {summary_str}\n"
+        f"KEY ENTITIES: {entity_str}\n\n"
+        "Respond ONLY with valid JSON (no markdown, no backticks):\n"
+        "{\n"
+        '  "parent_category": "Education|Shopping|Sports|Music|'
+        'Film|Technology|Food|Health|News|Other",\n'
+        '  "child_category": "specific subcategory within the parent",\n'
+        '  "intent": "what the viewer gains by watching (one phrase)",\n'
+        '  "confidence": 0.85\n'
+        "}"
+    )
+
+def _call_groq(prompt: str, settings: Settings) -> str:
+    """Call Groq API. Raises on failure — caller handles."""
+    import httpx
+
+    headers = {
+        "Authorization": f"Bearer {settings.groq_api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": settings.groq_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": GROQ_TAXONOMY_TEMPERATURE,
+        "max_tokens": GROQ_TAXONOMY_MAX_TOKENS,
+        "response_format": {"type": "json_object"},
+    }
+    with httpx.Client(
+        timeout=settings.llm_request_timeout_seconds
+    ) as client:
+        response = client.post(
+            GROQ_API_URL, headers=headers, json=payload
+        )
+        response.raise_for_status()
+        data = response.json()
+        return str(data["choices"][0]["message"]["content"])
+
+def _parse_taxonomy_response(raw_json: str) -> GroqTaxonomyResult:
+    """Parse Groq JSON response. Raises on malformed input."""
+    import json
+
+    data = json.loads(raw_json)
+    parent = str(data.get("parent_category", "Other"))
+    if parent not in VALID_PARENT_CATEGORIES:
+        parent = "Other"
+    child = str(data.get("child_category", "General"))
+    intent = str(data.get("intent", "Watch and learn"))
+    try:
+        conf = float(data.get("confidence", 0.7))
+        conf = max(0.0, min(1.0, conf))
+    except (ValueError, TypeError):
+        conf = 0.7
+
+    return GroqTaxonomyResult(
+        parent_category=parent,
+        child_category=child,
+        intent=intent,
+        confidence=conf,
+        fallback_notes=[],
+        groq_used=True,
+    )
+
+def _make_fallback_result(
+    dominant_subject: str | None,
+    has_speech: bool,
+    has_music: bool,
+    note: str = "",
+) -> TaxonomyFallback:
+    """Rule-based fallback used when Groq is unavailable.
+
+    Defers to intent_resolver for keyword-based mapping.
+    Always returns a result — never raises.
+    """
+    from ytclfr.taxonomy.intent_resolver import resolve_by_rules
+
+    result = resolve_by_rules(
+        dominant_subject=dominant_subject,
+        has_speech=has_speech,
+        has_music=has_music,
+    )
+    if note:
+        result.fallback_notes.append(note)
+    return result
