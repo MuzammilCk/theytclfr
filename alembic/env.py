@@ -10,6 +10,7 @@ from ytclfr.db.base import Base
 import ytclfr.db.models.job
 import ytclfr.db.models.router_decision
 import ytclfr.db.models.signal_manifest  # V2 Stage A
+import ytclfr.db.models.evidence_graph  # V2 Stage C
 
 config = context.config
 

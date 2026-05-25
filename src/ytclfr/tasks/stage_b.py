@@ -205,7 +205,6 @@ def run_targeted_extraction(
             # Lazy imports to avoid circular import issues
             from celery import chord, group  # noqa: E402
 
-            from ytclfr.tasks.align import build_timeline  # noqa: E402
             from ytclfr.tasks.extract import (  # noqa: E402
                 run_asr,
                 run_audio_classifier,
@@ -237,12 +236,16 @@ def run_targeted_extraction(
             job.status = "extracting"
             session.commit()
 
-            # STAGE-C-TODO: Replace build_timeline.s(job_id) with
-            #   run_fuse_evidence.s(job_id) from tasks/stage_c.py
-            #   once Stage C is built and confirmed stable. At that
-            #   point build_timeline.s() is bypassed in the V2 path.
+            # Stage C callback — chord fires run_fuse_evidence when
+            # all extractors complete. build_timeline remains active
+            # for the V1 path (classify_video). See DR-V2-06.
+            from ytclfr.tasks.stage_c import run_fuse_evidence  # lazy import
             extractor_group = group(*tasks_to_run)
-            chord(extractor_group)(build_timeline.s(job_id))
+            chord(extractor_group)(run_fuse_evidence.s(job_id))
+
+            # STAGE-D-TODO: Stage D is triggered from within
+            #   run_fuse_evidence (tasks/stage_c.py) after the
+            #   EvidenceGraph is persisted, not from here.
 
             logger.info(
                 "Stage B dispatched %d extractor(s) for "

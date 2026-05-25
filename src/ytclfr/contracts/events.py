@@ -1,9 +1,10 @@
 """Event schemas for the ytclfr pipeline."""
 
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class VideoIngestedEvent(BaseModel):
@@ -26,12 +27,8 @@ class VideoIngestedEvent(BaseModel):
 
 # ── Stage A — Signal Census events ────────────────────────────────
 
-from enum import Enum
 
-from pydantic import ConfigDict
-
-
-class StageAStatus(str, Enum):
+class StageAStatus(StrEnum):
     """Status codes for Stage A signal census lifecycle."""
 
     STARTED = "stage_a_started"
@@ -58,7 +55,7 @@ class StageAEvent(BaseModel):
 # ── Stage B — Targeted Extraction events ──────────────────────
 
 
-class StageBStatus(str, Enum):
+class StageBStatus(StrEnum):
     """Status codes for Stage B targeted extraction lifecycle."""
 
     STARTED = "stage_b_started"
@@ -80,3 +77,30 @@ class StageBEvent(BaseModel):
     error: str | None = None
     details: dict = Field(default_factory=dict)
 
+
+# ── Stage C — Evidence Fusion events ──────────────────────────
+
+
+class StageCStatus(StrEnum):
+    """Status codes for Stage C evidence fusion lifecycle."""
+
+    STARTED                 = "stage_c_started"
+    ALIGNMENT_COMPLETE      = "stage_c_alignment_complete"
+    ENTITIES_EXTRACTED      = "stage_c_entities_extracted"
+    GROQ_COMPLETE           = "stage_c_groq_complete"
+    GROQ_SKIPPED            = "stage_c_groq_skipped"
+    COMPLETE                = "stage_c_complete"
+    FAILED                  = "stage_c_failed"
+
+
+class StageCEvent(BaseModel):
+    """SSE event emitted by tasks/stage_c.py."""
+
+    model_config = ConfigDict(use_enum_values=True)
+
+    event_type: StageCStatus
+    job_id: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    evidence_graph_id: str | None = None
+    error: str | None = None
+    details: dict = Field(default_factory=dict)

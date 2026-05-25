@@ -1,9 +1,10 @@
 # build.md — ytclfr V2 Full Build Plan
 
-CURRENT STAGE: C — Evidence Fusion
+CURRENT STAGE: D — Taxonomy + Intent Mapping
 STATUS: Not Started
 (V2 Stage A — Signal Census: COMPLETE)
 (V2 Stage B — Targeted Extraction: COMPLETE)
+(V2 Stage C — Evidence Fusion: COMPLETE)
 
 ## How to Use This File
 
@@ -54,24 +55,30 @@ Output artifact: Individual extractor outputs (ASR transcript, OCR text, visual 
 
 ---
 
-## Stage C — Evidence Fusion
+## Stage C — Evidence Fusion — COMPLETE
+**Goal:** Merge extractor outputs into a single time-aligned evidence graph and extract semantic insights.
 
-Goal: Take all extractor outputs and produce a single fused evidence graph with aligned timestamps, extracted entities, and confidence scores. LLM call via Groq to answer "what is this video about?"
-
-Output artifact: `EvidenceGraph` stored in PostgreSQL, job transitions to `stage_d_pending`.
-
-### Micro-Tasks
-
-| ID | Task | File(s) |
-|---|---|---|
-| C-1 | Define `EvidenceGraph`, `FusedSegment`, `ExtractedEntity` Pydantic models | `contracts/evidence.py` |
-| C-2 | Add `evidence_graphs` Alembic migration | `migrations/` |
-| C-3 | Upgrade `alignment/engine.py` to V2 temporal alignment | `alignment/engine.py` |
-| C-4 | Write `fusion/entity_extractor.py` (extracts products, people, places from transcript) | `fusion/entity_extractor.py` |
-| C-5 | Write `fusion/groq_reasoner.py` (Groq API call: dominant subject + scene summary) | `fusion/groq_reasoner.py` |
-| C-6 | Write `tasks/stage_c.py` — fuses all evidence, saves EvidenceGraph | `tasks/stage_c.py` |
-| C-7 | Add SSE event types for Stage C | `contracts/events.py` |
-| C-8 | Golden JSON fixtures + unit tests for Stage C | `tests/fixtures/`, `tests/test_stage_c.py` |
+### Implementation Status
+- [x] **C-1: Event Contracts** (`contracts/events.py`)
+  - Added `StageCEvent` and `StageCStatus` (STARTED, ALIGNMENT_COMPLETE, ENTITIES_EXTRACTED, GROQ_COMPLETE, GROQ_SKIPPED, COMPLETE, FAILED).
+- [x] **C-2: Evidence Contracts** (`contracts/evidence.py`)
+  - Created `EvidenceGraph`, `FusedSegment`, and `ExtractedEntity` models.
+- [x] **C-3: Database Models** (`db/models/evidence_graph.py`, `alembic/`)
+  - Added `evidence_graphs` table with JSON columns and generated Alembic migration.
+- [x] **C-4: Evidence Store** (`storage/evidence_store.py`)
+  - Implemented `EvidenceGraphStore` with `upsert` and `get_by_job_id`.
+- [x] **C-5: Entity Extractor** (`fusion/entity_extractor.py`)
+  - Added pure heuristic extraction logic for capitalized phrases.
+- [x] **C-6: Groq Reasoner** (`fusion/groq_reasoner.py`)
+  - Added LLM inference for dominant subject, summaries, and scene boundaries.
+- [x] **C-7: Fusion Task** (`tasks/stage_c.py`)
+  - Implemented `run_fuse_evidence` Celery chord callback to replace V1 `build_timeline`.
+  - Wires V1 alignment, entity extraction, and Groq reasoning.
+- [x] **C-8: Celery Integration** (`tasks/stage_b.py`, `queue/celery_app.py`)
+  - Updated Stage B to trigger `run_fuse_evidence` instead of `build_timeline`.
+  - Registered `stage_c` with Celery app.
+- [x] **C-9: Testing** (`tests/unit/stage_c/`)
+  - Added comprehensive test suite with mocked Groq calls and golden JSON fixture.
 
 ---
 
