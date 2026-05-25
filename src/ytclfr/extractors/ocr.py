@@ -57,18 +57,22 @@ class OCRExtractor:
             "-y",
             pattern,
         ]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=300,
-        )
-        if result.returncode != 0:
-            logger.warning(
-                "ffmpeg frame extraction returned non-zero exit code: %s",
-                result.stderr[:500],
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=300,
             )
+            if result.returncode != 0:
+                logger.warning(
+                    "ffmpeg frame extraction returned non-zero exit code: %s",
+                    result.stderr[:500],
+                )
+        except subprocess.TimeoutExpired as exc:
+            logger.error("ffmpeg frame extraction timed out after 300 seconds: %s", exc)
+            return []
 
         frames: list[tuple[Path, float]] = []
         for frame_path in sorted(output_dir.glob("frame_*.jpg")):
@@ -167,7 +171,11 @@ class OCRExtractor:
         frames = self._extract_frames(video_path, output_dir, fps)
 
         ocr_segments: list = []  # type: ignore
-        for frame_path, timestamp in frames:
+        total_frames = len(frames)
+        for i, (frame_path, timestamp) in enumerate(frames):
+            if i > 0 and i % 50 == 0:
+                logger.info("OCR progress for job %s: %d/%d frames processed", job_id, i, total_frames)
+            
             text, confidence = self._ocr_single_frame(frame_path)
             if text:
                 ocr_segments.append(

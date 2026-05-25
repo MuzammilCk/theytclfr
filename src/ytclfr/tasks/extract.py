@@ -62,7 +62,7 @@ def run_asr(self: Any, job_id: str) -> dict[str, object]:
             s3_manager = S3StorageManager(settings)
             temp_manager = TempStorageManager(settings)
             local_dir = temp_manager.get_job_dir(job_uuid)
-            local_video_path = local_dir / "video.mp4"
+            local_video_path = local_dir / f"video_asr_{uuid.uuid4().hex}.mp4"
 
             s3_object_key = f"{job_id}/video.mp4"
             s3_manager.download_file(s3_object_key, local_video_path)
@@ -169,8 +169,8 @@ def run_ocr(self: Any, job_id: str) -> dict[str, object]:
             s3_manager = S3StorageManager(settings)
             temp_manager = TempStorageManager(settings)
             local_dir = temp_manager.get_job_dir(job_uuid)
-            local_video_path = local_dir / "video.mp4"
-            ocr_frames_dir = local_dir / "ocr_frames"
+            local_video_path = local_dir / f"video_ocr_{uuid.uuid4().hex}.mp4"
+            ocr_frames_dir = local_dir / f"ocr_frames_{uuid.uuid4().hex}"
 
             s3_object_key = f"{job_id}/video.mp4"
             s3_manager.download_file(s3_object_key, local_video_path)

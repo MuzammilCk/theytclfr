@@ -1,3 +1,5 @@
+import os
+import tempfile
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -7,7 +9,7 @@ class Settings(BaseSettings):
     database_url: str
     database_pool_size: int = 5
     redis_url: str
-    temp_media_path: str = "/tmp/ytclfr_media"
+    temp_media_path: str = os.path.join(tempfile.gettempdir(), "ytclfr_media")
     temp_media_max_age_seconds: int = 3600
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
