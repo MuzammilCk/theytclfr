@@ -13,7 +13,7 @@ No module-level globals are written during probe execution.
 
 import logging
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
@@ -51,11 +51,13 @@ class VisualProbeResult:
     ]
     frame_count_sampled: int
     confidence: float
+    sampled_frames: list[Any] = field(default_factory=list)
 
 
 def probe_visual(
     video_path: str,
     timeout_seconds: int = VISUAL_PROBE_TIMEOUT_SECONDS,
+    retain_frames: bool = True,
 ) -> VisualProbeResult:
     """Probe a video file for visual signals.
 
@@ -73,7 +75,7 @@ def probe_visual(
     timer.start()
 
     try:
-        return _probe_visual_inner(video_path, timeout_event)
+        return _probe_visual_inner(video_path, timeout_event, retain_frames)
     except Exception as exc:
         logger.error(
             "Visual probe unexpected failure for %s: %s",
@@ -99,6 +101,7 @@ def probe_visual(
 def _probe_visual_inner(
     video_path: str,
     timeout_event: threading.Event,
+    retain_frames: bool,
 ) -> VisualProbeResult:
     """Core visual probing logic. All state is stack-local.
 
@@ -132,6 +135,7 @@ def _probe_visual_inner(
             content_format=content_format,
             frame_count_sampled=len(frames),
             confidence=confidence,
+            sampled_frames=frames if retain_frames else [],
         )
 
     # ── Step 5.2 — Open video and extract basic metadata ────────
@@ -366,4 +370,5 @@ def _probe_visual_inner(
         content_format=content_format,
         frame_count_sampled=len(frames),
         confidence=base_confidence,
+        sampled_frames=frames if retain_frames else [],
     )

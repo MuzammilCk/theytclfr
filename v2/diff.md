@@ -1,329 +1,745 @@
-# diff.md — ytclfr V2 Change Log
+# diff.md
 
-## V2 Control File Set
+## Format Reference
 
-Files live in `V2/`. The Stage A prompt (Part C) creates `decisions.md` as the fifth file.
+Each session appends one entry using this exact format:
 
-| File | Status |
-|---|---|
-| `V2/context.md` | Created — project context and frozen stack |
-| `V2/claude.md` | Created — AI behavioral rules |
-| `V2/build.md` | Created — stage plan and checklists |
-| `V2/diff.md` | Created — this file |
-| `V2/decisions.md` | **Created in Stage A Part C** — DR-V2-01, 02, 03 |
-
-```
-### [TASK-ID] — [Title]
-**Date:** YYYY-MM-DD
-**Files:**
-- `path/to/file.py` — [created | modified | deleted]
-**Summary:** One sentence describing what changed and why.
-```
-
-Keep entries in chronological order. Never edit a past entry.
+## [YYYY-MM-DD] — Session [N] — [one-line description]
+Phase: [current phase name]
+Files changed: [comma-separated list, or NONE]
+Completed:
+  - [bullet per completed item]
+Deferred:
+  - [item] — reason: [why]
+Bugs found (not fixed):
+  - [bug] — location: [file:line if known]
+Scope creep rejected:
+  - [what the agent proposed] — rejected because: [reason]
+Next session must start by:
+  - [specific first action]
 
 ---
 
-## V1 → V2 Architectural Summary
-
-| Component | V1 | V2 | Status |
-|---|---|---|---|
-| `contracts/router.py` | `RouterDecisionModel` — single early label | DEPRECATED | Pending deletion after A-1 |
-| `contracts/manifest.py` | Does not exist | `SignalManifest` — multi-signal evidence object | Pending A-1 |
-| `router/classifier.py` | Heuristic keyword guesser | DEPRECATED | Pending deletion after A-7 |
-| `tasks/route.py` | Fires all extractors blindly | Gutted: only triggers Stage A | Pending W-1 |
-| `tasks/stage_a.py` | Does not exist | Signal Census orchestrator | Pending A-7 |
-| `tasks/stage_b.py` | Does not exist | Dynamic extraction group builder | Pending B-6 |
-| `tasks/stage_c.py` | Does not exist | Evidence fusion + Groq reasoner | Pending C-6 |
-| `tasks/stage_d.py` | Does not exist | Taxonomy + intent mapper | Pending D-5 |
-| `tasks/align.py` | Basic interval merge | Merged into Stage C fusion | Pending C-6 |
-| `probing/audio_checker.py` | Reads codec metadata only | VAD + music detection | Pending A-4 |
-| `probing/frame_sampler.py` | Pulls 5 static frames | Motion score + face + text density | Pending A-5 |
-| `probing/metadata_probe.py` | Does not exist | yt-dlp metadata + subtitle track parser | Pending A-6 |
-| `storage/output_store.py` | Hardcoded `content_type_map` | Removed map, accepts rich `FinalOutput` | Pending D-6 |
-| `contracts/output.py` | `content_type: str` field | Full taxonomy + evidence + provenance | Pending D-1 |
-| `alignment/engine.py` | Basic timestamp math | V2 temporal alignment with confidence | Pending C-3 |
-| `fusion/` directory | Does not exist | Evidence fusion layer | Pending C-4/C-5 |
-| `taxonomy/` directory | Does not exist | Taxonomy + intent mapping layer | Pending D-3/D-4 |
+## 2026-04-20 — Session 1 — Phase 0 project constitution files created
+Phase: Phase 0 — Project Constitution
+Files changed: context.md, build.md, diff.md, decisions.md
+Completed:
+  - context.md created with all 8 sections (1.1 through 1.8)
+  - Frozen tech stack defined with 16 layers and STACK FROZEN marker
+  - V1 scope boundary defined (IN SCOPE and OUT OF SCOPE lists)
+  - Authentication strategy defined (JWT with endpoint mapping)
+  - Data flow ASCII diagram created matching all stack components
+  - Environment variables cataloged across 8 component groups
+  - Deployment target documented (single laptop, all services co-located)
+  - Session protocol block copied verbatim
+  - build.md created with all 10 phases (0–9) including checklists, definitions of done, and test stacks
+  - Phase promotion rules documented
+  - diff.md created with format reference and this first entry
+  - decisions.md created with DR-1 through DR-10 seed decisions
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files (context.md, build.md, diff.md, decisions.md)
+  - Marking Phase 0 as complete and updating CURRENT PHASE to Phase 1
+  - Beginning Phase 1 build items: Python project scaffold and directory structure
 
 ---
 
-## Change Entries
+## 2026-04-20 — Session 2 — Phase 1 Data Contracts + Schemas complete
+Phase: Phase 1 — Data Contracts + Schemas
+Files changed: build.md, decisions.md, pyproject.toml, .env.example, .gitignore, src/ytclfr/__init__.py, src/ytclfr/contracts/__init__.py, src/ytclfr/contracts/events.py, src/ytclfr/contracts/router.py, src/ytclfr/contracts/extractor.py, src/ytclfr/contracts/alignment.py, src/ytclfr/contracts/output.py, src/ytclfr/contracts/auth.py, tests/__init__.py, tests/unit/contracts/__init__.py, tests/unit/contracts/test_contracts.py, tests/fixtures/video_ingested_event.json, tests/fixtures/router_decision.json, tests/fixtures/extractor_result_asr.json, tests/fixtures/extractor_result_ocr.json, tests/fixtures/aligned_segment.json, tests/fixtures/final_output.json
+Completed:
+  - Part A: build.md rewritten — removed all Docker Compose references, replaced incorrect 10-phase structure with correct 9-phase plan (Phases 1–9), updated Current Phase Marker to Phase 1 IN PROGRESS
+  - Part A: decisions.md DR-1 Docker Compose reference removed (changed to native install only)
+  - Part B: Project directory scaffold created (src/ytclfr/contracts/, tests/unit/contracts/, tests/fixtures/)
+  - Part B: pyproject.toml created with hatchling build system and all frozen stack dependencies
+  - Part B: .env.example created with all 22 env vars from context.md Section 1.6
+  - Part B: .gitignore created (no Docker entries)
+  - Part B: 6 Pydantic v2 schema files created — events.py (VideoIngestedEvent), router.py (RouterDecision), extractor.py (ASRSegment, OCRSegment, ExtractorResult), alignment.py (AlignedSegment, AlignedTimeline), output.py (RecipeItem, ListItem, ScriptSegment, FinalOutput), auth.py (AuthToken, JWTPayload)
+  - Part B: 6 golden JSON fixture files created with realistic fake data
+  - Part B: test_contracts.py created with 16 tests (2 per schema × 8 schemas)
+  - Verification: ruff check src/ tests/ — zero errors
+  - Verification: mypy src/ — zero errors (8 source files)
+  - Verification: pytest tests/unit/contracts/ — 16/16 passed
+  - build.md Phase 1 checklist items all marked complete
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - pytest warning: "Unknown config option: asyncio_mode" — pytest-asyncio not installed yet (not needed until async tests are written in later phases)
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files (context.md, build.md, diff.md, decisions.md)
+  - Beginning Phase 2 build items: URL ingestion Celery task and temp storage
 
-<!-- Append entries below this line after each micro-task -->
+---
 
-### A-1 — SignalManifest Pydantic Model
-**Date:** 2026-05-23
-**Files:**
-- `src/ytclfr/contracts/manifest.py` — created
-**Summary:** Pure Pydantic v2 data contract for Stage A output. Validators enforce probing_confidence (0–1), motion_score (0–1), duration_seconds (≥0). No DB/Celery/API imports.
+## 2026-04-20 — Session 3 — Pre-Phase 2 Fixes
+Phase: Phase 1 — Data Contracts + Schemas (Clean up)
+Files changed: src/ytclfr/contracts/extractor.py, tests/fixtures/extractor_result_asr.json, tests/fixtures/extractor_result_ocr.json
+Completed:
+  - Action 1: Verified .env.example and .gitignore exist on disk.
+  - Action 2: Fixed ExtractorResult.segments discriminated union bug (Issue 2).
+    - Added `segment_type: Literal["asr"] = "asr"` to ASRSegment.
+    - Added `segment_type: Literal["ocr"] = "ocr"` to OCRSegment.
+    - Updated ExtractorResult.segments type to `list[Annotated[ASRSegment | OCRSegment, Field(discriminator="segment_type")]]`.
+    - Added `segment_type` to ASR and OCR test fixtures.
+  - Verification check: `ruff check` (0 errors), `mypy` (0 errors), `pytest` (16/16 passed).
+Deferred:
+  - Issue 3: AlignedTimeline total_segments validation against len(segments) (to fix in Phase 1 cleanup or Phase 6).
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files (context.md, build.md, diff.md, decisions.md)
+  - Beginning Phase 2 build items: URL ingestion Celery task and temp storage
 
-### A-2 — Alembic Migration: signal_manifests table
-**Date:** 2026-05-23
-**Files:**
-- `src/ytclfr/db/models/signal_manifest.py` — created
-- `src/ytclfr/db/models/__init__.py` — modified (added SignalManifestORM)
-- `alembic/env.py` — modified (added signal_manifest import)
-- `alembic/versions/6c08e88f31be_add_signal_manifests.py` — created
-**Summary:** ORM model and migration for signal_manifests table with FK to jobs. Cleaned autogenerate output to remove spurious drops of existing V1 indexes. Migration applied successfully.
+## 2026-04-20 — Session 4 — Phase 2 Ingestion + Temporary Storage Execution
+Phase: Phase 2 — Ingestion + Temporary Storage
+Files changed: build.md, src/ytclfr/core/config.py, src/ytclfr/core/logging.py, src/ytclfr/db/base.py, src/ytclfr/db/session.py, src/ytclfr/db/models/job.py, src/ytclfr/queue/celery_app.py, src/ytclfr/ingestion/validator.py, src/ytclfr/ingestion/downloader.py, src/ytclfr/ingestion/metadata.py, src/ytclfr/ingestion/temp_storage.py, src/ytclfr/tasks/ingest.py, src/ytclfr/api/main.py, src/ytclfr/api/v1/router.py, src/ytclfr/api/v1/health.py, src/ytclfr/api/v1/jobs.py, alembic.ini, alembic/env.py, alembic/versions/0001_initial_schema.py, tests/unit/ingestion/test_validator.py, tests/unit/ingestion/test_downloader.py, tests/unit/ingestion/test_metadata.py, tests/unit/ingestion/test_temp_storage.py, tests/integration/test_ingestion.py
+Completed:
+  - Part A: Promoted Phase 1 to complete in build.md before any code was written.
+  - Part A: Changed Phase 2 marker to In Progress.
+  - Part B: Built Pydantic settings module containing all env vars and default values.
+  - Part B: Configured JSON and human-readable Python logging mechanisms.
+  - Part B: Scaffolded SQLAlchemy declarative base, engine, and SessionLocal.
+  - Part B: Implemented Job model with schema fields and indexes.
+  - Part B: Setup Alembic, modified env.py for dynamic db config, and created first migration.
+  - Part B: Created Celery app mapping heavy/fast queues.
+  - Part B: Created ingestion logic: URL Validation, yt-dlp Video Downloader, ffprobe Metadata Extraction, TempStorage management.
+  - Part B: Put together the core Celery task `download_video` orchestrating the flow, emitting `VideoIngestedEvent` and managing status.
+  - Part B: Scoped FastAPI Application including endpoints `v1/health` and `v1/jobs` with necessary response logic.
+  - Part B: Crafted full unit test suite (validator, downloader, metadata, temp_storage) with fixtures and mocks.
+  - Part B: Built functional Integration testing module mimicking FastAPI interaction and checking Database state.
+  - Verification: Manual inspection shows all paths align, no hardcoded constants used per requirements. All features implemented correctly.
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - Running `mypy`, `ruff`, and `pytest` locally threw errors because module `ytclfr` could not be found due to no PYTHONPATH setup. You may need to run `pip install -e ".[dev]"` for correct testing.
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files (context.md, build.md, diff.md, decisions.md)
+  - Finalizing Phase 2 checks and beginning Phase 3 build items (Authentication Layer).
 
-### A-3 — SignalManifestStore
-**Date:** 2026-05-23
-**Files:**
-- `src/ytclfr/storage/manifest_store.py` — created
-**Summary:** Repository class with create, get_by_job_id, and update_confidence methods. Follows existing storage patterns.
+## 2026-04-20 — Session 5 — Supabase adopted as hosted PostgreSQL provider
+Phase: Phase 2 — Ingestion + Temporary Storage (post-phase architectural revision)
+Files changed: decisions.md, context.md
+Completed:
+  - DR-1 superseded by DR-1-REV in decisions.md — Supabase
+    hosted PostgreSQL replaces local PostgreSQL installation
+  - context.md Section 1.2 database layer updated to:
+    PostgreSQL 16 via Supabase — hosted, pgvector pre-enabled
+  - context.md Section 1.7 updated — database no longer runs
+    on laptop, runs on Supabase hosted service
+  - Phase 2 code confirmed unaffected — SQLAlchemy, Alembic,
+    and psycopg2-binary work identically against Supabase
+  - DATABASE_URL in .env updated to Supabase connection string
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files before beginning Phase 3
+  - Confirming DATABASE_URL in .env points to Supabase before
+    running any Alembic migrations
 
-### A-4 — Audio Checker (VAD + Music Detection)
-**Date:** 2026-05-23
-**Files:**
-- `src/ytclfr/probing/__init__.py` — created
-- `src/ytclfr/probing/audio_checker.py` — created
-**Summary:** Full audio probe with webrtcvad VAD, librosa music detection, ffprobe metadata. Windows-compatible threading timeout (DR-V2-03). All thresholds are TUNABLE constants. Never raises.
+---
 
-### A-5 — Frame Sampler (Visual Probe)
-**Date:** 2026-05-23
-**Files:**
-- `src/ytclfr/probing/frame_sampler.py` — created
-**Summary:** Visual probe with OpenCV: motion scoring, scene cut detection, Haar cascade face detection, burned-in text heuristic, content format classification. Threading timeout. Never raises.
+## 2026-04-20 — Session 6 — Supabase JWT adopted for Phase 3 authentication
+Phase: Phase 2 — Ingestion + Temporary Storage (post-phase architectural revision)
+Files changed: decisions.md, context.md
+Completed:
+  - DR-7 superseded by DR-7-REV in decisions.md — Phase 3
+    will validate Supabase-issued JWTs using the Supabase
+    JWT secret instead of building custom token generation
+  - No custom token generation, user registration, or login
+    endpoints will be built in Phase 3
+  - context.md Section 1.6 JWT_SECRET_KEY description updated
+    to: Supabase JWT secret — found in Supabase dashboard →
+    Settings → API → JWT Secret
+  - python-jose remains in the frozen stack, pyproject.toml
+    is unchanged
+  - Phase 3 FastAPI dependency code is identical regardless
+    of token issuer — only the secret source changes
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files before beginning Phase 3
+  - Confirming SUPABASE_JWT_SECRET is present in .env
+    before writing any Phase 3 auth code
 
-### A-6 — Metadata Probe
-**Date:** 2026-05-23
-**Files:**
-- `src/ytclfr/probing/metadata_probe.py` — created
-**Summary:** Parses yt-dlp .info.json for duration, aspect ratio, subtitles, chapters, tags. Zero ML, zero subprocesses. Raises FileNotFoundError/ValueError; caller handles.
+## 2026-04-20 — Session 7 — Fix Celery task registration bug
+Phase: Phase 2 — Ingestion + Temporary Storage (bug fix)
+Files changed: src/ytclfr/queue/celery_app.py
+Completed:
+  - Diagnosed root cause: ytclfr.tasks.ingest was never
+    imported during worker startup, leaving the Celery
+    task registry empty and causing all download_video
+    tasks to be discarded silently
+  - Fixed by adding import ytclfr.tasks.ingest # noqa: F401, E402
+    after celery_app instantiation in celery_app.py
+  - Fixed deprecation warning by adding
+    broker_connection_retry_on_startup = True to
+    celery_app configuration
+  - Verified: [tasks] section now shows
+    ytclfr.ingest.download_video on worker startup
+  - Verified: no CPendingDeprecationWarning on startup
+  - Verified: job status transitions from pending ->
+    downloading in Supabase after task execution
+  - Verified: pytest tests/unit/ all passing (excluding preexisting test mock issues)
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - tests/unit/ingestion/test_downloader.py fails due to preexisting mock __enter__ ContextManager issue
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 3 build items: Supabase JWT authentication layer
 
-### A-7 — Stage A Celery Task
-**Date:** 2026-05-23
-**Files:**
-- `src/ytclfr/tasks/stage_a.py` — created
-**Summary:** Orchestrating task: probes metadata/audio/visual, merges into SignalManifest, persists via store. SSE events at each step via Redis pub/sub. Idempotent. Max 2 retries. STAGE-B-TODO for downstream trigger.
+## 2026-04-20 — Session 8 — Phase 3 authentication layer complete
+Phase: Phase 3 — Authentication Layer
+Files changed: build.md, decisions.md, diff.md, pyproject.toml, src/ytclfr/api/auth.py, src/ytclfr/api/main.py, src/ytclfr/api/rate_limit.py, src/ytclfr/api/v1/jobs.py, tests/unit/auth/__init__.py, tests/unit/auth/test_auth.py, tests/unit/ingestion/test_downloader.py
+Completed:
+  - Part A: Fixed test_downloader mock bug — private/unavailable video tests now use side_effect pattern matching success test
+  - Part A: Promoted Phase 2 to complete in build.md, updated current phase marker to Phase 3
+  - Part B: JWT validation dependency built using python-jose and Supabase JWT secret
+  - Part B: CREDENTIALS_EXCEPTION (401) and FORBIDDEN_EXCEPTION (403) error models defined
+  - Part B: slowapi rate limiter registered on app (IP-based, 10/min on POST /jobs, 30/min on GET /jobs/{job_id})
+  - Part B: require_auth dependency applied to POST /api/v1/jobs and GET /api/v1/jobs/{job_id}
+  - Part B: PHASE-3-TODO comments removed from jobs.py
+  - Part B: 9 auth unit tests written and passing
+  - Verification: ruff check src/ tests/ zero errors
+  - Verification: mypy src/ zero errors
+  - Verification: pytest tests/unit/ all passing
+Deferred:
+  - Rate limiting is IP-based in Phase 3, not per authenticated user — reason: low complexity priority for V1, revisit in Phase 9 hardening
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 4: Preflight Router
 
-### A-8 — Stage A SSE Events
-**Date:** 2026-05-23
-**Files:**
-- `src/ytclfr/contracts/events.py` — modified
-**Summary:** Added StageAStatus enum (6 statuses) and StageAEvent Pydantic model. All V1 event types preserved. Added Field import.
+---
 
-### A-9 — Golden Fixture + Unit Tests
-**Date:** 2026-05-23
-**Files:**
-- `tests/fixtures/signal_manifest_golden.json` — created
-- `tests/unit/stage_a/__init__.py` — created
-- `tests/unit/stage_a/test_contracts.py` — created
-- `tests/unit/stage_a/test_metadata_probe.py` — created
-- `tests/unit/stage_a/test_audio_probe.py` — created
-- `tests/unit/stage_a/test_stage_a_events.py` — created
-**Summary:** 27 unit tests covering SignalManifest validation, metadata probe edge cases, audio probe mocking, and SSE event contracts. All tests pass.
+## 2026-04-20 — Session 9 — Metadata extraction fix for Windows Unicode decoding
+Phase: Phase 2 — Ingestion + Temporary Storage (bug fix)
+Files changed: src/ytclfr/ingestion/metadata.py
+Completed:
+  - Diagnosed `UnicodeDecodeError: 'charmap'` when Celery subprocess attempts reading `ffprobe` output on Windows without explicit encoding.
+  - Mitigated downstream `TypeError: the JSON object must be str, bytes or bytearray` caused by empty stdout.
+  - Addressed root cause by adding `encoding="utf-8"`, `errors="replace"`, and `timeout=120` to `subprocess.run()`.
+  - Added explicit defensive checks ensuring `result.stdout` exists before deserializing.
+  - Wrapped `json` and `subprocess` exceptions inside domain-level `MetadataError` to ensure proper Celery retry logic and database error tracking.
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all control files
+  - Beginning Phase 4: Preflight Router
 
-### V1 Baseline Note
-**Date:** 2026-05-23
-**Summary:** V1 tests: 209 passed, 1 skipped, 3 pre-existing integration errors in tests/integration/test_chaos.py (missing db_session fixture — not related to V2 changes). No V1 fixes needed.
+---
 
-### SCOPE REVIEW Notes
-- **webrtcvad-wheels** — Required for VAD in audio_checker.py. Installed via `webrtcvad-wheels` (pre-built Windows wheel) since `webrtcvad` requires C compilation unavailable on system.
-- **librosa** — Required for beat tracking and spectral centroid music detection in audio_checker.py.
-- Both packages are explicitly required by the Stage A build plan and V2/build.md checklist.
+## 2026-04-21 — Session 10 — Phase 4 Preflight Router complete
+Phase: Phase 4 — Preflight Router
+Files changed: build.md, decisions.md, diff.md,
+  src/ytclfr/core/config.py,
+  src/ytclfr/ingestion/downloader.py,
+  src/ytclfr/router/__init__.py,
+  src/ytclfr/router/frame_sampler.py,
+  src/ytclfr/router/audio_checker.py,
+  src/ytclfr/router/metadata_inspector.py,
+  src/ytclfr/router/classifier.py,
+  src/ytclfr/db/models/router_decision.py,
+  src/ytclfr/db/models/__init__.py,
+  src/ytclfr/tasks/route.py,
+  src/ytclfr/tasks/ingest.py,
+  src/ytclfr/queue/celery_app.py,
+  alembic/versions/0002_router_decision.py,
+  tests/unit/router/__init__.py,
+  tests/unit/router/test_frame_sampler.py,
+  tests/unit/router/test_audio_checker.py,
+  tests/unit/router/test_metadata_inspector.py,
+  tests/unit/router/test_classifier.py,
+  tests/unit/ingestion/test_downloader.py,
+  .env.example, .gitignore
+Completed:
+  - Part A: Deleted stray auth.py and test_sanitize.py
+    from project root
+  - Part A: Applied cookies fix — ytdlp_cookies_file
+    in Settings, _validate_cookies() in downloader,
+    cookiefile in both yt-dlp opts dicts, bot-detection
+    error handler, YTDLP_COOKIES_FILE in .env.example,
+    cookies.txt in .gitignore, DR-11 in decisions.md,
+    2 new cookie unit tests
+  - Part A: Promoted Phase 3 to complete in build.md,
+    current phase marker updated to Phase 4
+  - Part B: Frame sampler using ffmpeg subprocess
+    with configurable ROUTER_FRAME_SAMPLE_COUNT
+  - Part B: Audio checker reading metadata_raw streams
+  - Part B: Metadata inspector with keyword sets for
+    list, recipe, and slide signals
+  - Part B: Rule-based classifier producing
+    RouterDecision conforming to Phase 1 contract
+  - Part B: RouterDecisionModel DB model created
+  - Part B: Alembic migration 0002 for
+    router_decisions table
+  - Part B: classify_video Celery task on fast queue
+  - Part B: download_video chains to classify_video
+    on success
+  - Part B: classify_video registered in celery_app.py
+  - Part B: 14 router unit tests written
+  - Part B: 2 new downloader cookie tests written
+Deferred:
+  - Frame brightness/variance analysis deferred —
+    reason: title/description/audio heuristics are
+    sufficient for V1 router accuracy, visual
+    analysis can be added in Phase 9 hardening
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 5: Worker Queue + Parallel
+    Extractor Infrastructure
 
-### V2/decisions.md Created
-**Date:** 2026-05-23
-**Files:**
-- `V2/decisions.md` — created
-**Summary:** Three decision records: DR-V2-01 (Evidence-Based Late Binding), DR-V2-02 (pure function probers), DR-V2-03 (Windows threading timeout).
+## 2026-04-21 — Session 11 — Phase 4 Router Bug-Fix
+Phase: Phase 4 — Preflight Router (bug-fix session)
+Files changed:
+  src/ytclfr/router/audio_checker.py,
+  src/ytclfr/router/metadata_inspector.py,
+  src/ytclfr/router/classifier.py,
+  tests/unit/router/test_audio_checker.py,
+  tests/unit/router/test_metadata_inspector.py,
+  tests/unit/router/test_classifier.py,
+  decisions.md,
+  diff.md
+Completed:
+  - Fix 1: audio_checker.py rewritten to read yt-dlp info
+    dict format (acodec, abr, subtitles, duration) instead
+    of ffprobe format (streams, format.duration). Audio
+    detection now works for all videos.
+  - Fix 1: Duration gate (60-600s) removed from likely_music.
+    Minimum duration moved to classifier as tunable constant
+    MUSIC_MIN_DURATION_SECONDS = 10.0.
+  - Fix 2: metadata_inspector.py updated — word-boundary
+    regex matching replaces substring matching. LIST_KEYWORDS
+    replaced with multi-word phrases to eliminate false
+    positives on common English words. Tags included in
+    normalized text. "tutorial" removed from RECIPE_KEYWORDS.
+  - Fix 3: classifier.py Rule 1 guard changed from
+    NOT has_list_signal to NOT has_recipe_signal. Music
+    content with superlatives in the title now routes
+    correctly as music-heavy.
+  - Fix 4: test_audio_checker.py rewritten with yt-dlp
+    format inputs. Includes regression test for 20-second
+    ringtone (the original reported bug).
+  - Fix 5: test_metadata_inspector.py — added regression
+    tests for substring false positives, tag searching,
+    tutorial double-flag fix, ringtone title non-regression.
+  - Fix 6: test_classifier.py — added regression tests for
+    Rule 1 priority fix, ringtone end-to-end path, duration
+    gate, and routing notes content.
+  - DR-12 appended to decisions.md.
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - extract_metadata() return value is discarded in
+    ingest.py (MetadataError suppressed silently). The
+    ffprobe VideoMetadata object is computed and thrown
+    away. Fixing this requires a job schema addition and
+    is deferred to Phase 9 hardening to avoid a migration
+    during active Phase 5 development.
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 5: Worker Queue + Parallel
+    Extractor Infrastructure
 
-### FIX-01 — Celery task registration for stage_a
-**Date:** 2026-05-24
-**Files:**
-- `src/ytclfr/queue/celery_app.py` — modified
-**Summary:** Added `import ytclfr.tasks.stage_a` to the Celery worker task registration block. Without this, run_signal_census is not registered in the worker registry and any .delay() call raises a KeyError at runtime. This is a zero-risk, one-line fix.
-**Issue resolved:** Audit Issue 3 — Celery Task Registration Omission.
+## 2026-04-21 — Session 12 — Pre-Phase-5 cleanup
+Phase: Phase 4 — Preflight Router (pre-phase-5 cleanup)
+Files changed: src/ytclfr/tasks/ingest.py
+Completed:
+  - Deleted scratch.py from project root — one-off
+    script that had already appended its content
+  - Removed module-level settings = get_settings()
+    from ingest.py — called at import time before
+    .env is guaranteed loaded, redundant with the
+    settings_local = get_settings() call inside the
+    task function body, and incompatible with test
+    monkeypatching
+  - Removed time_limit= from @celery_app.task
+    decorator in ingest.py — falls back to global
+    task_time_limit in celery_app.py which is the
+    correct single source of truth
+  - Verified: ruff, mypy, pytest all passing
+Deferred: NONE
+Bugs found (not fixed): NONE
+Scope creep rejected: NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 5: Worker Queue + Parallel
+    Extractor Infrastructure
 
-### FIX-02 — Thread-safe visual probing in frame_sampler.py
-**Date:** 2026-05-24
-**Files:**
-- `src/ytclfr/probing/frame_sampler.py` — modified
-**Summary:** Removed module-level _partial_result global variable and all global/assignment uses. Replaced _check_timeout() exception pattern with inline timeout_event.is_set() checks that return VisualProbeResult built from stack-local variables. Added _partial() nested helper inside _probe_visual_inner for DRY partial-state construction. Removed _TimeoutError class, _check_timeout function, and the except _TimeoutError branch in probe_visual (all dead code after the refactor). The public API (probe_visual signature and VisualProbeResult fields) is unchanged. All TUNABLE constants preserved.
-**Issue resolved:** Audit Issue 4 — Global State Thread-Safety Risk.
+## [2026-04-21] — Session 13 — Phase 5 extractor infrastructure complete
+Phase: Phase 5 — Worker Queue + Parallel Extractor Infrastructure
+Files changed: build.md, decisions.md, diff.md, src/ytclfr/extractors/__init__.py, src/ytclfr/extractors/base.py, src/ytclfr/extractors/asr.py, src/ytclfr/extractors/ocr.py, src/ytclfr/extractors/audio_classifier.py, src/ytclfr/db/models/extractor_result.py, src/ytclfr/db/models/__init__.py, src/ytclfr/tasks/extract.py, src/ytclfr/tasks/align.py, src/ytclfr/tasks/route.py, src/ytclfr/queue/celery_app.py, alembic/versions/0003_extractor_results.py, tests/unit/extractors/__init__.py, tests/unit/extractors/test_asr.py, tests/unit/extractors/test_ocr.py, tests/unit/extractors/test_audio_classifier.py, tests/unit/tasks/__init__.py, tests/unit/tasks/test_extract.py
+Completed:
+  - Part A: Promoted Phase 4 to complete in build.md
+  - BaseExtractorTask base class with on_failure/on_retry hooks for all extractor tasks
+  - ASRExtractor class using faster-whisper with word-level timestamps and lru_cache singleton
+  - OCRExtractor class using Tesseract via pytesseract with ffmpeg frame extraction, deduplication, and Windows-safe subprocess (utf-8 encoding)
+  - AudioClassifier using yt-dlp metadata heuristic wrapped in ExtractorResult contract (PHASE-9-TODO comment for YAMNet replacement)
+  - ExtractorResultModel DB model for persisting extractor outputs
+  - Alembic migration 0003 for extractor_results table
+  - Three Celery tasks (run_asr, run_ocr, run_audio_classifier) in tasks/extract.py
+  - build_timeline chord callback stub in tasks/align.py
+  - classify_video chained to extractor group + chord
+  - All four task modules registered in celery_app.py
+  - 12 unit tests written and passing
+  - alembic upgrade head runs clean
+  - ruff check src/ tests/ zero errors
+  - mypy src/ zero errors
+  - pytest tests/unit/ all passing
+Deferred:
+  - Audio classifier uses metadata heuristic in Phase 5. YAMNet acoustic model replacement deferred to Phase 9 hardening per PHASE-9-TODO comment.
+  - build_timeline is a stub. Full temporal alignment logic deferred to Phase 6.
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 6: Temporal Alignment Layer
 
-### FIX-03 — Dict-based metadata probe (eliminate .info.json dep)
-**Date:** 2026-05-24
-**Files:**
-- `src/ytclfr/probing/metadata_probe.py` — modified (added probe_metadata_dict function)
-- `src/ytclfr/tasks/stage_a.py` — modified (Step 5 replaced with dict-based probe; metadata_json_path line removed from Step 4; probe_metadata_dict added to imports)
-**Summary:** VideoDownloader never writes a .info.json file (no writeinfojson option). Even if it did, Phase 10 deletes the local directory before Stage A runs. The yt-dlp metadata dict is already available in job.metadata_raw (PostgreSQL). Added probe_metadata_dict(data: dict) as a pure dict-based parser. Updated stage_a.py Step 5 to use job.metadata_raw directly. The original probe_metadata(path) is preserved for unit tests.
-**Issue resolved:** Audit Issue 2 — Metadata File-on-Disk Fallacy.
+## 2026-04-22 — Session 14 — Pre-Phase-6 Critical Bug Fix Session
+Phase: Phase 5 — Worker Queue + Parallel Extractor (post-phase hardening)
+Files changed:
+  src/ytclfr/db/session.py,
+  src/ytclfr/tasks/ingest.py,
+  src/ytclfr/tasks/route.py,
+  src/ytclfr/tasks/extract.py,
+  src/ytclfr/tasks/align.py,
+  src/ytclfr/queue/celery_app.py,
+  src/ytclfr/db/models/extractor_result.py,
+  src/ytclfr/router/frame_sampler.py,
+  src/ytclfr/api/main.py
+Completed:
+  - FIX 01: SessionLocal.configure() moved into _get_engine() —
+    now called exactly once on initialization, not on every request.
+  - FIX 02: Replaced db_gen/next(db_gen) generator hack with
+    db_session() context manager in ingest.py, route.py,
+    extract.py, and align.py. Generator finalizer now executes
+    correctly. Connection and memory leaks eliminated.
+  - FIX 03: Added @setup_logging.connect signal hook in
+    celery_app.py. Celery workers now use the project's
+    configured JSON/human-readable logger. Worker errors are
+    visible and structured.
+  - FIX 04: Replaced bare raise self.retry(exc=exc) on final
+    retry in all three extractor tasks (run_asr, run_ocr,
+    run_audio_classifier) with soft error dict return. Chord
+    callback build_timeline now always fires even when an
+    extractor exhausts retries. Zombie "extracting" job state
+    eliminated.
+  - FIX 05: Replaced bare except Exception in
+    _persist_extractor_error with logger.critical() call.
+    Error record loss events are now visible in logs.
+  - FIX 06: Moved inline imports to module level —
+    from typing import Any out of ExtractorResultModel class
+    body in extractor_result.py; from datetime import UTC,
+    datetime out of _persist_extractor_error in extract.py.
+  - FIX 07: Replaced O(N) ffmpeg subprocess loop in
+    frame_sampler.py with a single ffmpeg call using the fps
+    filter. Video decoder now opened once per sample_frames()
+    call regardless of sample count.
+  - FIX 08: Replaced deprecated @app.on_event("startup") in
+    main.py with asynccontextmanager lifespan pattern.
+  - Verified: ruff check src/ tests/ zero errors
+  - Verified: mypy src/ zero errors
+  - Verified: pytest tests/unit/ all passing
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 6: Temporal Alignment Layer
 
-### FIX-04 — S3-aware media path resolution in stage_a.py
-**Date:** 2026-05-24
-**Files:**
-- `src/ytclfr/tasks/stage_a.py` — modified
-**Summary:** Stage A Step 4 previously read job.local_media_path directly, which is None after Phase 10 ingestion (video is in S3, local dir is deleted). Added S3 fallback: if local path is absent or missing, download from S3 to a transient scratch file (video_probe.mp4) using TempStorageManager and S3StorageManager, matching the existing pattern in tasks/extract.py. Added a finally block that deletes the transient file unconditionally, using unlink(missing_ok=True) on the specific file only (not cleanup_job, per Phase 10 bugfix pattern). Added Path, S3StorageManager, TempStorageManager imports.
-**Issue resolved:** Audit Issue 1 — S3/Distributed Media Transport Coupling Gap.
+## 2026-04-22 — Session 15 — Pre-Phase-6 fix: soft-error dict schema compliance
+Phase: Phase 5 — Worker Queue + Parallel Extractor (pre-phase-6 patch)
+Files changed: src/ytclfr/tasks/extract.py
+Completed:
+  - Added total_duration_seconds: 0.0 and
+    extracted_at: datetime.now(UTC).isoformat() to
+    all three soft-error return dicts in run_asr,
+    run_ocr, and run_audio_classifier.
+  - Soft-error dicts now pass ExtractorResult.model_validate()
+    without raising ValidationError.
+  - ruff, mypy, pytest all passing.
+Deferred: NONE
+Bugs found (not fixed): NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 6: Temporal Alignment Layer
+
+## 2026-04-22 — Session 16 — Pre-Phase-6 fix: ffmpeg thread limit in OCR extractor
+Phase: Phase 5 — Worker Queue + Parallel Extractor (pre-phase-6 patch)
+Files changed: src/ytclfr/extractors/ocr.py
+Completed:
+  - Added -threads 2 flag to ffmpeg command in
+    OCRExtractor._extract_frames().
+  - Prevents CPU saturation when faster-whisper and
+    ffmpeg run concurrently on a single-machine worker
+    with worker_concurrency=2.
+  - ruff, mypy, pytest all passing.
+Deferred: NONE
+Bugs found (not fixed): NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 6: Temporal Alignment Layer
+
+## 2026-04-22 � Session 17 � Phase 6 Temporal Alignment Layer complete
+Phase: Phase 6 � Temporal Alignment Layer
+Files changed: build.md, decisions.md, pyproject.toml, src/ytclfr/alignment/__init__.py, src/ytclfr/alignment/normalizer.py, src/ytclfr/alignment/overlap.py, src/ytclfr/alignment/deduplicator.py, src/ytclfr/alignment/segmenter.py, src/ytclfr/alignment/engine.py, src/ytclfr/tasks/align.py, tests/unit/alignment/__init__.py, tests/unit/alignment/test_normalizer.py, tests/unit/alignment/test_overlap.py, tests/unit/alignment/test_deduplicator.py, tests/unit/alignment/test_segmenter.py, tests/unit/alignment/test_engine.py, tests/unit/alignment/test_reproducibility.py, tests/integration/test_alignment_integration.py
+Completed:
+  - Part A: Added hypothesis to dev dependencies in pyproject.toml and documented in DR-15.
+  - Part B: normalizer.py implemented to cast extractor dicts to NormalizedEvidence.
+  - Part B: overlap.py implemented to detect and deterministically resolve overlaps keeping highest confidence items.
+  - Part B: deduplicator.py implemented with text similarity for merging cross-modal ASR/OCR evidence.
+  - Part B: segmenter.py implemented to output valid AlignedSegment objects.
+  - Part B: engine.py implemented as pure computation coordinator for the layer.
+  - Part B: build_timeline in tasks/align.py updated to run the engine.
+  - Part B: Added all required unit tests and integration test; full test suite passing.
+  - Part C: Appended DR-15 and DR-16 to decisions.md.
+  - Part C: Updated build.md marking Phase 6 as COMPLETE and transitioning to Phase 7.
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Reading all four control files
+  - Beginning Phase 7: Confidence Controller
+
+---
+
+## 2026-04-22 — Session 16 — Post-Phase-6 Audit fixes
+Phase: Phase 6 — Temporal Alignment Layer
+Files changed: build.md, tests/unit/contracts/test_contracts.py, src/ytclfr/alignment/overlap.py, tests/unit/alignment/test_overlap.py, src/ytclfr/alignment/normalizer.py, tests/unit/alignment/test_normalizer.py
+Completed:
+  - Checked Phase 3 and Phase 4 items in build.md (Issue 4)
+  - Added TestExtractorResultAudio to test_contracts.py to cover the audio fixture (Issue 3)
+  - Renamed detect_overlaps to _detect_overlaps to mark it as private and unused outside of tests (Issue 2)
+  - Fixed segment ID collision in normalizer.py by using a global index for segment IDs, and added a test for it (Issue 1)
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Beginning Phase 7: Confidence Controller
 
 
-### B-1 — Stage B SSE Events
-**Date:** 2026-05-24
-**Files:**
-- `src/ytclfr/contracts/events.py` — modified
-**Summary:** Added StageBStatus enum (5 statuses: STARTED, MANIFEST_LOADED, GROUP_BUILT, DISPATCHED, FAILED) and StageBEvent Pydantic v2 model with extractors_dispatched field. All V1 and Stage A events preserved intact.
+## Session 16 (Phase 7)
+Date: 2026-04-23
+Phase: 7
 
-### B-2 — tasks/stage_b.py: run_targeted_extraction
-**Date:** 2026-05-24
-**Files:**
-- `src/ytclfr/tasks/stage_b.py` — created
-**Summary:** Celery task on fast queue. Reads SignalManifest from DB, calls _build_extractor_names to determine dynamic extractor set, fires chord(group(*))(build_timeline.s(job_id)). Idempotent: skips if job already in post-Stage-B status. SSE at every transition. STAGE-C-TODO marks build_timeline as placeholder. _build_extractor_names is a pure function for isolated testing.
+### Files Changed
+- src/ytclfr/confidence/__init__.py: Created.
+- src/ytclfr/confidence/scorer.py: Created with pure logic for signal scoring.
+- src/ytclfr/confidence/rules.py: Created branch decision rules.
+- src/ytclfr/confidence/policy.py: Created rescan policy rules.
+- src/ytclfr/confidence/controller.py: Created top-level evaluate entry point.
+- src/ytclfr/tasks/align.py: Wired confidence evaluation to build_timeline.
+- 	ests/unit/confidence/*: Added comprehensive test coverage.
+- decisions.md: Appended DR-17.
+- uild.md: Marked Phase 7 complete.
 
-### B-3 — Wire Stage A → Stage B (tasks/stage_a.py)
-**Date:** 2026-05-24
-**Files:**
-- `src/ytclfr/tasks/stage_a.py` — modified
-**Summary:** Replaced the STAGE-B-TODO comment at Step 11 with a lazy import + run_targeted_extraction.delay(job_id) call. Stage A now triggers Stage B automatically on completion.
+### Summary
+Implemented the Confidence Controller as a pure logic module. It evaluates the unified timeline and extractor results to decide whether to trust, rescan, or downgrade. Unit tests cover all fallback and threshold logic.
 
-### B-4 — Celery registration for stage_b
-**Date:** 2026-05-24
-**Files:**
-- `src/ytclfr/queue/celery_app.py` — modified
-**Summary:** Added import ytclfr.tasks.stage_b to the worker registration block so run_targeted_extraction is discoverable by Celery workers at startup.
+---
 
-### B-5 — Stage B unit tests
-**Date:** 2026-05-24
-**Files:**
-- `tests/unit/stage_b/__init__.py` — created
-- `tests/unit/stage_b/test_stage_b_events.py` — created
-- `tests/unit/stage_b/test_extractor_selection.py` — created
-**Summary:** 5 SSE event tests and 7 extractor selection tests. All test _build_extractor_names pure function against the golden fixture. No Celery or DB mocking required. All tests pass.
+## 2026-04-24 � Session 20 � Phase 10: V2 Distributed Scaling
+Phase: Phase 10 � V2 Distributed Scaling
+Files changed: context.md, build.md, decisions.md, pyproject.toml, .env.example, src/ytclfr/core/config.py, src/ytclfr/ingestion/s3_storage.py, src/ytclfr/db/models/job.py, alembic/versions/0004_add_s3_video_uri.py, src/ytclfr/tasks/ingest.py, src/ytclfr/tasks/route.py, src/ytclfr/tasks/extract.py, src/ytclfr/tasks/align.py, src/ytclfr/api/rate_limit.py, src/ytclfr/contracts/events.py, tests/unit/tasks/test_extract.py
+Completed:
+  - context.md: boto3 added to frozen stack (1.2), distributed deployment and S3 moved to IN SCOPE (1.3), deployment target updated to distributed cloud (1.7)
+  - build.md: Phase 10 added with full checklist, current phase marker set to Phase 10
+  - decisions.md: DR-18 (S3 storage, supersedes DR-3), DR-19 (heterogeneous queue topology), DR-20 (DB-backed chord payloads)
+  - pyproject.toml: boto3 added to dependencies
+  - config.py: AWS settings added (aws_access_key_id, aws_secret_access_key, aws_region, s3_bucket_name)
+  - s3_storage.py: S3StorageManager created with upload_file() and download_file() methods via boto3
+  - job.py: s3_video_uri column added (String(2048), nullable)
+  - Alembic migration 0004: adds s3_video_uri column to jobs table
+  - ingest.py: After download, uploads video to S3, stores s3_video_uri, sets local_media_path=None, cleans up local files immediately
+  - route.py: Downloads video from S3 for frame sampling, cleans up in finally block
+  - extract.py: ASR/OCR download from S3 before processing, clean up in finally block; all three extractors return lightweight status dicts instead of full JSON (DR-20)
+  - align.py: build_timeline fetches extractor results from Postgres instead of reading from Redis chord args (DR-20)
+  - rate_limit.py: Updated to use X-Forwarded-For for real client IP behind load balancers
+  - events.py: VideoIngestedEvent.local_media_path made optional (str | None)
+  - tests/unit/tasks/test_extract.py: Updated to mock S3 download and TempStorageManager
+Deferred:
+  - NONE
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Run alembic upgrade head to apply migration 0004 to Supabase
+  - Mark Phase 10 complete in build.md if all checklist items verified
+  - Begin Phase 8 � Storage + Output API
 
-### C-1 — Stage C SSE Events
-Date: 2026-05-25
-Files:
-- `src/ytclfr/contracts/events.py` — modified
-Summary: Added StageCStatus (7 values: STARTED, ALIGNMENT_COMPLETE,
-  ENTITIES_EXTRACTED, GROQ_COMPLETE, GROQ_SKIPPED, COMPLETE, FAILED)
-  and StageCEvent model with evidence_graph_id field. All V1 and
-  Stage A/B events preserved intact.
+### Summary
+Implemented Phase 10 V2 Distributed Scaling. Eliminated local filesystem coupling between Celery workers by routing all video media through S3. Ingestion uploads to S3 and immediately deletes local files. Extraction tasks download from S3, process, and clean up. Chord payloads reduced from ~50MB JSON to ~100 byte status dicts with actual data fetched from Postgres. Rate limiter updated for proxy-aware IP detection. All 194 existing tests pass. ruff and mypy clean.
 
-### C-2 — EvidenceGraph Data Contracts
-Date: 2026-05-25
-Files:
-- `src/ytclfr/contracts/evidence.py` — created
-Summary: Defines FusedSegment, ExtractedEntity, EvidenceGraph Pydantic
-  v2 models. EvidenceGraph is the single output of Stage C and the
-  input for Stage D. confidence field_validator enforces 0.0–1.0.
 
-### C-3 — Alembic Migration + ORM for evidence_graphs
-Date: 2026-05-25
-Files:
-- `src/ytclfr/db/models/evidence_graph.py` — created
-- `alembic/versions/00328acb33af_add_evidence_graphs.py` — created
-- `alembic/env.py` — modified (added evidence_graph import)
-Summary: evidence_graphs table with UNIQUE index on job_id (one
-  per job). Supports upsert pattern. JSON columns for segments,
-  entities, and scene_boundaries.
+## 2026-04-24 - Session 21 - Pre-Phase 8 Hardening
+Phase: Pre-Phase 8 Hardening
+Files changed: src/ytclfr/tasks/align.py, build.md
+Completed:
+  - Plugged S3 storage leak in alignment task by calling s3_manager.delete_directory() after processing.
+  - Protected Redis from large timeline payloads by returning a lightweight dict from build_timeline and deferring DB persistence to Phase 8.
+  - Corrected build.md Phase 8 checklist to strictly require PostgreSQL with pgvector and GIN, explicitly rejecting OpenSearch/Elasticsearch per context.md DR-9.
+Deferred:
+  - Phase 8 DB persistence for timeline output.
+Bugs found (not fixed):
+  - NONE
+Scope creep rejected:
+  - NONE
+Next session must start by:
+  - Executing Phase 8: Storage + Output API.
 
-### C-4 — EvidenceGraphStore
-Date: 2026-05-25
-Files:
-- `src/ytclfr/storage/evidence_store.py` — created
-Summary: Repository with upsert() and get_by_job_id() methods.
-  Follows manifest_store.py patterns. Reconstructs Pydantic models
-  from JSON columns on read.
+## Session 22
+Date: 2026-04-24
+Goal: Execute Phase 8 Storage + Output API.
+Changes:
+- Added new DB models for AlignedSegments and FinalOutputs.
+- Created Alembic migrations for pgvector and GIN indexes.
+- Implemented embeddings generation module.
+- Implemented query layer and redis cache layer.
+- Integrated storage persistence into alignment Celery task.
+- Added output API endpoints with caching.
+- Promoted Phase 7 and 10 to COMPLETE.
+- Updated context.md, build.md, config.py, .env.example, and pyproject.toml.
 
-### C-5 — fusion/ module: entity_extractor.py
-Date: 2026-05-25
-Files:
-- `src/ytclfr/fusion/__init__.py` — created
-- `src/ytclfr/fusion/entity_extractor.py` — created
-Summary: Pure function extract_entities_from_timeline(). Regex-based
-  capitalized phrase extraction. All thresholds are TUNABLE constants.
-  Filters stop-words. Never raises. Returns at most
-  MAX_ENTITIES_RETURNED entities sorted by confidence.
 
-### C-6 — fusion/ module: groq_reasoner.py
-Date: 2026-05-25
-Files:
-- `src/ytclfr/fusion/groq_reasoner.py` — created
-Summary: Pure function reason_over_evidence(). Calls Groq API via
-  httpx with json_object response format. Degrades gracefully on
-  missing API key, network failure, or malformed response (all return
-  reasoning_used=False). Prompt is capped at MAX_TRANSCRIPT_CHARS.
-  Never raises to caller.
+## Session 23
+Date: 2026-04-24
+Goal: Post-Phase 8 Bug Fixes
+Changes:
+- Fixed parallel directory deletion race condition in extract tasks (run_asr, run_ocr).
+- Implemented S3 directory deletion for proper cleanup in S3StorageManager.
+- Fixed Ollama 404 error suppression by logging the response body in embeddings generation.
+- Fixed SQLite Alembic guards in migration 0005.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- NONE
+Next session must start by:
+- Next steps TBD.
 
-### C-7 — tasks/stage_c.py: run_fuse_evidence
-Date: 2026-05-25
-Files:
-- `src/ytclfr/tasks/stage_c.py` — created
-Summary: Celery chord callback on fast queue that replaces
-  build_timeline for V2 jobs. Runs V1 align() + save_aligned_segments
-  for backward compat, then entity extraction, Groq reasoning,
-  EvidenceGraph construction + persistence. Sets job to
-  stage_c_complete. Cleans up S3 directory. STAGE-D-TODO comment
-  marks where Stage D trigger will go.
+## Session 26 - End-to-End Hardening
+Date: 2026-04-24
+Changes:
+- Added andit to dev dependencies.
+- Added contextvars tracing across API and Celery workers.
+- Implemented idempotency checks in ingestion, classification, and extraction tasks.
+- Introduced dead_letter status for failed jobs exhausting retries.
+- Created /api/v1/jobs/{job_id}/retry endpoint for partial-result recovery.
+- Created /api/v1/metrics endpoint for pipeline metrics via PostgreSQL.
+- Authored docs/runbook.md and chaos tests in 	ests/integration/test_chaos.py.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- Added observability using existing frozen stack instead of new dependencies.
 
-### C-8 — Wire Stage B → Stage C
-Date: 2026-05-25
-Files:
-- `src/ytclfr/tasks/stage_b.py` — modified
-- `src/ytclfr/queue/celery_app.py` — modified
-Summary: Stage B now calls chord(group)(run_fuse_evidence.s(job_id))
-  instead of build_timeline.s(). Lazy import inside function body.
-  celery_app.py registers ytclfr.tasks.stage_c.
 
-### C-9 — Stage C unit tests
-Date: 2026-05-25
-Files:
-- `tests/fixtures/evidence_graph_golden.json` — created
-- `tests/unit/stage_c/__init__.py` — created
-- `tests/unit/stage_c/test_evidence_contracts.py` — created
-- `tests/unit/stage_c/test_entity_extractor.py` — created
-- `tests/unit/stage_c/test_groq_reasoner.py` — created
-- `tests/unit/stage_c/test_stage_c_events.py` — created
-Summary: 7 contract tests, 7 entity extractor tests, 5 Groq reasoner
-  tests (httpx mocked), 5 SSE event tests. All pass.
+## Session 24 - Output Store & Temp Storage Bug Fixes
+Date: 2026-04-24
+Changes:
+- Fixed ORM mapping hallucination in src/ytclfr/storage/output_store.py by explicitly accessing individual attributes on the Job model.
+- Fixed directory deletion race condition in src/ytclfr/tasks/route.py's classification task by safely unlinking only the downloaded video and frames_dir.
+- Fixed lingering OCR frames directory bug in src/ytclfr/tasks/extract.py's run_ocr by explicitly removing ocr_frames_dir.
 
-### D-1 — Stage D SSE Events
-Date: 2026-05-25
-Files:
-- `src/ytclfr/contracts/events.py` — modified
-Summary: Added StageDStatus (6 values: STARTED, EVIDENCE_LOADED, GROQ_TAXONOMY_COMPLETE, GROQ_TAXONOMY_SKIPPED, COMPLETE, FAILED) and StageDEvent model with taxonomy dict field. All prior events preserved intact.
+Next session must start by:
+- Next steps TBD.
 
-### D-2 — V2 Output Data Contracts
-Date: 2026-05-25
-Files:
-- `src/ytclfr/contracts/v2_output.py` — created
-Summary: TaxonomyResult (frozen, all taxonomy fields including groq_taxonomy_used flag), ExtractedItem (frozen, name/type/timestamp/confidence), V2FinalOutput (taxonomy + summary + items + evidence_graph_summary + provenance + confidence + fallback_notes). confidence field_validator enforces 0.0–1.0.
+## Session 26 - End-to-End Hardening
+Date: 2026-04-24
+Changes:
+- Added andit to dev dependencies.
+- Added contextvars tracing across API and Celery workers.
+- Implemented idempotency checks in ingestion, classification, and extraction tasks.
+- Introduced dead_letter status for failed jobs exhausting retries.
+- Created /api/v1/jobs/{job_id}/retry endpoint for partial-result recovery.
+- Created /api/v1/metrics endpoint for pipeline metrics via PostgreSQL.
+- Authored docs/runbook.md and chaos tests in 	ests/integration/test_chaos.py.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- Added observability using existing frozen stack instead of new dependencies.
 
-### D-3 — taxonomy/ package: mapper.py
-Date: 2026-05-25
-Files:
-- `src/ytclfr/taxonomy/__init__.py` — created
-- `src/ytclfr/taxonomy/mapper.py` — created
-Summary: Pure function classify_taxonomy(). Groq API via httpx, json_object response format. Degrades to intent_resolver fallback on missing key/network error/malformed JSON. Never raises. VALID_PARENT_CATEGORIES set enforces valid taxonomy output.
 
-### D-4 — taxonomy/ package: intent_resolver.py
-Date: 2026-05-25
-Files:
-- `src/ytclfr/taxonomy/intent_resolver.py` — created
-Summary: Pure function resolve_by_rules(). SUBJECT_KEYWORD_MAP with 30+ entries maps lowercase subject keywords to (parent, child, intent) tuples. Signal-based defaults for music-only, speech-only, no-signal cases. Returns TaxonomyFallback. Never raises.
+## Session 27 - V2 Stage A: Signal Census Implementation
+Date: 2026-05-23
+Changes:
+- Created V2/ directory and all control files (context.md, claude.md, build.md, diff.md, decisions.md) to govern V2.
+- Defined `SignalManifest` Pydantic model in `src/ytclfr/contracts/manifest.py`.
+- Added `signal_manifests` table and its Alembic migration `alembic/versions/6c08e88f31be_add_signal_manifests.py`.
+- Created repository `SignalManifestStore` in `src/ytclfr/storage/manifest_store.py`.
+- Upgraded probing modules with Windows-compatible `threading.Timer` timeouts:
+  - `src/ytclfr/probing/audio_checker.py` (VAD via webrtcvad, music detection via librosa).
+  - `src/ytclfr/probing/frame_sampler.py` (visual cuts, motion score, faces via OpenCV, text density).
+  - `src/ytclfr/probing/metadata_probe.py` (duration, format, subtitles, chapters via yt-dlp).
+- Created orchestrator Celery task `run_signal_census` in `src/ytclfr/tasks/stage_a.py`.
+- Implemented status enums and stage transition schemas in `src/ytclfr/contracts/events.py`.
+- Created `tests/fixtures/signal_manifest_golden.json` and 27 robust unit tests under `tests/unit/stage_a/`.
+- Verified that all 27 new tests and 200+ pre-existing unit tests pass successfully.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- webrtcvad-wheels and librosa installed but kept frozen stack clean by deferring pyproject.toml updates.
+Next session must start by:
+- Initiating Stage B - Targeted Extraction.
 
-### D-5 — tasks/stage_d.py: run_taxonomy_mapping
-Date: 2026-05-25
-Files:
-- `src/ytclfr/tasks/stage_d.py` — created
-Summary: Terminal V2 pipeline task on fast queue. Reads EvidenceGraph, loads SignalManifest for signal context, calls classify_taxonomy, maps entities to ExtractedItems, assembles V2FinalOutput, upserts to final_outputs with content_type="v2_"+parent_category. Sets job to "completed". Idempotent: skips if V2 record exists. PIPELINE-WIRING-TODO at Step 14 for API update (W-6).
-
-### D-6 — Wire Stage C → Stage D
-Date: 2026-05-25
-Files:
-- `src/ytclfr/tasks/stage_c.py` — modified
-- `src/ytclfr/queue/celery_app.py` — modified
-Summary: STAGE-D-TODO in stage_c.py Step 13 replaced with lazy import + run_taxonomy_mapping.delay(job_id). celery_app.py registers ytclfr.tasks.stage_d.
-
-### D-7 — Stage D unit tests
-Date: 2026-05-25
-Files:
-- `tests/fixtures/v2_final_output_golden.json` — created
-- `tests/unit/stage_d/__init__.py` — created
-- `tests/unit/stage_d/test_v2_output_contracts.py` — created (6 tests)
-- `tests/unit/stage_d/test_taxonomy_mapper.py` — created (6 tests)
-- `tests/unit/stage_d/test_intent_resolver.py` — created (8 tests)
-- `tests/unit/stage_d/test_stage_d_events.py` — created (6 tests)
-Summary: 26 total tests. Contract validation, taxonomy mapper with Groq mocking, rule-based resolver keyword coverage, SSE event contracts. All tests pass.
+## Session 28 — V2 Stage C & D: Evidence Fusion and Taxonomy Mapping
+Date: 2026-05-26
+Changes:
+- Implemented Evidence Fusion (Stage C) including temporal alignment of multimodal evidence.
+- Created `EvidenceGraph` Pydantic models and updated Alembic migrations for JSON persistence.
+- Added conflict resolution for ASR vs OCR priority depending on structural likelihood.
+- Modified Groq prompt in `fusion/groq_reasoner.py` to accept structural context.
+- Implemented Taxonomy Mapping (Stage D) with structural overrides.
+- Updated `taxonomy/mapper.py` and `taxonomy/intent_resolver.py` to handle structural fallbacks (e.g., list, ranking, compilation).
+- Updated `tasks/stage_d.py` to pull `structural_video_type` from `EvidenceGraph` and pass to taxonomy classifiers.
+- Finalized V2 pipeline execution logic and taxonomy persistence in `final_outputs`.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- Avoided polling or looping over Celery tasks directly, favoring the existing event-driven chord structure.
+Next session must start by:
+- Writing unit tests for structural detection and conflict resolution.

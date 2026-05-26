@@ -7,7 +7,7 @@ Python stdlib (json, os, logging, dataclasses).
 import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,12 @@ class MetadataProbeResult:
     title: str
     upload_date: str | None
     confidence: float  # always 0.95 — metadata is reliable
+    description: str = ""
+    category: str = ""
+    view_count: int = 0
+    like_count: int = 0
+    channel_name: str = ""
+    metadata_structural_hints: dict[str, bool] = field(default_factory=dict)
 
 
 def probe_metadata(metadata_json_path: str) -> MetadataProbeResult:
@@ -92,10 +98,27 @@ def probe_metadata(metadata_json_path: str) -> MetadataProbeResult:
     has_chapters = len(chapters) > 1
     chapter_count = len(chapters)
 
-    # Step 6.6 — Tags, title, upload_date
     tags = [str(t) for t in (data.get("tags") or [])]
     title = str(data.get("title") or "")
     upload_date = data.get("upload_date")
+    description = str(data.get("description") or "")
+    categories = data.get("categories") or []
+    category = str(categories[0]) if categories else ""
+    view_count = int(data.get("view_count") or 0)
+    like_count = int(data.get("like_count") or 0)
+    channel_name = str(data.get("channel") or "")
+
+    import re
+    title_lower = title.lower()
+    desc_lower = description.lower()
+    ordinal_pattern = re.compile(r"(?i)\b(?:top\s*\d+|#\s*\d+|no\.?\s*\d+|\d+(?:st|nd|rd|th))\b")
+    list_keywords = {"compilation", "ranking", "countdown", "best of", "list", "top"}
+    
+    metadata_structural_hints = {
+        "title_has_ordinals": bool(ordinal_pattern.search(title_lower)),
+        "title_has_list_keywords": any(kw in title_lower for kw in list_keywords),
+        "description_has_list_markers": bool(ordinal_pattern.search(desc_lower)),
+    }
 
     # Step 6.7 — Return
     return MetadataProbeResult(
@@ -109,6 +132,12 @@ def probe_metadata(metadata_json_path: str) -> MetadataProbeResult:
         tags=tags,
         title=title,
         upload_date=str(upload_date) if upload_date else None,
+        description=description,
+        category=category,
+        view_count=view_count,
+        like_count=like_count,
+        channel_name=channel_name,
+        metadata_structural_hints=metadata_structural_hints,
         confidence=0.95,
     )
 
@@ -168,10 +197,27 @@ def probe_metadata_dict(data: dict[str, Any]) -> MetadataProbeResult:
     has_chapters = len(chapters) > 1
     chapter_count = len(chapters)
 
-    # Tags, title, upload_date
     tags = [str(t) for t in (data.get("tags") or [])]
     title = str(data.get("title") or "")
     upload_date = data.get("upload_date")
+    description = str(data.get("description") or "")
+    categories = data.get("categories") or []
+    category = str(categories[0]) if categories else ""
+    view_count = int(data.get("view_count") or 0)
+    like_count = int(data.get("like_count") or 0)
+    channel_name = str(data.get("channel") or "")
+
+    import re
+    title_lower = title.lower()
+    desc_lower = description.lower()
+    ordinal_pattern = re.compile(r"(?i)\b(?:top\s*\d+|#\s*\d+|no\.?\s*\d+|\d+(?:st|nd|rd|th))\b")
+    list_keywords = {"compilation", "ranking", "countdown", "best of", "list", "top"}
+    
+    metadata_structural_hints = {
+        "title_has_ordinals": bool(ordinal_pattern.search(title_lower)),
+        "title_has_list_keywords": any(kw in title_lower for kw in list_keywords),
+        "description_has_list_markers": bool(ordinal_pattern.search(desc_lower)),
+    }
 
     return MetadataProbeResult(
         duration_seconds=duration_seconds,
@@ -184,6 +230,12 @@ def probe_metadata_dict(data: dict[str, Any]) -> MetadataProbeResult:
         tags=tags,
         title=title,
         upload_date=str(upload_date) if upload_date else None,
+        description=description,
+        category=category,
+        view_count=view_count,
+        like_count=like_count,
+        channel_name=channel_name,
+        metadata_structural_hints=metadata_structural_hints,
         confidence=0.95,
     )
 

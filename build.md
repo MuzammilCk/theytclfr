@@ -1,7 +1,7 @@
 # build.md
 
-CURRENT PHASE: V2 Stage B — Targeted Extraction
-STATUS: IN PROGRESS
+CURRENT PHASE: V2 Stage D — Taxonomy + Intent Mapping
+STATUS: COMPLETE
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
 (Phase 2 — Ingestion + Temporary Storage: COMPLETE)
@@ -387,17 +387,17 @@ Test stack:
 
 ### V2 Stage B — Targeted Extraction
 Goal: Read the `SignalManifest` and dynamically build a Celery group of only the extractors needed. No extractor runs unless its signal was confirmed in Stage A.
-Status: [ ] In Progress
+Status: [x] Complete
 
 Build:
-  [ ] B-1: Define extractor output Pydantic models (`ASROutput`, `OCROutput`, `VisualOutput`) (`contracts/extractor_outputs.py`)
-  [ ] B-2: Add extractor output tables (Alembic migration) (`migrations/`)
-  [ ] B-3: Refactor `tasks/asr.py` to V2 contract (`tasks/asr.py`)
-  [ ] B-4: Refactor `tasks/ocr.py` to V2 contract (`tasks/ocr.py`)
-  [ ] B-5: Add `tasks/visual_extractor.py` (scene cut + face detection) (`tasks/visual_extractor.py`)
-  [ ] B-6: Write `tasks/stage_b.py` — reads manifest, builds dynamic Celery group (`tasks/stage_b.py`)
-  [ ] B-7: Add SSE event types for Stage B (`contracts/events.py`)
-  [ ] B-8: Golden JSON fixtures + unit tests for Stage B (`tests/fixtures/`, `tests/test_stage_b.py`)
+  [x] B-1: Define extractor output Pydantic models (`ASROutput`, `OCROutput`, `VisualOutput`) (`contracts/extractor_outputs.py`)
+  [x] B-2: Add extractor output tables (Alembic migration) (`migrations/`)
+  [x] B-3: Refactor `tasks/asr.py` to V2 contract (`tasks/asr.py`)
+  [x] B-4: Refactor `tasks/ocr.py` to V2 contract (`tasks/ocr.py`)
+  [x] B-5: Add `tasks/visual_extractor.py` (scene cut + face detection) (`tasks/visual_extractor.py`)
+  [x] B-6: Write `tasks/stage_b.py` — reads manifest, builds dynamic Celery group (`tasks/stage_b.py`)
+  [x] B-7: Add SSE event types for Stage B (`contracts/events.py`)
+  [x] B-8: Golden JSON fixtures + unit tests for Stage B (`tests/fixtures/`, `tests/test_stage_b.py`)
 
 Definition of Done:
   [ ] Extractors only run if the corresponding signal is active in the manifest.
@@ -412,33 +412,33 @@ Test stack:
 
 ### V2 Stage C — Evidence Fusion
 Goal: Take all extractor outputs and produce a single fused evidence graph with aligned timestamps, extracted entities, and confidence scores. LLM call via Groq to answer "what is this video about?"
-Status: [ ] Planned
+Status: [x] Complete
 
 Build:
-  [ ] C-1: Define `EvidenceGraph`, `FusedSegment`, `ExtractedEntity` Pydantic models (`contracts/evidence.py`)
-  [ ] C-2: Add `evidence_graphs` Alembic migration (`migrations/`)
-  [ ] C-3: Upgrade `alignment/engine.py` to V2 temporal alignment (`alignment/engine.py`)
-  [ ] C-4: Write `fusion/entity_extractor.py` (extracts products, people, places from transcript) (`fusion/entity_extractor.py`)
-  [ ] C-5: Write `fusion/groq_reasoner.py` (Groq API call: dominant subject + scene summary) (`fusion/groq_reasoner.py`)
-  [ ] C-6: Write `tasks/stage_c.py` — fuses all evidence, saves EvidenceGraph (`tasks/stage_c.py`)
-  [ ] C-7: Add SSE event types for Stage C (`contracts/events.py`)
-  [ ] C-8: Golden JSON fixtures + unit tests for Stage C (`tests/fixtures/`, `tests/test_stage_c.py`)
+  [x] C-1: Define `EvidenceGraph`, `FusedSegment`, `ExtractedEntity` Pydantic models (`contracts/evidence.py`)
+  [x] C-2: Add `evidence_graphs` Alembic migration (`migrations/`)
+  [x] C-3: Upgrade `alignment/engine.py` to V2 temporal alignment (`alignment/engine.py`)
+  [x] C-4: Write `fusion/entity_extractor.py` (extracts products, people, places from transcript) (`fusion/entity_extractor.py`)
+  [x] C-5: Write `fusion/groq_reasoner.py` (Groq API call: dominant subject + scene summary) (`fusion/groq_reasoner.py`)
+  [x] C-6: Write `tasks/stage_c.py` — fuses all evidence, saves EvidenceGraph (`tasks/stage_c.py`)
+  [x] C-7: Add SSE event types for Stage C (`contracts/events.py`)
+  [x] C-8: Golden JSON fixtures + unit tests for Stage C (`tests/fixtures/`, `tests/test_stage_c.py`)
 
 ---
 
 ### V2 Stage D — Taxonomy + Intent Mapping
 Goal: Use the `EvidenceGraph` to produce a final structured classification: parent category, child category, intent. This is the last step — classification happens only after evidence is complete.
-Status: [ ] Planned
+Status: [x] Complete
 
 Build:
-  [ ] D-1: Define enriched `FinalOutput` Pydantic model (`contracts/output.py`)
-  [ ] D-2: Update `final_outputs` table (Alembic migration) (`migrations/`)
-  [ ] D-3: Write `taxonomy/mapper.py` — Groq-powered taxonomy classification (`taxonomy/mapper.py`)
-  [ ] D-4: Write `taxonomy/intent_resolver.py` — resolves intent from evidence (`taxonomy/intent_resolver.py`)
-  [ ] D-5: Write `tasks/stage_d.py` — runs mapper, saves FinalOutput (`tasks/stage_d.py`)
-  [ ] D-6: Update `storage/output_store.py` to V2 schema (remove hardcoded `content_type_map`) (`storage/output_store.py`)
-  [ ] D-7: Add SSE event types for Stage D + job completion (`contracts/events.py`)
-  [ ] D-8: Golden JSON fixtures + unit tests for Stage D (`tests/fixtures/`, `tests/test_stage_d.py`)
+  [x] D-1: Define enriched `FinalOutput` Pydantic model (`contracts/output.py`)
+  [x] D-2: Update `final_outputs` table (Alembic migration) (`migrations/`)
+  [x] D-3: Write `taxonomy/mapper.py` — Groq-powered taxonomy classification (`taxonomy/mapper.py`)
+  [x] D-4: Write `taxonomy/intent_resolver.py` — resolves intent from evidence (`taxonomy/intent_resolver.py`)
+  [x] D-5: Write `tasks/stage_d.py` — runs mapper, saves FinalOutput (`tasks/stage_d.py`)
+  [x] D-6: Update `storage/output_store.py` to V2 schema (remove hardcoded `content_type_map`) (`storage/output_store.py`)
+  [x] D-7: Add SSE event types for Stage D + job completion (`contracts/events.py`)
+  [x] D-8: Golden JSON fixtures + unit tests for Stage D (`tests/fixtures/`, `tests/test_stage_d.py`)
 
 ---
 

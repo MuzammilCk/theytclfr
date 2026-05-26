@@ -66,7 +66,8 @@ def _build_extractor_names(manifest: SignalManifest) -> list[str]:
     if manifest.has_speech:
         names.append("asr")
 
-    if manifest.has_burned_in_text:
+    # OCR fires on EITHER burned-in text OR structural detection
+    if manifest.has_burned_in_text or manifest.ocr_required:
         names.append("ocr")
 
     if manifest.has_speech or manifest.has_music:

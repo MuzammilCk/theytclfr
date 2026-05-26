@@ -76,5 +76,5 @@ In V1, videos undergo a preemptive routing classification, followed by parallel 
 V2 introduces a more efficient, four-stage pipeline designed to prevent premature commitment to expensive extractions:
 1. **Stage A (Signal Census):** Cheap physical signal detection (Voice Activity Detection, scene cuts, motion density, metadata). Produces a `SignalManifest`.
 2. **Stage B (Targeted Extraction):** Dynamically invokes only the heavy extractors (e.g., OCR, ASR) that are necessary based on the `SignalManifest` from Stage A.
-3. **Stage C (Evidence Fusion):** Temporal alignment, entity extraction, and reasoning over the extracted signals using Groq.
-4. **Stage D (Taxonomy + Intent):** Final video classification backed by the complete evidence graph.
+3. **Stage C (Evidence Fusion):** Temporal alignment, entity extraction, and reasoning over the extracted signals using Groq. Introduces conflict resolution logic where inferred structure dictates confidence (e.g., OCR is prioritized for structured layouts, ASR for speech-heavy formats).
+4. **Stage D (Taxonomy + Intent):** Final video classification backed by the complete evidence graph. Employs late-binding of structural context where inferred layout (list, ranking) overrides static metadata as a hard structural prior.

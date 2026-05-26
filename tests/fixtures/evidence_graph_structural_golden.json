@@ -1,0 +1,66 @@
+{
+  "job_id": "00000000-0000-0000-0000-000000000100",
+  "segments": [
+    {
+      "timestamp": 0.0, "end_timestamp": 3.0,
+      "text": "Top 10 Best Phones in 2026",
+      "source": "ocr", "confidence": 0.95,
+      "entity_refs": ["phones"]
+    },
+    {
+      "timestamp": 3.5, "end_timestamp": 8.0,
+      "text": "Number 10 the Samsung Galaxy S26",
+      "source": "asr", "confidence": 0.88,
+      "entity_refs": ["Samsung Galaxy S26"]
+    },
+    {
+      "timestamp": 8.0, "end_timestamp": 12.0,
+      "text": "#10 Samsung Galaxy S26",
+      "source": "ocr", "confidence": 0.93,
+      "entity_refs": ["Samsung Galaxy S26"]
+    },
+    {
+      "timestamp": 12.5, "end_timestamp": 18.0,
+      "text": "Number 9 iPhone 18 Pro",
+      "source": "asr", "confidence": 0.90,
+      "entity_refs": ["iPhone 18 Pro"]
+    },
+    {
+      "timestamp": 18.0, "end_timestamp": 22.0,
+      "text": "#9 iPhone 18 Pro",
+      "source": "ocr", "confidence": 0.94,
+      "entity_refs": ["iPhone 18 Pro"]
+    }
+  ],
+  "entities": [
+    {
+      "name": "Samsung Galaxy S26", "entity_type": "product",
+      "mentioned_at": [3.5, 8.0], "confidence": 0.92
+    },
+    {
+      "name": "iPhone 18 Pro", "entity_type": "product",
+      "mentioned_at": [12.5, 18.0], "confidence": 0.91
+    }
+  ],
+  "dominant_subject": "Ranking of the best phones of 2026",
+  "groq_summary": "A countdown-style ranking video listing the top 10 best phones in 2026, featuring Samsung Galaxy S26 and iPhone 18 Pro.",
+  "scene_boundaries": [0.0, 12.5, 25.0],
+  "groq_reasoning_used": true,
+  "modality_coverage": {"asr": 0.7, "ocr": 0.9},
+  "conflict_count": 1,
+  "conflict_details": [
+    {
+      "type": "modality_priority",
+      "description": "ASR narration suppressed in favor of OCR list structure",
+      "resolution": "ocr_wins"
+    }
+  ],
+  "structural_video_type": "ranking",
+  "evidence_priority_notes": [
+    "Structural video (ranking) with OCR present. OCR prioritized for taxonomy."
+  ],
+  "primary_evidence_modality": "ocr",
+  "total_segments": 5,
+  "confidence": 0.91,
+  "created_at": "2026-01-15T12:00:00Z"
+}

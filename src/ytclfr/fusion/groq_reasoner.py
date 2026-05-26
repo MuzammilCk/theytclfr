@@ -50,6 +50,7 @@ def reason_over_evidence(
     segments: list[AlignedSegment],
     entity_hints: list[ExtractedEntity],
     settings: Settings,
+    structural_video_type: str = "none",
 ) -> GroqReasoningResult:
     """Call Groq to reason semantically over the aligned timeline.
 
@@ -73,7 +74,7 @@ def reason_over_evidence(
         return _GROQ_FAILURE_RESULT
 
     try:
-        prompt = _build_prompt(segments, entity_hints)
+        prompt = _build_prompt(segments, entity_hints, structural_video_type)
         raw_response = _call_groq_api(prompt, settings)
         return _parse_response(raw_response)
     except Exception as exc:
@@ -87,6 +88,7 @@ def reason_over_evidence(
 def _build_prompt(
     segments: list[AlignedSegment],
     entity_hints: list[ExtractedEntity],
+    structural_video_type: str,
 ) -> str:
     """Build the Groq prompt from aligned segments + entity hints."""
     lines: list[str] = []
@@ -100,11 +102,19 @@ def _build_prompt(
         else "none detected"
     )
 
+    structural_hint = (
+        f"\nSTRUCTURAL CONTEXT: This video is a {structural_video_type}. "
+        "Pay special attention to structured items (like rankings or lists) in the transcript.\n"
+        if structural_video_type != "none"
+        else ""
+    )
+
     return (
         "Analyze this video transcript and respond ONLY with a "
         "valid JSON object. No markdown, no backticks.\n\n"
         f"TRANSCRIPT (with timestamps):\n{transcript}\n\n"
-        f"CANDIDATE ENTITIES DETECTED: {hint_str}\n\n"
+        f"CANDIDATE ENTITIES DETECTED: {hint_str}\n"
+        f"{structural_hint}\n"
         "Respond with this exact JSON structure:\n"
         '{\n'
         '  "dominant_subject": "what this video is primarily about'

@@ -171,6 +171,7 @@ def run_taxonomy_mapping(
             has_speech=signal_manifest_has_speech,
             has_music=signal_manifest_has_music,
             settings=settings,
+            structural_video_type=evidence_graph.structural_video_type,
         )
 
         if groq_taxonomy.groq_used:

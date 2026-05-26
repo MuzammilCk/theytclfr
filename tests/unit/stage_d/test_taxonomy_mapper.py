@@ -92,7 +92,7 @@ class TestTaxonomyMapper:
     def test_build_prompt_contains_subject(self):
         """Prompt must contain the dominant_subject string."""
         prompt = _build_taxonomy_prompt(
-            "Python tutorial", "A coding tutorial", []
+            "Python tutorial", "A coding tutorial", [], "none"
         )
         assert "Python tutorial" in prompt
 

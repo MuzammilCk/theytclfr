@@ -7,7 +7,7 @@ produce the final taxonomy and FinalOutput.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -84,6 +84,30 @@ class EvidenceGraph(BaseModel):
     groq_reasoning_used: bool = Field(
         default=False,
         description="True if Groq was called and succeeded",
+    )
+    modality_coverage: dict[str, float] = Field(
+        default_factory=dict,
+        description="Coverage fraction per modality: {asr: 0.8, ocr: 0.3, visual: 1.0}",
+    )
+    conflict_count: int = Field(
+        default=0, ge=0,
+        description="Number of detected conflicts between modalities",
+    )
+    conflict_details: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Details of each modality conflict (timestamp, modalities, resolution)",
+    )
+    structural_video_type: str = Field(
+        default="none",
+        description="Propagated from SignalManifest for fusion context",
+    )
+    evidence_priority_notes: list[str] = Field(
+        default_factory=list,
+        description="Notes on which modality was prioritized and why",
+    )
+    primary_evidence_modality: str = Field(
+        default="mixed",
+        description="Dominant evidence source for this video: asr, ocr, visual, mixed",
     )
     total_segments: int = Field(ge=0)
     confidence: float = Field(ge=0.0, le=1.0)

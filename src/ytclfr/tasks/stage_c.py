@@ -117,6 +117,11 @@ def run_fuse_evidence(
             if not job:
                 raise ValueError(f"Job not found: {job_id}")
             job.status = "stage_c_running"
+
+            from ytclfr.storage.manifest_store import SignalManifestStore
+            manifest_store = SignalManifestStore()
+            manifest = manifest_store.get_by_job_id(session, job_uuid)
+            
             session.commit()
 
         # Step 3 — Fetch full extractor results from DB
@@ -172,10 +177,13 @@ def run_fuse_evidence(
         # Step 6 — Groq semantic reasoning
         from ytclfr.fusion.groq_reasoner import reason_over_evidence
 
+        structural_video_type = manifest.structural_video_type if manifest else "none"
+
         groq_result = reason_over_evidence(
             segments=list(timeline.segments),
             entity_hints=heuristic_entities,
             settings=settings,
+            structural_video_type=structural_video_type,
         )
 
         if groq_result.reasoning_used:
@@ -230,6 +238,25 @@ def run_fuse_evidence(
                 entity_refs=list(entity_names_at.get(seg.timestamp, set())),
             ))
 
+        # Step 8.5 — Resolve Conflicts (Late Fusion)
+        from ytclfr.fusion.conflict_resolver import resolve_conflicts
+
+        asr_segments = [s for s in fused_segments if s.source == "asr"]
+        ocr_segments = [s for s in fused_segments if s.source == "ocr"]
+        
+        conflict_resolution = resolve_conflicts(
+            asr_segments=asr_segments,
+            ocr_segments=ocr_segments,
+            structural_video_type=structural_video_type,
+            manifest=manifest,
+        )
+
+        modality_coverage = {
+            "asr": len(asr_segments) / max(1, len(fused_segments)),
+            "ocr": len(ocr_segments) / max(1, len(fused_segments)),
+            "visual": 1.0,
+        }
+
         # Step 9 — Build and persist EvidenceGraph
         graph = EvidenceGraph(
             job_id=job_uuid,
@@ -239,6 +266,12 @@ def run_fuse_evidence(
             groq_summary=groq_result.summary,
             scene_boundaries=groq_result.scene_boundaries,
             groq_reasoning_used=groq_result.reasoning_used,
+            modality_coverage=modality_coverage,
+            conflict_count=conflict_resolution.conflict_count,
+            conflict_details=conflict_resolution.conflict_details,
+            structural_video_type=structural_video_type,
+            evidence_priority_notes=conflict_resolution.evidence_priority_notes,
+            primary_evidence_modality=conflict_resolution.primary_evidence_modality,
             total_segments=len(fused_segments),
             confidence=round(verdict.aggregate_score.overall, 3),
         )

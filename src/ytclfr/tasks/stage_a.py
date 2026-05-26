@@ -28,6 +28,7 @@ from ytclfr.probing.metadata_probe import (
     probe_metadata,  # noqa: F401
     probe_metadata_dict,
 )
+from ytclfr.probing.structural_detector import probe_structural
 from ytclfr.queue.celery_app import celery_app
 from ytclfr.storage.manifest_store import SignalManifestStore
 
@@ -200,7 +201,7 @@ def run_signal_census(
             )
 
             # Step 7 — Run probe_visual (slowest)
-            visual_result = probe_visual(video_path)
+            visual_result = probe_visual(video_path, retain_frames=True)
             _emit_sse(
                 StageAEvent(
                     event_type=StageAStatus.PROBE_VISUAL_COMPLETE,
@@ -213,7 +214,22 @@ def run_signal_census(
                 )
             )
 
+            # Step 7.5 — Run probe_structural
+            structural_result = probe_structural(
+                sampled_frames=visual_result.sampled_frames,
+                visual_cut_count=visual_result.scene_cut_count,
+                visual_motion_density=visual_result.motion_density,
+                has_speech=audio_result.has_speech,
+                has_music=audio_result.has_music,
+            )
+
             # Step 8 — Merge into SignalManifest
+            metadata_prior = 0.5
+            if metadata_result and metadata_result.metadata_structural_hints:
+                hints = metadata_result.metadata_structural_hints
+                if hints.get("title_has_ordinals") or hints.get("title_has_list_keywords"):
+                    metadata_prior = 0.7
+
             manifest = SignalManifest(
                 job_id=UUID(job_id),
                 audio_type=audio_result.audio_type,
@@ -254,6 +270,17 @@ def run_signal_census(
                     )
                     or audio_result.duration_seconds
                 ),
+                metadata_prior_confidence=metadata_prior,
+                structural_score=structural_result.structural_score,
+                list_likelihood=structural_result.list_likelihood,
+                countdown_likelihood=structural_result.countdown_likelihood,
+                overlay_text_density=structural_result.overlay_text_density,
+                ordinal_pattern_score=structural_result.ordinal_pattern_score,
+                scene_repeat_score=structural_result.scene_repeat_score,
+                ocr_required=structural_result.ocr_required,
+                ocr_expected_coverage=structural_result.ocr_expected_coverage,
+                asr_expected_value=structural_result.asr_expected_value,
+                structural_video_type=structural_result.structural_video_type,
                 probing_confidence=round(
                     (
                         audio_result.confidence

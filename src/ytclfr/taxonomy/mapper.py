@@ -49,6 +49,7 @@ def classify_taxonomy(
     has_speech: bool,
     has_music: bool,
     settings: Settings,
+    structural_video_type: str = "none",
 ) -> GroqTaxonomyResult:
     """Classify video taxonomy using Groq. Degrades gracefully.
 
@@ -71,7 +72,7 @@ def classify_taxonomy(
             "GROQ_API_KEY not configured — using rule-based taxonomy"
         )
         fallback = _make_fallback_result(
-            dominant_subject, has_speech, has_music,
+            dominant_subject, has_speech, has_music, structural_video_type,
             note="Groq API key not configured"
         )
         return GroqTaxonomyResult(
@@ -85,7 +86,7 @@ def classify_taxonomy(
 
     try:
         prompt = _build_taxonomy_prompt(
-            dominant_subject, groq_summary, entities
+            dominant_subject, groq_summary, entities, structural_video_type
         )
         raw = _call_groq(prompt, settings)
         return _parse_taxonomy_response(raw)
@@ -96,7 +97,7 @@ def classify_taxonomy(
             exc,
         )
         fallback = _make_fallback_result(
-            dominant_subject, has_speech, has_music,
+            dominant_subject, has_speech, has_music, structural_video_type,
             note=f"Groq failed: {exc}"
         )
         return GroqTaxonomyResult(
@@ -114,6 +115,7 @@ def _build_taxonomy_prompt(
     dominant_subject: str | None,
     groq_summary: str | None,
     entities: list[dict[str, str]],
+    structural_video_type: str,
 ) -> str:
     subject_str = (dominant_subject or "unknown")[:200]
     summary_str = (groq_summary or "No summary available")[
@@ -123,11 +125,19 @@ def _build_taxonomy_prompt(
         e.get("name", "") for e in entities[:MAX_ENTITIES_IN_PROMPT]
     ) or "none"
 
+    structural_hint = (
+        f"\nNOTE: This video has a strict structural layout: '{structural_video_type}'. "
+        "Factor this format heavily into the child_category and intent.\n"
+        if structural_video_type != "none"
+        else ""
+    )
+
     return (
         "Classify this YouTube video into a taxonomy.\n\n"
         f"DOMINANT SUBJECT: {subject_str}\n"
         f"SUMMARY: {summary_str}\n"
-        f"KEY ENTITIES: {entity_str}\n\n"
+        f"KEY ENTITIES: {entity_str}\n"
+        f"{structural_hint}\n"
         "Respond ONLY with valid JSON (no markdown, no backticks):\n"
         "{\n"
         '  "parent_category": "Education|Shopping|Sports|Music|'
@@ -192,6 +202,7 @@ def _make_fallback_result(
     dominant_subject: str | None,
     has_speech: bool,
     has_music: bool,
+    structural_video_type: str,
     note: str = "",
 ) -> TaxonomyFallback:
     """Rule-based fallback used when Groq is unavailable.
@@ -205,6 +216,7 @@ def _make_fallback_result(
         dominant_subject=dominant_subject,
         has_speech=has_speech,
         has_music=has_music,
+        structural_video_type=structural_video_type,
     )
     if note:
         result.fallback_notes.append(note)

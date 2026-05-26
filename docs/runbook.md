@@ -40,3 +40,14 @@
 - Validation will throw a 422 Unprocessable Entity in the API.
 - If it passes regex but fails resolution, `yt-dlp` will fail. The job will eventually reach `failed` or `dead_letter` status.
 - **No retry required.** Do not call the retry endpoint for invalid URLs.
+
+## 5. Incident: Groq API Rate Limit or Connectivity Failure
+**Symptoms:**
+- Stage C (`run_fuse_evidence`) and Stage D (`run_taxonomy_mapping`) warn about Groq reasoning failure.
+- Taxonomy and reasoning fall back to rule-based execution.
+- `groq_reasoning_used` or `groq_used` in final payload is `False`.
+
+**Recovery:**
+1. Check `GROQ_API_KEY` configuration and Groq status page.
+2. The pipeline is designed to degrade gracefully. If rule-based results are acceptable, no action is needed.
+3. If Groq-based reasoning is strictly required for those jobs, you must manually run `POST /api/v1/jobs/{job_id}/retry` after restoring API access.

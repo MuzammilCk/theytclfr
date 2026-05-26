@@ -37,6 +37,24 @@ class EvidenceGraphORM(Base):
     groq_reasoning_used: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
+    modality_coverage_json: Mapped[dict] = mapped_column(
+        JSON, nullable=False, server_default="{}"
+    )
+    conflict_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    conflict_details_json: Mapped[dict] = mapped_column(
+        JSON, nullable=False, server_default="{}"
+    )
+    structural_video_type: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="none"
+    )
+    evidence_priority_notes_json: Mapped[dict] = mapped_column(
+        JSON, nullable=False, server_default="{}"
+    )
+    primary_evidence_modality: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="mixed"
+    )
     total_segments: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0"
     )

@@ -93,6 +93,7 @@ def resolve_by_rules(
     dominant_subject: str | None,
     has_speech: bool,
     has_music: bool,
+    structural_video_type: str = "none",
 ) -> TaxonomyFallback:
     """Classify video taxonomy using keyword rules.
 
@@ -110,6 +111,18 @@ def resolve_by_rules(
         TaxonomyFallback with groq_used=False.
     """
     notes: list[str] = ["Groq unavailable — rule-based taxonomy used"]
+
+    if structural_video_type != "none":
+        notes.append(f"Structural override applied: {structural_video_type}")
+        if structural_video_type in ("list", "ranking", "countdown", "compilation"):
+            return TaxonomyFallback(
+                parent_category="Other",
+                child_category=structural_video_type.capitalize(),
+                intent="Consume structured content",
+                confidence=DEFAULT_CONFIDENCE + 0.1,
+                fallback_notes=notes,
+                groq_used=False,
+            )
 
     if dominant_subject:
         subject_lower = dominant_subject.lower()

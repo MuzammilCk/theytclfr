@@ -395,3 +395,13 @@ Context: The original design used `signal.alarm()` for timeout guards in probe_a
 Decision: Replace `signal.alarm()` with `threading.Timer` + `threading.Event` for timeout detection. A daemon timer sets an event flag; each major probe step checks the flag and raises an internal `_TimeoutError` if set.
 Consequences: Timeout granularity is limited to the check points between probe steps (not truly preemptive). A single long-running OpenCV or librosa call cannot be interrupted mid-operation. This is acceptable because each individual operation has its own subprocess timeout (ffprobe: 30s, ffmpeg: 60s) or data cap (librosa: duration=60.0s).
 Supersedes: NONE
+
+---
+
+## DR-V2-04 — Structural Metadata is a Weak Prior, Video Structure is Inferred
+Date: 2026-05-26
+Status: ACCEPTED
+Context: Initially, metadata (like channel names or video titles) was considered enough to dictate structural taxonomy. However, a mature system should infer structure directly from the media (OCR, ASR) and treat metadata as a cheap prior.
+Decision: Structural mapping is late-bound. Stage C fuses OCR, ASR, and visual evidence to confidently detect structural types (e.g., list, ranking, compilation). Stage D then uses these structural types as hard overrides for taxonomy classification, instead of relying purely on metadata.
+Consequences: Requires OCR to be prioritized when structure is likely. Conflict resolver favors OCR for structured videos and ASR for non-structured speech-heavy videos.
+Supersedes: NONE

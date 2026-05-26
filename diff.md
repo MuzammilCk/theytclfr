@@ -725,3 +725,21 @@ Scope creep rejected:
 - webrtcvad-wheels and librosa installed but kept frozen stack clean by deferring pyproject.toml updates.
 Next session must start by:
 - Initiating Stage B - Targeted Extraction.
+
+## Session 28 — V2 Stage C & D: Evidence Fusion and Taxonomy Mapping
+Date: 2026-05-26
+Changes:
+- Implemented Evidence Fusion (Stage C) including temporal alignment of multimodal evidence.
+- Created `EvidenceGraph` Pydantic models and updated Alembic migrations for JSON persistence.
+- Added conflict resolution for ASR vs OCR priority depending on structural likelihood.
+- Modified Groq prompt in `fusion/groq_reasoner.py` to accept structural context.
+- Implemented Taxonomy Mapping (Stage D) with structural overrides.
+- Updated `taxonomy/mapper.py` and `taxonomy/intent_resolver.py` to handle structural fallbacks (e.g., list, ranking, compilation).
+- Updated `tasks/stage_d.py` to pull `structural_video_type` from `EvidenceGraph` and pass to taxonomy classifiers.
+- Finalized V2 pipeline execution logic and taxonomy persistence in `final_outputs`.
+Bugs found (not fixed):
+- NONE
+Scope creep rejected:
+- Avoided polling or looping over Celery tasks directly, favoring the existing event-driven chord structure.
+Next session must start by:
+- Writing unit tests for structural detection and conflict resolution.

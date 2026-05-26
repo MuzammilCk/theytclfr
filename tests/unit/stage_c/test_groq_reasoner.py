@@ -103,7 +103,7 @@ class TestGroqReasoner:
     def test_build_prompt_respects_char_limit(self):
         """Prompt transcript is capped at MAX_TRANSCRIPT_CHARS."""
         long_segs = _make_segments(500)
-        prompt = _build_prompt(long_segs, [])
+        prompt = _build_prompt(long_segs, [], "none")
         # The transcript portion must not exceed the limit
         assert len(prompt) < MAX_TRANSCRIPT_CHARS + 2000  # prompt overhead
 

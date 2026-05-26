@@ -74,6 +74,53 @@ class SignalManifest(BaseModel):
     duration_seconds: float = Field(
         description="Video duration from metadata or audio probe"
     )
+    metadata_prior_confidence: float = Field(
+        default=0.5,
+        description="Confidence in metadata accuracy (0.0–1.0). Weak prior.",
+    )
+    structural_score: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Likelihood video has list/ranking/compilation structure",
+    )
+    list_likelihood: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Probability of list/ranking content from multimodal cues",
+    )
+    countdown_likelihood: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Probability of countdown/reverse-order structure",
+    )
+    overlay_text_density: float = Field(
+        default=0.0, ge=0.0,
+        description="Average OCR-detectable text regions per sampled frame",
+    )
+    ordinal_pattern_score: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Detected ordinal/ranking tokens in sampled frames",
+    )
+    scene_repeat_score: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Similarity of repeated frame layouts across scene cuts",
+    )
+    ocr_required: bool = Field(
+        default=False,
+        description="True if structural evidence demands OCR extraction",
+    )
+    ocr_expected_coverage: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Expected fraction of video with OCR-extractable text",
+    )
+    asr_expected_value: float = Field(
+        default=0.5, ge=0.0, le=1.0,
+        description="Expected usefulness of ASR for taxonomy (low for music lists)",
+    )
+    structural_video_type: Literal[
+        "none", "list", "ranking", "countdown",
+        "compilation", "slideshow", "infographic", "unknown"
+    ] = Field(
+        default="none",
+        description="Detected structural video type from multimodal evidence",
+    )
     probing_confidence: float = Field(
         description=(
             "Average of audio/visual/metadata probe confidence scores"

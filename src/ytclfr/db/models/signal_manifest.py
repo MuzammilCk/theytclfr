@@ -76,6 +76,39 @@ class SignalManifestORM(Base):
     duration_seconds: Mapped[float] = mapped_column(
         Float, nullable=False, server_default="0.0"
     )
+    metadata_prior_confidence: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.5"
+    )
+    structural_score: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0"
+    )
+    list_likelihood: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0"
+    )
+    countdown_likelihood: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0"
+    )
+    overlay_text_density: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0"
+    )
+    ordinal_pattern_score: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0"
+    )
+    scene_repeat_score: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0"
+    )
+    ocr_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    ocr_expected_coverage: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.0"
+    )
+    asr_expected_value: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="0.5"
+    )
+    structural_video_type: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="none"
+    )
     probing_confidence: Mapped[float] = mapped_column(
         Float, nullable=False, server_default="0.0"
     )
