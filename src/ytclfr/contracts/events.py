@@ -109,13 +109,13 @@ class VideoIngestedEvent(BaseModel):
 
     job_id: UUID
     youtube_url: str
-    video_title: str
-    channel_name: str
-    duration_seconds: float
+    video_title: str | None = None
+    channel_name: str | None = None
+    duration_seconds: float | None = None
     thumbnail_url: str | None = None
     local_media_path: str | None = None
     ingested_at: datetime
-    metadata_raw: dict[str, object]
+    metadata_raw: dict | list | None = None
 
     model_config = {
         "frozen": True,

@@ -131,7 +131,6 @@ def _probe_audio_inner(
         ffprobe_result = subprocess.run(
             [
                 "ffprobe",
-                "-nostdin",
                 "-v",
                 "quiet",
                 "-print_format",

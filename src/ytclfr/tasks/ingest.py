@@ -33,14 +33,14 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
             if not job:
                 raise ValueError(f"Job not found: {job_id}")
 
-            job.status = "downloading"
-            session.commit()
-
             if job.s3_video_uri is not None and job.status not in ["pending", "downloading"]:
                 logger.info("Idempotency hit: video already in S3")
-                from ytclfr.tasks.route import classify_video
-                classify_video.apply_async(args=[job_id], countdown=2)
+                from ytclfr.tasks.stage_a import run_signal_census
+                run_signal_census.delay(job_id)
                 return {"job_id": job_id, "status": "downloaded"}
+
+            job.status = "downloading"
+            session.commit()
 
             temp_manager.get_job_dir(parsed_job_id)
             job_dir_created = True
@@ -52,50 +52,19 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
 
             extract_metadata_safe(result.video_path)
 
-            # Phase 10: Upload video to S3 and clear local path
-            from ytclfr.ingestion.s3_storage import S3StorageManager
-
-            s3_manager = S3StorageManager(settings_local)
-            s3_object_key = f"{job_id}/video.mp4"
-            s3_uri = s3_manager.upload_file(result.video_path, s3_object_key)
-
-            job.status = "downloaded"
+            job.status = "upload_pending"
             job.video_title = result.title
             job.channel_name = result.channel
             job.duration_seconds = result.duration_seconds
             job.thumbnail_url = result.thumbnail_url
-            job.s3_video_uri = s3_uri
-            job.local_media_path = None  # Not reliable across nodes
+            job.local_media_path = str(result.video_path)  # Temporarily store local path for upload task
             job.metadata_raw = result.metadata_raw
 
             session.commit()
 
-            # Immediately delete local video file — the ingestion node
-            # must not retain the video after S3 upload (DR-18).
-            if job_dir_created:
-                temp_manager.cleanup_job(parsed_job_id)
-                job_dir_created = False
-
-            event = VideoIngestedEvent(
-                job_id=parsed_job_id,
-                youtube_url=job.youtube_url,
-                video_title=job.video_title,
-                channel_name=job.channel_name,
-                duration_seconds=job.duration_seconds,
-                local_media_path=None,
-                ingested_at=datetime.now(UTC),
-                metadata_raw=job.metadata_raw,
-            )
-            logger.info(f"VideoIngestedEvent: {event.model_dump_json()}")
-            # PHASE-5-TODO: publish VideoIngestedEvent to Redis pub/sub
-
-            from ytclfr.tasks.route import classify_video
-
-            classify_video.apply_async(
-                args=[job_id],
-                countdown=2,
-            )
-            return {"job_id": job_id, "status": "downloaded"}
+            upload_video_to_s3.delay(job_id, str(result.video_path))
+            
+            return {"job_id": job_id, "status": "upload_pending"}
 
         except IngestionError as e:
             session.rollback()
@@ -120,6 +89,79 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
                 session.commit()
 
             if self.request.retries >= self.max_retries and job_dir_created:
+                temp_manager.cleanup_job(parsed_job_id)
+
+            raise self.retry(exc=exc)
+
+@celery_app.task(  # type: ignore
+    bind=True,
+    name="ytclfr.ingest.upload_video",
+    queue="io",
+    max_retries=5,
+    default_retry_delay=60,
+)
+def upload_video_to_s3(self: Any, job_id: str, local_video_path: str) -> dict[str, Any]:
+    settings_local = get_settings()
+    parsed_job_id = uuid.UUID(job_id)
+    temp_manager = TempStorageManager(settings_local)
+
+    with db_session() as session:
+        try:
+            job = session.query(Job).filter(Job.id == parsed_job_id).first()
+            if not job:
+                raise ValueError(f"Job not found: {job_id}")
+
+            if job.s3_video_uri is not None:
+                logger.info("Idempotency hit: video already in S3")
+                temp_manager.cleanup_job(parsed_job_id)
+                from ytclfr.tasks.stage_a import run_signal_census
+                run_signal_census.delay(job_id)
+                return {"job_id": job_id, "status": "downloaded"}
+
+            # Phase 10: Upload video to S3 and clear local path
+            from ytclfr.ingestion.s3_storage import S3StorageManager
+
+            s3_manager = S3StorageManager(settings_local)
+            s3_object_key = f"{job_id}/video.mp4"
+            from pathlib import Path
+            s3_uri = s3_manager.upload_file(Path(local_video_path), s3_object_key)
+
+            job.status = "downloaded"
+            job.s3_video_uri = s3_uri
+            job.local_media_path = None  # Clear local path, it's in S3 now
+
+            session.commit()
+
+            # Immediately delete local video file — the ingestion node
+            # must not retain the video after S3 upload (DR-18).
+            temp_manager.cleanup_job(parsed_job_id)
+
+            event = VideoIngestedEvent(
+                job_id=parsed_job_id,
+                youtube_url=job.youtube_url,
+                video_title=job.video_title,
+                channel_name=job.channel_name,
+                duration_seconds=job.duration_seconds,
+                local_media_path=None,
+                ingested_at=datetime.now(UTC),
+                metadata_raw=job.metadata_raw,
+            )
+            logger.info(f"VideoIngestedEvent: {event.model_dump_json()}")
+            # PHASE-5-TODO: publish VideoIngestedEvent to Redis pub/sub
+
+            from ytclfr.tasks.stage_a import run_signal_census
+
+            run_signal_census.delay(job_id)
+            return {"job_id": job_id, "status": "downloaded"}
+
+        except Exception as exc:
+            session.rollback()
+            if self.request.retries >= self.max_retries:
+                job = session.query(Job).filter(Job.id == parsed_job_id).first()
+                if job:
+                    job.status = "dead_letter"
+                    job.error_message = str(exc)
+                    session.commit()
                 temp_manager.cleanup_job(parsed_job_id)
 
             raise self.retry(exc=exc)

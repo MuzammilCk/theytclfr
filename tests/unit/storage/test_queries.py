@@ -21,6 +21,7 @@ def test_get_final_output_by_job_id():
         "items": [],
         "script": []
     }
+    mock_model.content_type = "script"
     mock_session.query.return_value.filter.return_value.first.return_value = mock_model
     
     output = get_final_output_by_job_id(uuid.uuid4(), mock_session)

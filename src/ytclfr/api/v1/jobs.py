@@ -118,37 +118,30 @@ def retry_job(
         raise HTTPException(status_code=400, detail="Job must be in dead_letter or failed state to retry")
 
     # Determine checkpoint
-    from ytclfr.db.models.router_decision import RouterDecisionModel
-    from ytclfr.db.models.extractor_result import ExtractorResultModel
+    from ytclfr.storage.manifest_store import SignalManifestStore
+    from ytclfr.storage.evidence_store import EvidenceGraphStore
     
     if job.s3_video_uri is None:
         resumed_from = "download_video"
         download_video.delay(str(job_id))
     else:
-        decision = db.query(RouterDecisionModel).filter_by(job_id=job_id).first()
-        if not decision:
-            resumed_from = "classify_video"
-            from ytclfr.tasks.route import classify_video
-            classify_video.delay(str(job_id))
+        manifest_store = SignalManifestStore()
+        manifest = manifest_store.get_by_job_id(db, job_id)
+        if not manifest:
+            resumed_from = "run_signal_census"
+            from ytclfr.tasks.stage_a import run_signal_census
+            run_signal_census.delay(str(job_id))
         else:
-            extractors = db.query(ExtractorResultModel).filter_by(job_id=job_id).all()
-            extractor_types = {e.extractor_type for e in extractors if not e.error_message}
-            if not {"asr", "ocr", "audio"}.issubset(extractor_types):
-                resumed_from = "extractors"
-                from celery import chord, group
-                from ytclfr.tasks.extract import run_asr, run_ocr, run_audio_classifier
-                from ytclfr.tasks.align import build_timeline
-                
-                extractor_group = group(
-                    run_asr.s(str(job_id)),
-                    run_ocr.s(str(job_id)),
-                    run_audio_classifier.s(str(job_id)),
-                )
-                chord(extractor_group)(build_timeline.s(str(job_id)))
+            evidence_store = EvidenceGraphStore()
+            evidence = evidence_store.get_by_job_id(db, job_id)
+            if evidence:
+                resumed_from = "run_taxonomy_mapping"
+                from ytclfr.tasks.stage_d import run_taxonomy_mapping
+                run_taxonomy_mapping.delay(str(job_id))
             else:
-                resumed_from = "build_timeline"
-                from ytclfr.tasks.align import build_timeline
-                build_timeline.delay(str(job_id))
+                resumed_from = "run_targeted_extraction"
+                from ytclfr.tasks.stage_b import run_targeted_extraction
+                run_targeted_extraction.delay(str(job_id))
 
     job.status = "pending"
     job.error_message = None

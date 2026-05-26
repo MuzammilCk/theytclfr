@@ -25,7 +25,6 @@ def extract_metadata(video_path: Path) -> VideoMetadata:
 
     cmd = [
         "ffprobe",
-        "-nostdin",
         "-v",
         "quiet",
         "-print_format",

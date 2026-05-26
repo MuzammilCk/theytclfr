@@ -48,11 +48,36 @@ class S3StorageManager:
         Raises:
             S3StorageError: If the upload fails.
         """
+        import os
+
         try:
+            file_size = os.path.getsize(file_path)
+
+            class ProgressPercentage:
+                def __init__(self, filename: str, size: int) -> None:
+                    self._filename = filename
+                    self._size = size
+                    self._seen_so_far = 0
+                    self._last_logged_percentage = 0.0
+
+                def __call__(self, bytes_amount: int) -> None:
+                    self._seen_so_far += bytes_amount
+                    if self._size > 0:
+                        percentage = (self._seen_so_far / self._size) * 100
+                        # Log progress in 10% steps
+                        if percentage - self._last_logged_percentage >= 10:
+                            logger.info(
+                                "S3 Upload %s: %.1f%% complete",
+                                self._filename,
+                                percentage,
+                            )
+                            self._last_logged_percentage = percentage
+
             self._client.upload_file(
                 str(file_path),
                 self.bucket_name,
                 object_key,
+                Callback=ProgressPercentage(file_path.name, file_size),
             )
             s3_uri = f"s3://{self.bucket_name}/{object_key}"
             logger.info(

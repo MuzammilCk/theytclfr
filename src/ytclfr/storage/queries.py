@@ -8,11 +8,8 @@ from ytclfr.db.models.final_output import FinalOutputModel
 from ytclfr.db.models.aligned_segment import AlignedSegmentModel
 
 
-def get_final_output_by_job_id(job_id: UUID, session: Session) -> FinalOutput | None:
-    model = session.query(FinalOutputModel).filter(FinalOutputModel.job_id == job_id).first()
-    if model:
-        return FinalOutput.model_validate(model.output_json)
-    return None
+def get_final_output_by_job_id(job_id: UUID, session: Session) -> FinalOutputModel | None:
+    return session.query(FinalOutputModel).filter(FinalOutputModel.job_id == job_id).first()
 
 
 def get_segments_by_time_range(job_id: UUID, start_sec: float, end_sec: float, session: Session) -> list[dict]:

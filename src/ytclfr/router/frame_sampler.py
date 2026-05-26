@@ -140,7 +140,6 @@ def _get_video_duration(video_path: Path) -> float:
     """
     cmd = [
         "ffprobe",
-        "-nostdin",
         "-v",
         "quiet",
         "-print_format",

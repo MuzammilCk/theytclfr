@@ -14,6 +14,7 @@ def build_celery_app(settings: Settings) -> Celery:
         task_queues=[
             Queue("fast"),
             Queue("heavy"),
+            Queue("io"),
         ],
         task_serializer="json",
         result_serializer="json",

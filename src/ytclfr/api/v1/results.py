@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -30,7 +31,7 @@ class SegmentResult(BaseModel):
 class SegmentQueryResponse(BaseModel):
     segments: list[SegmentResult]
 
-@router.get("/result", response_model=FinalOutput)
+@router.get("/result", response_model=None)
 def get_job_result(
     job_id: UUID,
     db: Session = Depends(get_db),
@@ -38,17 +39,22 @@ def get_job_result(
 ):
     cached = get_cached_result(job_id)
     if cached:
-        return cached
+        return JSONResponse(content=cached)
 
-    output = get_final_output_by_job_id(job_id, db)
-    if not output:
+    output_model = get_final_output_by_job_id(job_id, db)
+    if not output_model:
         raise HTTPException(status_code=404, detail="Job result not found")
 
-    result_dict = output.model_dump(mode="json")
+    result_dict = output_model.output_json
+    if output_model.content_type and output_model.content_type.startswith("v2_"):
+        result_dict["schema_version"] = "v2"
+    else:
+        result_dict["schema_version"] = "v1"
+
     settings = get_settings()
     cache_result(job_id, result_dict, settings.redis_result_cache_ttl)
     
-    return result_dict
+    return JSONResponse(content=result_dict)
 
 @router.get("/segments", response_model=SegmentQueryResponse)
 def get_job_segments(
