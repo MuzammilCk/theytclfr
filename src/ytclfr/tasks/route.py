@@ -43,6 +43,7 @@ def classify_video(self: Any, job_id: str) -> dict[str, object]:
         Dict with job_id, status, route, and confidence.
     """
     settings = get_settings()
+    logger.warning("V1 pipeline (classify_video) is deprecated and will be removed in v3.0. Please migrate to the V2 pipeline.")
     job_uuid = uuid.UUID(job_id)
     local_video_path: Path | None = None
 

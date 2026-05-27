@@ -405,3 +405,17 @@ Context: Initially, metadata (like channel names or video titles) was considered
 Decision: Structural mapping is late-bound. Stage C fuses OCR, ASR, and visual evidence to confidently detect structural types (e.g., list, ranking, compilation). Stage D then uses these structural types as hard overrides for taxonomy classification, instead of relying purely on metadata.
 Consequences: Requires OCR to be prioritized when structure is likely. Conflict resolver favors OCR for structured videos and ASR for non-structured speech-heavy videos.
 Supersedes: NONE
+
+## DR-V2-11 - Removed StructuralDetector in favor of pattern scoring
+Date: 2026-05-27
+Status: ACCEPTED
+Context: The mock \StructuralDetector\ class was outdated and unmaintainable.
+Decision: Deleted \StructuralDetector\ and completely replaced its heuristic logic within \ocr_pattern_scorer.py\ and \manifest_store.py\. Stage B OCR gating handles dispatcher behavior.
+Consequences: Structural detection is now fully pattern-driven using OCR ordinal metrics and countdowns instead of rigid object-oriented classes.
+
+## DR-V2-12 - ASR expected value discount
+Date: 2026-05-27
+Status: ACCEPTED
+Context: Heavy-structural videos often contain misleading ASR segments that distract from the core visual information.
+Decision: Applied \sr_expected_value\ linearly against ASR confidence during fusion in \conflict_resolver.py\.
+Consequences: ASR outputs with low structural expectancy are suppressed, improving taxonomy precision in listicle formats.

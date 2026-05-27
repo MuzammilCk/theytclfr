@@ -49,6 +49,17 @@ class SignalManifestStore:
             scene_cut_count=manifest.scene_cut_count,
             duration_seconds=manifest.duration_seconds,
             probing_confidence=manifest.probing_confidence,
+            metadata_prior_confidence=manifest.metadata_prior_confidence,
+            structural_score=manifest.structural_score,
+            list_likelihood=manifest.list_likelihood,
+            countdown_likelihood=manifest.countdown_likelihood,
+            overlay_text_density=manifest.overlay_text_density,
+            ordinal_pattern_score=manifest.ordinal_pattern_score,
+            scene_repeat_score=manifest.scene_repeat_score,
+            ocr_required=manifest.ocr_required,
+            ocr_expected_coverage=manifest.ocr_expected_coverage,
+            asr_expected_value=manifest.asr_expected_value,
+            structural_video_type=manifest.structural_video_type,
         )
         session.add(orm_obj)
         session.commit()
@@ -91,5 +102,26 @@ class SignalManifestStore:
             update(SignalManifestORM)
             .where(SignalManifestORM.job_id == job_id)
             .values(probing_confidence=confidence)
+        )
+        session.commit()
+
+    def update_structural_scores(
+        self, session: Session, job_id: UUID, ordinal_score: float, countdown_score: float
+    ) -> None:
+        """Update ordinal and countdown scores post-OCR.
+
+        Args:
+            session: Active SQLAlchemy session.
+            job_id: UUID of the job to update.
+            ordinal_score: New ordinal_pattern_score (0.0–1.0).
+            countdown_score: New countdown_likelihood (0.0–1.0).
+        """
+        session.execute(
+            update(SignalManifestORM)
+            .where(SignalManifestORM.job_id == job_id)
+            .values(
+                ordinal_pattern_score=ordinal_score,
+                countdown_likelihood=countdown_score
+            )
         )
         session.commit()

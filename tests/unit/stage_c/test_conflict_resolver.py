@@ -81,3 +81,16 @@ def test_resolve_conflicts_structural_counts_conflict():
 
     assert result.conflict_count >= 1
     assert any(d["resolution"] == "ocr_wins" for d in result.conflict_details)
+
+
+def test_resolve_conflicts_applies_asr_discount():
+    manifest = _make_manifest(has_speech=True, asr_expected_value=0.2)
+    asr_segments = [FusedSegment(text="Oh baby", timestamp=0.0, end_timestamp=1.0, source="asr", confidence=0.9)]
+    ocr_segments = []
+
+    result = resolve_conflicts(asr_segments, ocr_segments, "none", manifest)
+    
+    # Confidence should be scaled by 0.2
+    assert result.adjusted_asr_segments is not None
+    assert result.adjusted_asr_segments[0].confidence == pytest.approx(0.18)
+    assert any("Discounting ASR segment confidences" in n for n in result.evidence_priority_notes)

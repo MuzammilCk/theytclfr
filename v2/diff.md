@@ -743,3 +743,29 @@ Scope creep rejected:
 - Avoided polling or looping over Celery tasks directly, favoring the existing event-driven chord structure.
 Next session must start by:
 - Writing unit tests for structural detection and conflict resolution.
+
+## 2026-05-27: Structural Safety Gaps Completed
+
+### Files Added / Modified
+* \src/ytclfr/api/v1/results.py\ (Modified)
+* \	ests/unit/api/test_results_api.py\ (Added)
+* \	ests/unit/api/test_retry.py\ (Added)
+* \src/ytclfr/storage/manifest_store.py\ (Modified)
+* \src/ytclfr/probing/ocr_pattern_scorer.py\ (Added)
+* \	ests/unit/probing/test_ocr_pattern_scorer.py\ (Added)
+* \src/ytclfr/tasks/stage_c.py\ (Modified)
+* \src/ytclfr/fusion/conflict_resolver.py\ (Modified)
+* \	ests/unit/stage_c/test_conflict_resolver.py\ (Modified)
+* \src/ytclfr/tasks/route.py\ (Modified)
+* \	ests/unit/stage_b/test_ocr_gating.py\ (Added)
+* \	ests/fixtures/structural_regression_corpus.json\ (Added)
+* \src/ytclfr/ingestion/downloader.py\ (Modified)
+
+### Changes Overview
+- **E-3**: Validated \V2FinalOutput\ explicitly in the esults\ endpoint and injected pipeline version tags.
+- **E-4**: Covered V2 retry routing logic ensuring accurate fallback from D back to B or A based on manifest existence.
+- **E-6**: Addressed structural heuristics replacement by creating the golden corpus and testing \ocr_gating\ dispatcher correctly.
+- **E-1/E-2**: Built \ocr_pattern_scorer.py\ to assign ordinal progression and countdown density.
+- **E-5**: Wired \sr_expected_value\ into \conflict_resolver.py\ to dynamically reduce ASR confidences when structure is identified.
+- **E-7**: Implemented robust dead-letter S3 cleanup within the exception handler of \stage_c.py\.
+- **E-8**: Highlighted \classify_video\ as deprecated in oute.py\.

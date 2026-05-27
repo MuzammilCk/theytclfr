@@ -23,6 +23,7 @@ class ConflictResolution:
     conflict_details: list[dict[str, Any]]
     primary_evidence_modality: str
     evidence_priority_notes: list[str] = field(default_factory=list)
+    adjusted_asr_segments: list[FusedSegment] | None = None
 
 
 def resolve_conflicts(
@@ -84,10 +85,20 @@ def resolve_conflicts(
                 "resolution": "ocr_wins",
             }
         )
+        
+    # E-5: Apply numeric ASR confidence discount based on manifest expectation
+    adjusted_asr_segments = None
+    if has_asr and manifest.asr_expected_value < 0.5:
+        notes.append(f"ASR expected value is low ({manifest.asr_expected_value}). Discounting ASR segment confidences.")
+        adjusted_asr_segments = []
+        for seg in asr_segments:
+            new_conf = seg.confidence * manifest.asr_expected_value
+            adjusted_asr_segments.append(seg.model_copy(update={"confidence": new_conf}))
 
     return ConflictResolution(
         conflict_count=conflict_count,
         conflict_details=conflict_details,
         primary_evidence_modality=primary_modality,
         evidence_priority_notes=notes,
+        adjusted_asr_segments=adjusted_asr_segments,
     )

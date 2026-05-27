@@ -128,6 +128,25 @@ def run_fuse_evidence(
         from ytclfr.tasks.align import _fetch_extractor_results_from_db
         db_extractor_results = _fetch_extractor_results_from_db(job_uuid)
 
+        # Step 3.5 — Ordinal/Countdown Scoring (Post-OCR Structural Analysis)
+        ocr_results = next((r for r in db_extractor_results if r.get("extractor_type") == "ocr"), None)
+        if ocr_results and ocr_results.get("segments"):
+            from ytclfr.probing.ocr_pattern_scorer import score_ocr_patterns
+            pattern_scores = score_ocr_patterns(ocr_results["segments"])
+            
+            with db_session() as session:
+                manifest_store.update_structural_scores(
+                    session=session,
+                    job_id=job_uuid,
+                    ordinal_score=pattern_scores.ordinal_pattern_score,
+                    countdown_score=pattern_scores.countdown_likelihood
+                )
+                
+            # Update local manifest object to reflect these scores before fusion
+            if manifest:
+                manifest.ordinal_pattern_score = pattern_scores.ordinal_pattern_score
+                manifest.countdown_likelihood = pattern_scores.countdown_likelihood
+
         # Step 4 — Run V1 alignment engine (backward compatibility)
         from ytclfr.alignment.engine import align
         from ytclfr.confidence.controller import evaluate
@@ -251,6 +270,12 @@ def run_fuse_evidence(
             manifest=manifest,
         )
 
+        # E-5: Apply adjusted ASR segments back to the main fused_segments list
+        if conflict_resolution.adjusted_asr_segments is not None:
+            non_asr = [s for s in fused_segments if s.source != "asr"]
+            fused_segments = non_asr + conflict_resolution.adjusted_asr_segments
+            fused_segments.sort(key=lambda s: s.timestamp)
+
         modality_coverage = {
             "asr": len(asr_segments) / max(1, len(fused_segments)),
             "ocr": len(ocr_segments) / max(1, len(fused_segments)),
@@ -334,6 +359,13 @@ def run_fuse_evidence(
             "Stage C failed for job %s: %s",
             job_id, exc, exc_info=True,
         )
+        try:
+            from ytclfr.ingestion.s3_storage import S3StorageManager
+            s3_manager = S3StorageManager(get_settings())
+            s3_manager.delete_directory(prefix=f"{job_id}/")
+        except Exception as cleanup_exc:
+            logger.warning("Failed to cleanup S3 for failed job %s: %s", job_id, cleanup_exc)
+
         try:
             with db_session() as err_session:
                 job_err = err_session.query(Job).filter(

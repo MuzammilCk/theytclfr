@@ -47,7 +47,15 @@ def get_job_result(
 
     result_dict = output_model.output_json
     if output_model.content_type and output_model.content_type.startswith("v2_"):
+        from ytclfr.contracts.v2_output import V2FinalOutput
+        try:
+            validated = V2FinalOutput.model_validate(result_dict)
+            result_dict = validated.model_dump(mode="json")
+        except Exception as e:
+            # If validation fails, we still return the raw dict but log the error (or just fallback)
+            pass
         result_dict["schema_version"] = "v2"
+        result_dict["pipeline_version"] = "v2.2.0"
     else:
         result_dict["schema_version"] = "v1"
 

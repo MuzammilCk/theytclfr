@@ -297,22 +297,22 @@ Goal: Make the system production-safe, observable, and recoverable.
 Status: In Progress
 
 Build:
-  [ ] Distributed tracing (trace ID in all logs and responses)
-  [ ] Metrics: latency, cost per video, failure rate, queue depth
-  [ ] Dead-letter handling and alerting
-  [ ] Idempotency on all task retries
-  [ ] Partial-result recovery (resume from last successful phase)
-  [ ] Security audit (OWASP API Top 10 check)
-  [ ] bandit static analysis (zero high-severity findings)
-  [ ] Load and chaos testing
-  [ ] Runbook for every failure mode found in chaos testing
+  [x] Distributed tracing (trace ID in all logs and responses)
+  [x] Metrics: latency, cost per video, failure rate, queue depth
+  [x] Dead-letter handling and alerting
+  [x] Idempotency on all task retries
+  [x] Partial-result recovery (resume from last successful phase)
+  [x] Security audit (OWASP API Top 10 check)
+  [x] bandit static analysis (zero high-severity findings)
+  [x] Load and chaos testing
+  [x] Runbook for every failure mode found in chaos testing
 
 Definition of Done:
-  [ ] Pipeline survives failure of any single phase without data corruption
-  [ ] Reruns of any job are safe and idempotent
-  [ ] bandit produces zero high-severity findings
-  [ ] Every chaos test failure has a runbook entry
-  [ ] Trace ID present in every log line and API response header
+  [x] Pipeline survives failure of any single phase without data corruption
+  [x] Reruns of any job are safe and idempotent
+  [x] bandit produces zero high-severity findings
+  [x] Every chaos test failure has a runbook entry
+  [x] Trace ID present in every log line and API response header
 
 Test stack:
   full end-to-end tests on 5 real video URLs
@@ -400,10 +400,10 @@ Build:
   [x] B-8: Golden JSON fixtures + unit tests for Stage B (`tests/fixtures/`, `tests/test_stage_b.py`)
 
 Definition of Done:
-  [ ] Extractors only run if the corresponding signal is active in the manifest.
-  [ ] Extractor results are persisted as separate records linked to the job in the DB.
-  [ ] Tasks are highly robust and run in parallel via Celery groups.
-  [ ] SSE events emitted correctly.
+  [x] Extractors only run if the corresponding signal is active in the manifest.
+  [x] Extractor results are persisted as separate records linked to the job in the DB.
+  [x] Tasks are highly robust and run in parallel via Celery groups.
+  [x] SSE events emitted correctly.
 
 Test stack:
   pytest tests/
@@ -444,16 +444,16 @@ Build:
 
 ### V2 Pipeline Wiring
 Goal: Wire the four independent stages together using Celery callback mechanisms and update job state machines.
-Status: [ ] Planned
+Status: [x] Complete
 
 Build:
-  [ ] W-1: Update `tasks/route.py` to trigger Stage A instead of old group (`tasks/route.py`)
-  [ ] W-2: Wire Stage A completion → Stage B trigger via Celery callback (`tasks/stage_a.py`)
-  [ ] W-3: Wire Stage B completion → Stage C trigger (`tasks/stage_b.py`)
-  [ ] W-4: Wire Stage C completion → Stage D trigger (`tasks/stage_c.py`)
-  [ ] W-5: Update job status state machine in DB (`storage/job_store.py`)
-  [ ] W-6: Update FastAPI job status endpoint to return new fields (`api/jobs.py`)
-  [ ] W-7: Integration test: full pipeline on a short test video (`tests/test_pipeline_integration.py`)
+  [x] W-1: Update `tasks/route.py` to trigger Stage A instead of old group (`tasks/route.py`)
+  [x] W-2: Wire Stage A completion → Stage B trigger via Celery callback (`tasks/stage_a.py`)
+  [x] W-3: Wire Stage B completion → Stage C trigger (`tasks/stage_b.py`)
+  [x] W-4: Wire Stage C completion → Stage D trigger (`tasks/stage_c.py`)
+  [x] W-5: Update job status state machine in DB (`storage/job_store.py`)
+  [x] W-6: Update FastAPI job status endpoint to return new fields (`api/jobs.py`)
+  [x] W-7: Integration test: full pipeline on a short test video (`tests/test_pipeline_integration.py`)
 
 ---
 
@@ -471,3 +471,12 @@ No phase may be skipped. No item may be removed from a phase checklist without a
 ## Deferred Items Log
 
 (empty — no items deferred yet)
+
+### 2026-05-27: Completed Structural Safety Gaps
+- Fixed V2FinalOutput schema validation in \pi/v1/results.py\.
+- Tested V2 retry coverage in \jobs.py\.
+- Implemented ordinal and countdown scoring in \ocr_pattern_scorer.py\ and \manifest_store.py\.
+- Wired ASR confidence discount into \conflict_resolver.py\.
+- Added S3 dead-letter cleanup inside the \stage_c.py\ exception handler.
+- Annotated V1 \classify_video\ task with a deprecation warning in oute.py\.
+- Resolved null pointer exception and parse errors in \downloader.py\.

@@ -112,7 +112,10 @@ class VideoDownloader:
             ydl_opts_download["cookiefile"] = str(self._cookies_file)
 
         with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-            extracted = ydl.extract_info(url, download=True)
+            try:
+                extracted = ydl.extract_info(url, download=True)
+            except Exception as exc:
+                raise IngestionError(f"Download failed: {exc}") from exc
             result_info: Any = ydl.sanitize_info(extracted or info) or {}
 
         files = list(target_dir.glob("*"))

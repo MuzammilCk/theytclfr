@@ -1,0 +1,97 @@
+[
+  {
+    "test_id": "top-200-songs",
+    "description": "A countdown of top songs, heavy music, some speech, OCR required for titles.",
+    "input": {
+      "has_speech": true,
+      "has_music": true,
+      "has_burned_in_text": true,
+      "scene_cut_count": 205,
+      "motion_score": 0.4,
+      "ordinal_pattern_score": 0.8,
+      "countdown_likelihood": 0.9,
+      "metadata_prior_confidence": 0.6
+    },
+    "expected": {
+      "structural_video_type": "countdown",
+      "ocr_required": true,
+      "structural_score": 0.95
+    }
+  },
+  {
+    "test_id": "product-ranking",
+    "description": "Top 10 list of products, speech heavy, some text.",
+    "input": {
+      "has_speech": true,
+      "has_music": false,
+      "has_burned_in_text": false,
+      "scene_cut_count": 15,
+      "motion_score": 0.2,
+      "ordinal_pattern_score": 0.9,
+      "countdown_likelihood": 0.8,
+      "metadata_prior_confidence": 0.7
+    },
+    "expected": {
+      "structural_video_type": "ranking",
+      "ocr_required": true,
+      "structural_score": 0.85
+    }
+  },
+  {
+    "test_id": "cooking-tutorial",
+    "description": "Step by step recipe. Speech heavy, some text overlays but not a ranking.",
+    "input": {
+      "has_speech": true,
+      "has_music": true,
+      "has_burned_in_text": true,
+      "scene_cut_count": 25,
+      "motion_score": 0.6,
+      "ordinal_pattern_score": 0.2,
+      "countdown_likelihood": 0.0,
+      "metadata_prior_confidence": 0.5
+    },
+    "expected": {
+      "structural_video_type": "none",
+      "ocr_required": false,
+      "structural_score": 0.2
+    }
+  },
+  {
+    "test_id": "slideshow-lecture",
+    "description": "A static presentation with dense text. Speech heavy, no music.",
+    "input": {
+      "has_speech": true,
+      "has_music": false,
+      "has_burned_in_text": true,
+      "scene_cut_count": 40,
+      "motion_score": 0.05,
+      "ordinal_pattern_score": 0.1,
+      "countdown_likelihood": 0.0,
+      "metadata_prior_confidence": 0.6
+    },
+    "expected": {
+      "structural_video_type": "slideshow",
+      "ocr_required": true,
+      "structural_score": 0.8
+    }
+  },
+  {
+    "test_id": "plain-music-video",
+    "description": "Standard music video. Music heavy, no speech, fast cuts.",
+    "input": {
+      "has_speech": false,
+      "has_music": true,
+      "has_burned_in_text": false,
+      "scene_cut_count": 80,
+      "motion_score": 0.8,
+      "ordinal_pattern_score": 0.0,
+      "countdown_likelihood": 0.0,
+      "metadata_prior_confidence": 0.8
+    },
+    "expected": {
+      "structural_video_type": "none",
+      "ocr_required": false,
+      "structural_score": 0.0
+    }
+  }
+]
