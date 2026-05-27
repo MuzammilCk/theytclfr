@@ -52,6 +52,7 @@ def probe_structural(
     visual_motion_density: float,
     has_speech: bool,
     has_music: bool,
+    metadata_prior_confidence: float = 0.5,
 ) -> StructuralProbeResult:
     """Detect structural video patterns from sampled frames.
 
@@ -61,6 +62,7 @@ def probe_structural(
         visual_motion_density: Scene cuts per minute.
         has_speech: Voice detected.
         has_music: Music detected.
+        metadata_prior_confidence: Confidence in metadata accuracy.
 
     Returns:
         StructuralProbeResult. Never raises.
@@ -72,6 +74,7 @@ def probe_structural(
             visual_motion_density,
             has_speech,
             has_music,
+            metadata_prior_confidence,
         )
     except Exception as exc:
         logger.error(
@@ -99,6 +102,7 @@ def _probe_structural_inner(
     visual_motion_density: float,
     has_speech: bool,
     has_music: bool,
+    metadata_prior_confidence: float = 0.5,
 ) -> StructuralProbeResult:
     import cv2
 
@@ -172,12 +176,27 @@ def _probe_structural_inner(
     # A list video typically has high text density, scene cuts, and some repeated structure.
     structural_score = 0.0
     
-    if overlay_text_density > OVERLAY_DENSITY_HIGH:
+    # A. Graded Text Density (magnitude matters, not just presence)
+    OVERLAY_DENSITY_EXTREME = 15.0  # TUNABLE: massive text wall
+    if overlay_text_density > OVERLAY_DENSITY_EXTREME:
+        structural_score += 0.5  # Almost crosses 0.55 on its own
+    elif overlay_text_density > OVERLAY_DENSITY_HIGH:
         structural_score += 0.3
-    if visual_cut_count > 5:
+
+    # B. Scale-Invariant Motion (cuts per minute, not absolute cuts)
+    MOTION_DENSITY_HIGH = 10.0  # TUNABLE: 10 cuts per minute
+    if visual_motion_density > MOTION_DENSITY_HIGH:
         structural_score += 0.2
+
+    # C. Scene Repetition
     if scene_repeat_score > SCENE_REPEAT_SIMILARITY_THRESHOLD:
         structural_score += 0.2
+        
+    # D. Metadata Corroboration (Bayesian Weak Prior)
+    # If the title hints at a list (>0.5) AND we physically see text on screen,
+    # let them corroborate each other to push over the threshold.
+    if metadata_prior_confidence > 0.5 and overlay_text_density > OVERLAY_DENSITY_HIGH:
+        structural_score += 0.15
         
     structural_score = min(structural_score, 1.0)
     

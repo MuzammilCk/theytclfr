@@ -480,3 +480,4 @@ No phase may be skipped. No item may be removed from a phase checklist without a
 - Added S3 dead-letter cleanup inside the \stage_c.py\ exception handler.
 - Annotated V1 \classify_video\ task with a deprecation warning in oute.py\.
 - Resolved null pointer exception and parse errors in \downloader.py\.
+- Replaced rigid OCR trigger thresholds in `structural_detector.py` with graded density scoring and metadata synergy to fix missed triggers on short-form videos.

@@ -93,5 +93,47 @@
       "ocr_required": false,
       "structural_score": 0.0
     }
+  },
+  {
+    "test_id": "short-form-listicle",
+    "description": "Short form 16-sec Top 10 with extreme text. Must cross OCR threshold due to graded scoring + metadata corroboration.",
+    "input": {
+      "has_speech": true,
+      "has_music": true,
+      "has_burned_in_text": false,
+      "scene_cut_count": 3,
+      "motion_density": 11.25,
+      "motion_score": 0.5,
+      "ordinal_pattern_score": 0.9,
+      "countdown_likelihood": 0.0,
+      "overlay_text_density": 103.0,
+      "metadata_prior_confidence": 0.7
+    },
+    "expected": {
+      "structural_video_type": "list",
+      "ocr_required": true,
+      "structural_score": 0.65
+    }
+  },
+  {
+    "test_id": "long-form-podcast",
+    "description": "2-hour podcast. Zero cuts, zero text, speech only. Should definitely not trigger OCR.",
+    "input": {
+      "has_speech": true,
+      "has_music": false,
+      "has_burned_in_text": false,
+      "scene_cut_count": 0,
+      "motion_density": 0.0,
+      "motion_score": 0.1,
+      "ordinal_pattern_score": 0.0,
+      "countdown_likelihood": 0.0,
+      "overlay_text_density": 0.0,
+      "metadata_prior_confidence": 0.5
+    },
+    "expected": {
+      "structural_video_type": "none",
+      "ocr_required": false,
+      "structural_score": 0.0
+    }
   }
 ]

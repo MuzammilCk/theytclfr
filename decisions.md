@@ -133,16 +133,20 @@ Consequences: Enables both full-text and vector similarity search within the exi
 Supersedes: NONE
 
 ---
+Consequences: Enables both full-text and vector similarity search within the existing PostgreSQL database. No additional service to manage or monitor. Rules out OpenSearch/Elasticsearch in V1 (deferred). Search performance is bounded by PostgreSQL capabilities Ã¢â‚¬â€ acceptable for V1 single-user/small-team usage. Embedding generation requires a model (could use Ollama or a lightweight sentence-transformer Ã¢â‚¬â€ to be decided in Phase 7).
+Supersedes: NONE
 
-## DR-10 Ã¢â‚¬â€� Task queue and worker system choice
+---
+
+## DR-10 Ã¢â‚¬â€ Task queue and worker system choice
 Date: 2026-04-20
 Status: ACCEPTED
 Context: This decision elaborates on DR-2 by specifying the worker execution strategy and task orchestration model. The pipeline has multiple sequential stages (download Ã¢â€ â€™ ASR Ã¢â€ â€™ OCR Ã¢â€ â€™ align Ã¢â€ â€™ classify Ã¢â€ â€™ LLM structure Ã¢â€ â€™ confidence score) that must execute in order for each job, with some stages (ASR, OCR) potentially running in parallel.
-Decision: Celery task chains and chords for pipeline orchestration. Sequential stages are linked via Celery chains. ASR and OCR tasks run in parallel via a Celery chord, with the temporal alignment task as the chord callback. Worker concurrency is controlled via WORKER_CONCURRENCY env var. Task time limits are enforced via CELERY_TASK_TIME_LIMIT. Failed tasks update job status and halt the pipeline for that job. No automatic retry of the full pipeline Ã¢â‚¬â€� individual task retries are configured per task.
+Decision: Celery task chains and chords for pipeline orchestration. Sequential stages are linked via Celery chains. ASR and OCR tasks run in parallel via a Celery chord, with the temporal alignment task as the chord callback. Worker concurrency is controlled via WORKER_CONCURRENCY env var. Task time limits are enforced via CELERY_TASK_TIME_LIMIT. Failed tasks update job status and halt the pipeline for that job. No automatic retry of the full pipeline Ã¢â‚¬â€ individual task retries are configured per task.
 Consequences: Enables parallel execution of ASR and OCR stages while maintaining sequential ordering for dependent stages. Celery's built-in retry, timeout, and error handling mechanisms reduce custom orchestration code. Rules out custom pipeline orchestration frameworks. Rules out fully parallel execution of all stages (some stages depend on outputs of prior stages). Pipeline monitoring is available through Celery's built-in inspection API.
 Supersedes: NONE (extends DR-2 with execution strategy details)
 
-## DR-12 Ã¢â‚¬â€� Rate limiting library
+## DR-12 Ã¢â‚¬â€ Rate limiting library
 Date: 2026-04-20
 Status: ACCEPTED
 Context: Phase 3 requires rate limiting on the job submission and status endpoints to prevent abuse. A lightweight library that integrates natively with FastAPI/Starlette is needed.

@@ -214,22 +214,24 @@ def run_signal_census(
                 )
             )
 
-            # Step 7.5 — Run probe_structural
-            structural_result = probe_structural(
-                sampled_frames=visual_result.sampled_frames,
-                visual_cut_count=visual_result.scene_cut_count,
-                visual_motion_density=visual_result.motion_density,
-                has_speech=audio_result.has_speech,
-                has_music=audio_result.has_music,
-            )
-
-            # Step 8 — Merge into SignalManifest
+            # Step 7.5a — Compute metadata prior for structural corroboration
             metadata_prior = 0.5
             if metadata_result and metadata_result.metadata_structural_hints:
                 hints = metadata_result.metadata_structural_hints
                 if hints.get("title_has_ordinals") or hints.get("title_has_list_keywords"):
                     metadata_prior = 0.7
 
+            # Step 7.5b — Run probe_structural with metadata corroboration
+            structural_result = probe_structural(
+                sampled_frames=visual_result.sampled_frames,
+                visual_cut_count=visual_result.scene_cut_count,
+                visual_motion_density=visual_result.motion_density,
+                has_speech=audio_result.has_speech,
+                has_music=audio_result.has_music,
+                metadata_prior_confidence=metadata_prior,
+            )
+
+            # Step 8 — Merge into SignalManifest
             manifest = SignalManifest(
                 job_id=UUID(job_id),
                 audio_type=audio_result.audio_type,
