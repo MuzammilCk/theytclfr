@@ -179,14 +179,17 @@ def _probe_structural_inner(
     # A. Graded Text Density (magnitude matters, not just presence)
     OVERLAY_DENSITY_EXTREME = 15.0  # TUNABLE: massive text wall
     if overlay_text_density > OVERLAY_DENSITY_EXTREME:
-        structural_score += 0.5  # Almost crosses 0.55 on its own
+        structural_score += 0.60  # Almost crosses 0.55 on its own
     elif overlay_text_density > OVERLAY_DENSITY_HIGH:
-        structural_score += 0.3
+        structural_score += 0.30
 
     # B. Scale-Invariant Motion (cuts per minute, not absolute cuts)
-    MOTION_DENSITY_HIGH = 10.0  # TUNABLE: 10 cuts per minute
+    MOTION_DENSITY_HIGH = 7.5     # was 10.0
+    MOTION_DENSITY_MODERATE = 4.0
     if visual_motion_density > MOTION_DENSITY_HIGH:
-        structural_score += 0.2
+        structural_score += 0.20
+    elif visual_motion_density > MOTION_DENSITY_MODERATE:
+        structural_score += 0.10
 
     # C. Scene Repetition
     if scene_repeat_score > SCENE_REPEAT_SIMILARITY_THRESHOLD:

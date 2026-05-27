@@ -423,3 +423,75 @@ Status: ACCEPTED
 Context: Heavy-structural videos often contain misleading ASR segments that distract from the core visual information.
 Decision: Applied \sr_expected_value\ linearly against ASR confidence during fusion in \conflict_resolver.py\.
 Consequences: ASR outputs with low structural expectancy are suppressed, improving taxonomy precision in listicle formats.
+
+## DR-V2-13 — NumPy scalar sanitization for SSE events
+Date: 2026-05-27
+Status: ACCEPTED
+Context: Session 29 audit identified that numpy scalars from
+  OpenCV/librosa survive Pydantic model_dump(mode="json") but
+  crash json.dumps() in _emit_sse(), silently dropping all
+  SSE progress events.
+Decision: A _sanitize_for_json() recursive converter is applied
+  in every _emit_sse() function across all 4 stages. Defense-in-
+  depth: probe result constructors also cast numpy values to
+  native Python types.
+Consequences: SSE events are never silently dropped due to
+  numpy types. The sanitizer adds <1ms overhead per event.
+Supersedes: NONE
+
+## DR-V2-14 — Tiered text density scoring in structural detector
+Date: 2026-05-27
+Status: ACCEPTED
+Context: Session 29 audit found overlay_text_density=103.9
+  scored identically to density=2.1 (both +0.30). Extreme text
+  density alone could not trigger OCR.
+Decision: Two-tier density: >15.0 (EXTREME) scores +0.60,
+  >2.0 (HIGH) scores +0.30. MOTION_DENSITY_HIGH lowered from
+  10.0 to 7.5. New MOTION_DENSITY_MODERATE at 4.0 (+0.10).
+Consequences: Pure text-wall videos self-trigger OCR. Short
+  listing videos with 2-3 cuts also trigger. No false positives
+  expected because 15+ text regions/frame is unambiguous.
+Supersedes: NONE
+
+## DR-V2-15 — ALL-CAPS entity extraction
+Date: 2026-05-27
+Status: ACCEPTED
+Context: Session 29 audit found entity extractor regex only
+  matched Title-Case phrases. Music chart videos display all
+  artist names and song titles in ALL CAPS.
+Decision: Added ALL_CAPS_PHRASE regex and RANKED_ITEM_PATTERN
+  for explicit list item parsing. Stop-word filter prevents
+  noise from common UI text (SUBSCRIBE, VIEWS, etc).
+Consequences: ALL-CAPS entities now contribute to the entity
+  pool. Ranked items are directly extracted as high-confidence
+  entities.
+Supersedes: NONE
+
+## DR-V2-16 — Priority transcript for structural Groq prompts
+Date: 2026-05-27
+Status: ACCEPTED
+Context: Session 29 audit found 8000-char transcript cap hid
+  55 of 60 songs. OCR ranked items were buried after verbose
+  ASR commentary.
+Decision: Structural videos use a 16000-char priority transcript
+  that prepends OCR ranked items before chronological segments.
+  Non-structural videos keep the 8000-char standard path.
+Consequences: Groq sees the full ranked item list for long
+  structural videos. Prompt cost doubles for structural videos
+  (~negligible at current volume).
+Supersedes: NONE
+
+## DR-V2-17 — Adaptive burned-in text threshold for short videos
+Date: 2026-05-27
+Status: ACCEPTED
+Context: TEXT_REGION_MIN_FRAMES=5 makes has_burned_in_text
+  mathematically impossible for videos with <5 sampled frames.
+  Short listing videos never trigger OCR through this path.
+Decision: Adaptive threshold: min(5, max(1, len(frames) // 2)).
+  For 30-frame videos, unchanged (5). For 3-frame videos,
+  threshold drops to 1.
+Consequences: Short listing videos can now trigger OCR via
+  has_burned_in_text. Very short videos (2-3 frames) have
+  a lower bar — acceptable because these are typically
+  dense info cards.
+Supersedes: NONE

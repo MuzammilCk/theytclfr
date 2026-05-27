@@ -1,5 +1,5 @@
 import time
-import requests
+import httpx
 from jose import jwt
 
 API_URL = "http://localhost:8000/api/v1"
@@ -17,18 +17,18 @@ def get_auth_headers():
     return {"Authorization": f"Bearer {token}"}
 
 def submit_job(url: str):
-    response = requests.post(f"{API_URL}/jobs", json={"youtube_url": url}, headers=get_auth_headers())
+    response = httpx.post(f"{API_URL}/jobs", json={"youtube_url": url}, headers=get_auth_headers(), timeout=10.0)
     response.raise_for_status()
     data = response.json()
     return data["job_id"]
 
 def check_status(job_id: str):
-    response = requests.get(f"{API_URL}/jobs/{job_id}", headers=get_auth_headers())
+    response = httpx.get(f"{API_URL}/jobs/{job_id}", headers=get_auth_headers(), timeout=10.0)
     response.raise_for_status()
     return response.json()
 
 def get_results(job_id: str):
-    response = requests.get(f"{API_URL}/jobs/{job_id}/result", headers=get_auth_headers())
+    response = httpx.get(f"{API_URL}/jobs/{job_id}/result", headers=get_auth_headers(), timeout=10.0)
     if response.status_code == 404:
         return None
     response.raise_for_status()

@@ -23,6 +23,7 @@ GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_TEMPERATURE: float = 0.1
 GROQ_MAX_TOKENS: int = 2000
 MAX_TRANSCRIPT_CHARS: int = 8000   # cap prompt to stay within Groq context
+MAX_TRANSCRIPT_CHARS_STRUCTURAL: int = 16000 # priority transcript cap for lists
 MAX_ENTITY_HINTS: int = 10         # send at most this many candidate entities
 MAX_SCENE_BOUNDARIES: int = 20     # cap Groq-returned boundary list
 
@@ -85,28 +86,65 @@ def reason_over_evidence(
         return _GROQ_FAILURE_RESULT
 
 
+def _extract_ranked_items_from_ocr(segments: list[AlignedSegment]) -> str:
+    """Scan OCR segments for explicit ranked items."""
+    from ytclfr.fusion.entity_extractor import RANKED_ITEM_PATTERN
+    items = []
+    for seg in segments:
+        if seg.source == "ocr":
+            for match in RANKED_ITEM_PATTERN.finditer(seg.text):
+                rank, name = match.group(1), match.group(2).strip()
+                items.append(f"#{rank}: {name}")
+    # Deduplicate while preserving order
+    seen = set()
+    deduped = []
+    for item in items:
+        if item not in seen:
+            seen.add(item)
+            deduped.append(item)
+    return "\n".join(deduped)
+
+def _build_priority_transcript(segments: list[AlignedSegment], ranked_items: str) -> str:
+    """Build transcript placing OCR ranked items at the top."""
+    lines = []
+    if ranked_items:
+        lines.append("=== RANKED ITEMS DETECTED (OCR) ===")
+        lines.append(ranked_items)
+        lines.append("===================================\n")
+    
+    for seg in segments:
+        lines.append(f"[{seg.timestamp:.1f}s] [{seg.source.upper()}] {seg.text}")
+    return "\n".join(lines)
+
+
 def _build_prompt(
     segments: list[AlignedSegment],
     entity_hints: list[ExtractedEntity],
     structural_video_type: str,
 ) -> str:
     """Build the Groq prompt from aligned segments + entity hints."""
-    lines: list[str] = []
-    for seg in segments:
-        lines.append(f"[{seg.timestamp:.1f}s] {seg.text}")
-    transcript = "\n".join(lines)[:MAX_TRANSCRIPT_CHARS]
+    STRUCTURAL_TYPES = {"list", "ranking", "compilation", "countdown", "slideshow"}
+    
+    if structural_video_type in STRUCTURAL_TYPES:
+        ranked_items = _extract_ranked_items_from_ocr(segments)
+        transcript = _build_priority_transcript(segments, ranked_items)
+        transcript = transcript[:MAX_TRANSCRIPT_CHARS_STRUCTURAL]
+        structural_hint = (
+            f"\nSTRUCTURAL CONTEXT: This video is a {structural_video_type}. "
+            "Pay special attention to the RANKED ITEMS DETECTED block at the start of the transcript "
+            "and ensure you extract these exact items as entities.\n"
+        )
+    else:
+        lines: list[str] = []
+        for seg in segments:
+            lines.append(f"[{seg.timestamp:.1f}s] {seg.text}")
+        transcript = "\n".join(lines)[:MAX_TRANSCRIPT_CHARS]
+        structural_hint = ""
 
     hint_str = (
         ", ".join(e.name for e in entity_hints[:MAX_ENTITY_HINTS])
         if entity_hints
         else "none detected"
-    )
-
-    structural_hint = (
-        f"\nSTRUCTURAL CONTEXT: This video is a {structural_video_type}. "
-        "Pay special attention to structured items (like rankings or lists) in the transcript.\n"
-        if structural_video_type != "none"
-        else ""
     )
 
     return (

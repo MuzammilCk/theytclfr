@@ -302,8 +302,12 @@ def _probe_visual_inner(
         if len(wide_contours) >= WIDE_CONTOUR_MIN_COUNT:
             positive_text_frames += 1
 
+    # Adaptive threshold: for short videos with few frames,
+    # require at least half of frames (min 1) to show text.
+    # For longer videos, keep the original 5-frame threshold.
+    adaptive_text_min = min(TEXT_REGION_MIN_FRAMES, max(1, len(frames) // 2))
     has_burned_in_text = (
-        positive_text_frames >= TEXT_REGION_MIN_FRAMES
+        positive_text_frames >= adaptive_text_min
     )
 
     if timeout_event.is_set():

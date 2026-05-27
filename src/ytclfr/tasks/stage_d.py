@@ -9,6 +9,7 @@ After this task, job.status = "completed".
 """
 
 # ── TOP-LEVEL IMPORTS ────────────────────────────────────────
+import json
 from uuid import UUID
 
 from ytclfr.contracts.events import StageDEvent, StageDStatus
@@ -44,6 +45,26 @@ _evidence_store = EvidenceGraphStore()
 
 # ── SSE HELPER ──────────────────────────────────────────────
 
+def _sanitize_for_json(obj):
+    """Recursively convert numpy scalars to native Python types."""
+    try:
+        import numpy as np
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+    except ImportError:
+        pass
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(v) for v in obj]
+    return obj
+
 def _emit_sse(event: StageDEvent) -> None:
     """Publish a StageDEvent to Redis SSE channel.
     Failure logs WARNING but never raises."""
@@ -53,8 +74,8 @@ def _emit_sse(event: StageDEvent) -> None:
     channel = f"job:{event.job_id}:events"
     try:
         r = redis.Redis.from_url(settings.redis_url)
-        payload = event.model_dump_json()
-        r.publish(channel, payload)
+        payload = _sanitize_for_json(event.model_dump(mode="json"))
+        r.publish(channel, json.dumps(payload))
         logger.info("SSE emitted to %s: %s", channel, event.event_type)
     except Exception as exc:
         logger.warning(

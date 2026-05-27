@@ -254,12 +254,15 @@ def _probe_audio_inner(
     music_confidence: float = 0.5
 
     try:
+        import warnings
         import librosa
         import numpy as np
 
-        y, sr = librosa.load(
-            audio_path, sr=None, mono=True, duration=60.0
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            y, sr = librosa.load(
+                audio_path, sr=None, mono=True, duration=60.0
+            )
         tempo_result = librosa.beat.beat_track(y=y, sr=sr)
         # librosa may return tempo as array or scalar
         tempo_val = tempo_result[0]

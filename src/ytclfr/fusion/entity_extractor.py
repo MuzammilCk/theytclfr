@@ -20,6 +20,15 @@ from ytclfr.contracts.evidence import ExtractedEntity
 CAPITALIZED_PHRASE: re.Pattern = re.compile(
     r'\b([A-Z][a-z]{1,}(?:\s+[A-Z][a-z]{1,})*)\b'
 )
+
+ALL_CAPS_PHRASE: re.Pattern = re.compile(
+    r'\b([A-Z]{2}[A-Z\s&\'\-]{1,40})\b'
+)
+
+RANKED_ITEM_PATTERN: re.Pattern = re.compile(
+    r'(?i)(?:no\.?\s*|#\s*)(\d{1,3})\s*[|:]\s*(.+?)(?:\s*[|\n]|$)'
+)
+
 # Regex: dollar price markers → indicates product context
 PRICE_MARKER: re.Pattern = re.compile(r'\$\s*\d')
 
@@ -38,6 +47,15 @@ _STOP_NAMES: frozenset[str] = frozenset({
     "Here", "There", "Then", "Also", "Now",
     "Just", "Even", "Still", "Already",
     "First", "Second", "Third", "Next", "Last",
+})
+
+_ALL_CAPS_STOP_WORDS: frozenset[str] = frozenset({
+    "THE", "THIS", "THAT", "THESE", "THOSE",
+    "WHEN", "WHERE", "WHAT", "WHICH", "WHILE",
+    "WITH", "FROM", "HAVE", "BEEN", "WILL",
+    "YOUR", "JUST", "MORE", "ALSO", "VERY",
+    "VIEWS", "MILLION", "SUBSCRIBE", "LIKE", "SHARE",
+    "COMMENT", "WATCH", "VIDEO", "MUSIC", "SONG",
 })
 
 
@@ -77,12 +95,19 @@ def _extract_entities(
     from collections import defaultdict
 
     entity_timestamps: dict[str, list[float]] = defaultdict(list)
+    ranked_entities: dict[str, list[float]] = defaultdict(list)
 
     for seg in segments:
         text = seg.text
         # Check price context (optional, can be used for future heuristics)
         if PRICE_MARKER.search(text):
             pass
+            
+        for match in RANKED_ITEM_PATTERN.finditer(text):
+            name = match.group(2).strip()
+            if len(name) >= MIN_ENTITY_CHAR_LENGTH:
+                ranked_entities[name].append(seg.timestamp)
+
         for match in CAPITALIZED_PHRASE.finditer(text):
             name = match.group(1).strip()
             if len(name) < MIN_ENTITY_CHAR_LENGTH:
@@ -91,8 +116,28 @@ def _extract_entities(
             if name.lower() in {s.lower() for s in _STOP_NAMES}:
                 continue
             entity_timestamps[name].append(seg.timestamp)
+            
+        for match in ALL_CAPS_PHRASE.finditer(text):
+            name = match.group(1).strip()
+            if len(name) < MIN_ENTITY_CHAR_LENGTH:
+                continue
+            if all(w in _ALL_CAPS_STOP_WORDS for w in name.split()):
+                continue
+            entity_timestamps[name].append(seg.timestamp)
 
     entities: list[ExtractedEntity] = []
+    
+    for name, timestamps in ranked_entities.items():
+        unique_ts = sorted(set(timestamps))[:MAX_TIMESTAMPS_PER_ENTITY]
+        entities.append(
+            ExtractedEntity(
+                name=name,
+                entity_type="unknown",
+                mentioned_at=unique_ts,
+                confidence=1.0,
+            )
+        )
+
     for name, timestamps in entity_timestamps.items():
         if len(timestamps) < MIN_MENTIONS_FOR_ENTITY:
             continue
@@ -122,8 +167,11 @@ def _infer_type(name: str) -> str:
     """
     words = name.split()
     # All-caps short tokens → likely a topic/acronym
-    if name.isupper() and len(name) <= 6:
+    if name.isupper() and len(words) == 1 and len(name) <= 6:
         return "topic"
+    # All-caps multi-word names → potential persons/topics
+    if name.isupper() and len(words) > 1:
+        return "unknown"
     # Single word → topic (too ambiguous for product/person/place)
     if len(words) == 1:
         return "topic"
