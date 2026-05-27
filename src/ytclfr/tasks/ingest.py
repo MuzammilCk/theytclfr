@@ -21,7 +21,7 @@ logger = get_logger(__name__)
     max_retries=3,
     default_retry_delay=30,
 )
-def download_video(self: Any, job_id: str) -> dict[str, Any]:
+def download_video(self: Any, job_id: str, pipeline_version: str = "v2") -> dict[str, Any]:
     settings_local = get_settings()
     parsed_job_id = uuid.UUID(job_id)
     temp_manager = TempStorageManager(settings_local)
@@ -35,8 +35,12 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
 
             if job.s3_video_uri is not None and job.status not in ["pending", "downloading"]:
                 logger.info("Idempotency hit: video already in S3")
-                from ytclfr.tasks.stage_a import run_signal_census
-                run_signal_census.delay(job_id)
+                if pipeline_version == "v3":
+                    from ytclfr.tasks.v3.stage_a_census import v3_run_signal_census
+                    v3_run_signal_census.delay(job_id)
+                else:
+                    from ytclfr.tasks.stage_a import run_signal_census
+                    run_signal_census.delay(job_id)
                 return {"job_id": job_id, "status": "downloaded"}
 
             job.status = "downloading"
@@ -62,7 +66,7 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
 
             session.commit()
 
-            upload_video_to_s3.delay(job_id, str(result.video_path))
+            upload_video_to_s3.delay(job_id, str(result.video_path), pipeline_version=pipeline_version)
             
             return {"job_id": job_id, "status": "upload_pending"}
 
@@ -100,7 +104,7 @@ def download_video(self: Any, job_id: str) -> dict[str, Any]:
     max_retries=5,
     default_retry_delay=60,
 )
-def upload_video_to_s3(self: Any, job_id: str, local_video_path: str) -> dict[str, Any]:
+def upload_video_to_s3(self: Any, job_id: str, local_video_path: str, pipeline_version: str = "v2") -> dict[str, Any]:
     settings_local = get_settings()
     parsed_job_id = uuid.UUID(job_id)
     temp_manager = TempStorageManager(settings_local)
@@ -114,8 +118,12 @@ def upload_video_to_s3(self: Any, job_id: str, local_video_path: str) -> dict[st
             if job.s3_video_uri is not None:
                 logger.info("Idempotency hit: video already in S3")
                 temp_manager.cleanup_job(parsed_job_id)
-                from ytclfr.tasks.stage_a import run_signal_census
-                run_signal_census.delay(job_id)
+                if pipeline_version == "v3":
+                    from ytclfr.tasks.v3.stage_a_census import v3_run_signal_census
+                    v3_run_signal_census.delay(job_id)
+                else:
+                    from ytclfr.tasks.stage_a import run_signal_census
+                    run_signal_census.delay(job_id)
                 return {"job_id": job_id, "status": "downloaded"}
 
             # Phase 10: Upload video to S3 and clear local path
@@ -149,9 +157,20 @@ def upload_video_to_s3(self: Any, job_id: str, local_video_path: str) -> dict[st
             logger.info(f"VideoIngestedEvent: {event.model_dump_json()}")
             # PHASE-5-TODO: publish VideoIngestedEvent to Redis pub/sub
 
-            from ytclfr.tasks.stage_a import run_signal_census
+            if pipeline_version == "v3":
+                from ytclfr.tasks.v3.stage_a_census import v3_run_signal_census
+                v3_run_signal_census.delay(job_id)
+            else:
+                from ytclfr.tasks.stage_a import run_signal_census
+                run_signal_census.delay(job_id)
+                
+                # Shadow Testing V3
+                import random
+                if random.random() < 0.10:
+                    from ytclfr.tasks.v3.stage_a_census import v3_run_signal_census
+                    logger.info(f"Shadow testing V3 for job {job_id}")
+                    v3_run_signal_census.delay(job_id)
 
-            run_signal_census.delay(job_id)
             return {"job_id": job_id, "status": "downloaded"}
 
         except Exception as exc:

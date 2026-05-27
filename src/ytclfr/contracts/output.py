@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
+from typing_extensions import deprecated
 
 from pydantic import BaseModel, Field
 
@@ -60,6 +61,7 @@ class ScriptSegment(BaseModel):
     }
 
 
+@deprecated("V1 legacy contracts are deprecated and will be removed in 120 days.")
 class FinalOutput(BaseModel):
     """Final structured output for a processed video job."""
 

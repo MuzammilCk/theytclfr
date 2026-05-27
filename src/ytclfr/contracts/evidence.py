@@ -9,6 +9,7 @@ produce the final taxonomy and FinalOutput.
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
+from typing_extensions import deprecated
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -52,6 +53,7 @@ class ExtractedEntity(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+@deprecated("V2 legacy evidence contracts are deprecated and will be removed in 120 days.")
 class EvidenceGraph(BaseModel):
     """Fused evidence produced by Stage C.
 

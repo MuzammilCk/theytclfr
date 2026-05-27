@@ -11,6 +11,7 @@ V1 API endpoint updates are deferred to Pipeline Wiring (W-6).
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
+from typing_extensions import deprecated
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -59,6 +60,7 @@ class ExtractedItem(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+@deprecated("V2 legacy contracts are deprecated and will be removed in 120 days.")
 class V2FinalOutput(BaseModel):
     """Terminal output of the V2 evidence-based pipeline.
 

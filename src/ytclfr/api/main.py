@@ -10,6 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from ytclfr.api.rate_limit import limiter
 from ytclfr.api.v1.router import v1_router
+from ytclfr.api.v3.router import v3_router
 from ytclfr.core.config import get_settings
 from ytclfr.core.logging import configure_logging, trace_id_var
 
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(TraceIdMiddleware)
     app.include_router(v1_router, prefix="/api/v1")
+    app.include_router(v3_router, prefix="/api/v3")
 
     return app
 
