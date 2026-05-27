@@ -61,7 +61,7 @@ class VideoDownloader:
         target_dir = output_dir / str(job_id)
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        ydl_opts_info: dict[str, Any] = {
+        ydl_opts_info: Any = {
             "quiet": True,
             "no_warnings": True,
             "js_runtimes": {"node": {}},
@@ -93,11 +93,14 @@ class VideoDownloader:
                         "--cookies cookies.txt "
                         '"https://youtu.be/jNQXAC9IVRw"'
                     ) from exc
-                raise IngestionError(
-                    f"Video unavailable or private: {error_msg}"
-                ) from exc
+                if "unavailable" in error_msg.lower() or "private" in error_msg.lower():
+                    raise IngestionError(
+                        f"Video unavailable or private: {error_msg}"
+                    ) from exc
+                # Let other exceptions (like ConnectionResetError) bubble up for Celery retry
+                raise
 
-        ydl_opts_download: dict[str, Any] = {
+        ydl_opts_download: Any = {
             "format": "bestvideo+bestaudio/best",
             "merge_output_format": "mp4",
             "outtmpl": str(target_dir / "%(title)s.%(ext)s"),
@@ -109,11 +112,8 @@ class VideoDownloader:
             ydl_opts_download["cookiefile"] = str(self._cookies_file)
 
         with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-            try:
-                result_info = ydl.extract_info(url, download=True)
-                result_info = ydl.sanitize_info(result_info)
-            except Exception as e:
-                raise IngestionError(f"Download failed: {e}") from e
+            extracted = ydl.extract_info(url, download=True)
+            result_info: Any = ydl.sanitize_info(extracted or info) or {}
 
         files = list(target_dir.glob("*"))
         if not files:

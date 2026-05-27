@@ -7,6 +7,7 @@ Videos are uploaded after ingestion and downloaded before extraction.
 from pathlib import Path
 
 import boto3
+from botocore.config import Config
 
 from ytclfr.core.config import Settings
 from ytclfr.core.logging import get_logger
@@ -28,11 +29,17 @@ class S3StorageManager:
                 "Cannot use S3 storage without a bucket."
             )
         self.bucket_name = settings.s3_bucket_name
+        config = Config(
+            connect_timeout=10,
+            read_timeout=30,
+            retries={"max_attempts": 3},
+        )
         self._client = boto3.client(
             "s3",
             aws_access_key_id=settings.aws_access_key_id,
             aws_secret_access_key=settings.aws_secret_access_key,
             region_name=settings.aws_region,
+            config=config,
         )
 
     def upload_file(self, file_path: Path, object_key: str) -> str:
