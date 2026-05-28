@@ -51,3 +51,30 @@
 1. Check `GROQ_API_KEY` configuration and Groq status page.
 2. The pipeline is designed to degrade gracefully. If rule-based results are acceptable, no action is needed.
 3. If Groq-based reasoning is strictly required for those jobs, you must manually run `POST /api/v1/jobs/{job_id}/retry` after restoring API access.
+
+## 6. Incident: V3 Task Unregistered
+**Symptoms:**
+- Error in Celery log: `Received unregistered task of type 'ytclfr.tasks.v3...'`.
+- V3 pipeline jobs stuck after download stage.
+
+**Recovery:**
+1. This is a code/deployment issue. V3 tasks must be explicitly imported in `src/ytclfr/queue/celery_app.py`.
+2. Add the missing `import ytclfr.tasks.v3...` statement.
+3. Restart Celery worker to load the new imports.
+
+## 7. Incident: V3 Stage Stall
+**Symptoms:**
+- Job status stuck at `v3_stage_X_running` for longer than expected.
+- No active tasks shown in Celery for the job.
+
+**Recovery:**
+1. Check Celery logs for exceptions in the current stage or failures to invoke the next stage in the chain.
+2. If the previous stage completed but failed to trigger the callback, manually set the job status back to the previous completed state or trigger the retry API.
+
+## 8. Incident: V3 ASR Degradation False Positive
+**Symptoms:**
+- OCR overweighted for a speech-heavy video resulting in poor fusion.
+
+**Recovery:**
+1. Check `v3_extractor_bundles.asr_metrics_json` for `untranscribed_speech_ratio` and `is_degraded` flag.
+2. If the degradation flag was incorrectly set due to long periods of silence, the tuning of `ASRCompletenessMetrics` thresholds may need adjustment.

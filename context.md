@@ -295,6 +295,46 @@ Stage A cheap probing produces a `SignalManifest` which is persisted in the Post
 
 ---
 
+## 1.10 — V3 Architecture
+
+### V3 Philosophy
+Strict contract isolation + ASR degradation awareness. V3 introduces frozen Pydantic models (`frozen=True`), explicit ASR completeness metrics, structured JSON evidence prompts for Groq, and resource views for API output.
+
+### V3 Pipeline Stages
+```
+URL → Ingestion (shared)
+ → Stage A: Signal Census      → v3_run_signal_census          [heavy queue]
+ → Stage B: Targeted Extraction → v3_run_targeted_extraction    [fast queue]
+ → Stage C: Evidence Fusion     → v3_run_evidence_fusion        [fast queue]
+ → Stage D: Taxonomy + Intent   → v3_run_taxonomy_mapping       [fast queue]
+ → FinalResponse + Persistence
+```
+
+### V3 Contracts (`src/ytclfr/contracts/v3/`)
+- `ingestion.py` — `IngestionResult`
+- `manifest.py` — `SignalManifest` (frozen, V3 fields: `structural_video_type`, `ocr_required`, `asr_expected_value`)
+- `bundle.py` — `ExtractorBundle` + `ASRCompletenessMetrics` (new: `untranscribed_speech_ratio`, `is_degraded`)
+- `evidence.py` — `EvidenceGraph` + `FusedSegment` + `ExtractedEntity` (new: `conflict_count`, `conflict_details`, `primary_evidence_modality`)
+- `response.py` — `FinalResponse` + `TaxonomyResult` + `ExtractedItem`
+
+### V3 Components
+- **DB Tables**: `v3_evidence_graphs`, `v3_extractor_bundles`
+- **API**: `POST /api/v3/jobs`, `GET /api/v3/results/{job_id}?view=BASIC|FULL`
+- **Fusion Modules**: `fusion/v3_conflict_resolver.py`, `fusion/v3_groq_reasoner.py`
+- **Tasks Directory**: `src/ytclfr/tasks/v3/`
+
+### V3 DB Status State Machine
+```
+pending → downloading → upload_pending → downloaded
+  → v3_stage_a_running → v3_stage_a_complete
+    → v3_stage_b_running → extracting
+      → v3_stage_c_running → v3_stage_c_complete
+        → v3_stage_d_running → completed
+Error: v3_stage_a_failed, v3_stage_b_failed, v3_stage_c_failed, v3_stage_d_failed
+```
+
+---
+
 ## 1.8 — Session Protocol
 
 EVERY SESSION MUST START BY:

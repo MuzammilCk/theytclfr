@@ -495,3 +495,47 @@ Consequences: Short listing videos can now trigger OCR via
   a lower bar — acceptable because these are typically
   dense info cards.
 Supersedes: NONE
+
+---
+
+## DR-V3-01 — V3 Strict Contract Isolation
+Date: 2026-05-28
+Status: ACCEPTED
+Context: V2 mixed contracts and mutable states caused tracking issues.
+Decision: All V3 contracts use `frozen=True`. V1/V2 contracts deprecated. V3 contracts live in `contracts/v3/`.
+Consequences: Hard isolation prevents accidental mutation of states.
+
+## DR-V3-02 — Resource Views over Boolean Flags
+Date: 2026-05-28
+Status: ACCEPTED
+Context: API responses needed a way to control verbosity.
+Decision: API uses `?view=BASIC|FULL` instead of `?include_debug=true`.
+Consequences: Scales for future views like EMBEDDINGS.
+
+## DR-V3-03 — ASR Degradation Detection
+Date: 2026-05-28
+Status: ACCEPTED
+Context: Poor ASR quality caused issues in inference.
+Decision: `ASRCompletenessMetrics` computes `untranscribed_speech_ratio`. If >0.3 or `max_untranscribed_segment_ms` > 2500, OCR weight is boosted in conflict resolution.
+Consequences: Mitigates impact of bad audio transcription automatically.
+
+## DR-V3-04 — Structured JSON Evidence Prompts
+Date: 2026-05-28
+Status: ACCEPTED
+Context: Plain text summaries limited Groq's ability to reason over complex evidence.
+Decision: Groq receives full `EvidenceGraph` as structured JSON, not text summaries.
+Consequences: Better reasoning capabilities for complex tasks at the cost of larger prompt sizes.
+
+## DR-V3-05 — V3 Celery Task Registration
+Date: 2026-05-28
+Status: ACCEPTED
+Context: V3 tasks weren't being picked up by Celery.
+Decision: V3 tasks registered via explicit imports in `celery_app.py`. No autodiscovery.
+Consequences: Hard dependency on explicit registration prevents accidental misconfigurations.
+
+## DR-V3-06 — Metadata Pruning at Ingestion
+Date: 2026-05-28
+Status: ACCEPTED
+Context: yt-dlp metadata fields were excessively large, causing DB bloat and celery serialization issues.
+Decision: yt-dlp `formats`, `thumbnails`, `heatmap` stripped. `automatic_captions`/`subtitles` reduced to language keys only.
+Consequences: Drastically reduces metadata payload size while preserving structural hints.

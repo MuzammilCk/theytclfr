@@ -1,6 +1,6 @@
 # build.md
 
-CURRENT PHASE: V2 Stage D — Taxonomy + Intent Mapping
+CURRENT PHASE: V3 Pipeline — Full Implementation
 STATUS: COMPLETE
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
@@ -454,6 +454,28 @@ Build:
   [x] W-5: Update job status state machine in DB (`storage/job_store.py`)
   [x] W-6: Update FastAPI job status endpoint to return new fields (`api/jobs.py`)
   [x] W-7: Integration test: full pipeline on a short test video (`tests/test_pipeline_integration.py`)
+
+---
+
+### V3 Pipeline Implementation
+Goal: Implement the next-generation pipeline with strict contract isolation, resource views, structured evidence prompts, and ASR degradation awareness.
+Status: [x] Complete
+
+Build:
+  [x] V3 Contracts (`contracts/v3/`): ingestion, manifest, bundle, evidence, response
+  [x] V3 DB Models (`db/models/v3/`): V3EvidenceGraphORM, V3ExtractorBundleORM
+  [x] V3 API (`api/v3/`): router, jobs, results with resource views
+  [x] V3 Celery Tasks (`tasks/v3/`): stage_a_census, stage_b_extraction, stage_c_fusion, stage_d_taxonomy
+  [x] V3 Fusion (`fusion/`): v3_conflict_resolver, v3_groq_reasoner
+  [x] V3 Task Registration in `celery_app.py`
+  [x] Metadata pruning in `downloader.py`
+  [x] S3 adaptive upload in `s3_storage.py`
+
+Definition of Done:
+  [x] Pipeline successfully executes end-to-end on V3 path
+  [x] API views (BASIC, FULL) correctly format output
+  [x] V3 models cleanly separated from V1/V2
+  [x] All tests pass
 
 ---
 
