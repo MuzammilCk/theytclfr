@@ -503,3 +503,27 @@ No phase may be skipped. No item may be removed from a phase checklist without a
 - Annotated V1 \classify_video\ task with a deprecation warning in oute.py\.
 - Resolved null pointer exception and parse errors in \downloader.py\.
 - Replaced rigid OCR trigger thresholds in `structural_detector.py` with graded density scoring and metadata synergy to fix missed triggers on short-form videos.
+
+
+### 2026-05-28: Executed Wave 3 & 4 Shadow Tasks
+- [x] vlm_structural_probe.py
+- [x] semantic_chunker.py
+- [x] paddle_ocr.py
+- [x] metadata_pyav.py
+- [x] 0013_add_pipeline_version.py
+- [x] api/v3/jobs.py 10% shadow traffic router
+
+
+### 2026-05-28: Executed Wave 1 & 2 Critical Fixes
+- [x] 1.1 Restore DB search indexes (`0012_restore_search_indexes.py` + `env.py`)
+- [x] 1.2 Wire V3 ASR Extractor (`v3_extraction_tasks.py` + `stage_b_extraction.py`)
+- [x] 1.3 Fix O(N) Frame Sampling CPU Regression (`frame_sampler.py` ffmpeg pipe)
+- [x] 1.4 Fix Synchronous Ollama Embedding Loop (`segment_store.py` async client)
+- [x] 2.1 Eliminate Recursive SSE Sanitization (`sse.py` + casting at source)
+- [x] 2.2 S3 Orphan Cleanup via Celery Beat (`cleanup_tasks.py` + `celery_app.py`)
+- [x] 2.3 Cookie Pool Rotation (`cookie_pool.py` + `downloader.py`)
+
+### 2026-05-28: Fixed Alembic Migration Divergence and SQL Bug
+- Resolved multiple heads conflict between Wave 1 (`3019f6d173fb`) and Wave 3/4 (`0013`) migrations by reparenting `0013`'s `down_revision`.
+- Fixed a silent SQL `ProgrammingError` in `3019f6d173fb_restore_search_indexes.py` where `segment_text` was incorrectly referenced instead of the correct `text` column in `aligned_segments`.
+- Database is now successfully upgraded to `0013` head.

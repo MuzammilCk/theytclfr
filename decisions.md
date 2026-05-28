@@ -539,3 +539,40 @@ Status: ACCEPTED
 Context: yt-dlp metadata fields were excessively large, causing DB bloat and celery serialization issues.
 Decision: yt-dlp `formats`, `thumbnails`, `heatmap` stripped. `automatic_captions`/`subtitles` reduced to language keys only.
 Consequences: Drastically reduces metadata payload size while preserving structural hints.
+
+
+## DR-V4-01 - Shadow Pipeline Architecture for Advanced ML Models
+Date: 2026-05-28
+Status: ACCEPTED
+Context: Replacing stable legacy extractors (Tesseract, OpenCV samplers, FFprobe) directly with heavy, complex dependencies (PaddleOCR, PyAV, VLMs) poses catastrophic risk to production if a single library crashes.
+Decision: New modules are built as parallel, isolated files rather than overwriting legacy code. A 10% shadow traffic router was introduced at the API ingestion endpoint (v3/jobs) to test these models asynchronously against real production workloads, discarding the output to the user.
+Consequences: Legacy pipeline stability is preserved 100%. Infrastructure footprint will increase to support the heavy queue processing for shadow tasks. Safe benchmarking of PaddleOCR and VLM taxonomy can proceed.
+
+
+## DR-V4-02 - ffmpeg image2pipe for Frame Sampling
+Date: 2026-05-28
+Status: ACCEPTED
+Context: cv2.VideoCapture seeking (CAP_PROP_POS_FRAMES) causes O(N) keyframe decodes on H.264/H.265 video, leading to massive CPU regression and timeout errors.
+Decision: Frame sampling now pipes directly from ffmpeg using image2pipe and bgr24 format.
+Consequences: ~80% reduction in processing time for Stage A visual probing.
+
+## DR-V4-03 - Async Connection Pooling for Ollama
+Date: 2026-05-28
+Status: ACCEPTED
+Context: Generating embeddings segment-by-segment blocked the Celery worker for minutes using synchronous httpx requests.
+Decision: Embedding generation uses asyncio and httpx.AsyncClient with a concurrency semaphore (max 20) inside the Celery worker.
+Consequences: Drastically reduces embedding generation time. Celery workers must not block the event loop if using gevent/eventlet pools.
+
+## DR-V4-04 - Rotating Cookie Pool for yt-dlp
+Date: 2026-05-28
+Status: ACCEPTED
+Context: A single cookies.txt file gets banned rapidly under production load.
+Decision: Implemented `CookiePool` which scans a `cookies/` directory and distributes files round-robin using thread-safe locking.
+Consequences: yt-dlp bans are amortized across multiple accounts.
+
+## DR-V4-05 - Native Python Casting vs Recursive Sanitization
+Date: 2026-05-28
+Status: ACCEPTED
+Context: The `_sanitize_for_json` recursive function fired on every SSE event, creating huge CPU overhead for nested EvidenceGraph payloads.
+Decision: Dropped recursive sanitization. All numpy arrays and metrics must be explicitly cast to native int/float at creation time in the prober/extractor.
+Consequences: Near-zero CPU overhead during SSE emission.

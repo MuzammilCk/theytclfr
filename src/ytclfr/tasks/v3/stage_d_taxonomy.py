@@ -39,8 +39,6 @@ MAX_EVIDENCE_SUMMARY_SEGMENTS: int = 20
 
 # ── SSE HELPER ──────────────────────────────────────────────
 
-from ytclfr.core.serialization import _sanitize_for_json
-
 
 def _emit_sse(event: StageDEvent) -> None:
     """Publish a StageDEvent to Redis SSE channel."""
@@ -49,7 +47,7 @@ def _emit_sse(event: StageDEvent) -> None:
     try:
         import redis
         r = redis.Redis.from_url(settings.redis_url)
-        payload = _sanitize_for_json(event.model_dump(mode="json"))
+        payload = event.model_dump(mode="json")
         r.publish(channel, json.dumps(payload))
         logger.info("SSE emitted to %s: %s", channel, event.event_type)
     except Exception as exc:

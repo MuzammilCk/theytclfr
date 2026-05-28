@@ -349,16 +349,16 @@ def _probe_audio_inner(
         audio_type = "silent"
 
     # ── Step 4.7 — Compute overall confidence ───────────────────
-    confidence = round(
+    confidence = float(round(
         (speech_confidence + music_confidence) / 2.0, 3
-    )
+    ))
 
     # ── Step 4.8 — Return result ────────────────────────────────
     return AudioProbeResult(
-        has_speech=has_speech,
-        has_music=has_music,
+        has_speech=bool(has_speech),
+        has_music=bool(has_music),
         audio_type=audio_type,
         language=language,
-        duration_seconds=duration,
+        duration_seconds=float(duration),
         confidence=confidence,
     )

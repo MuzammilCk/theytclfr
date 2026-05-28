@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     tesseract_cmd_path: str = "tesseract"
     ocr_frame_sample_rate: int = 1
     ytdlp_cookies_file: str | None = None
+    ytdlp_cookies_dir: str | None = None
     router_frame_sample_count: int = 5
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"

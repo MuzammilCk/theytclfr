@@ -225,14 +225,14 @@ def _probe_structural_inner(
         asr_expected_value = 0.2  # Likely lyrics, low value for taxonomy
 
     return StructuralProbeResult(
-        structural_score=round(structural_score, 3),
-        list_likelihood=round(list_likelihood, 3),
-        countdown_likelihood=round(countdown_likelihood, 3),
-        overlay_text_density=round(overlay_text_density, 3),
-        ordinal_pattern_score=round(ordinal_pattern_score, 3),
-        scene_repeat_score=round(scene_repeat_score, 3),
-        ocr_required=ocr_required,
-        ocr_expected_coverage=round(ocr_expected_coverage, 3),
-        asr_expected_value=round(asr_expected_value, 3),
+        structural_score=float(round(structural_score, 3)),
+        list_likelihood=float(round(list_likelihood, 3)),
+        countdown_likelihood=float(round(countdown_likelihood, 3)),
+        overlay_text_density=float(round(overlay_text_density, 3)),
+        ordinal_pattern_score=float(round(ordinal_pattern_score, 3)),
+        scene_repeat_score=float(round(scene_repeat_score, 3)),
+        ocr_required=bool(ocr_required),
+        ocr_expected_coverage=float(round(ocr_expected_coverage, 3)),
+        asr_expected_value=float(round(asr_expected_value, 3)),
         structural_video_type=structural_video_type,
     )

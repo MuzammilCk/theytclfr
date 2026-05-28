@@ -79,26 +79,6 @@ def _build_extractor_names(manifest: SignalManifest) -> list[str]:
     return names
 
 
-def _sanitize_for_json(obj):
-    """Recursively convert numpy scalars to native Python types."""
-    try:
-        import numpy as np
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-    except ImportError:
-        pass
-    if isinstance(obj, dict):
-        return {k: _sanitize_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_sanitize_for_json(v) for v in obj]
-    return obj
-
 
 def _emit_sse(event: StageBEvent) -> None:
     """Publish a StageBEvent to the Redis SSE channel.
@@ -111,7 +91,7 @@ def _emit_sse(event: StageBEvent) -> None:
 
         r = redis.Redis.from_url(_settings.redis_url)
         channel = f"job:{event.job_id}:events"
-        payload = _sanitize_for_json(event.model_dump(mode="json"))
+        payload = event.model_dump(mode="json")
         r.publish(channel, json.dumps(payload))
         logger.debug(
             "SSE event published: %s for job %s",

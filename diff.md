@@ -769,3 +769,35 @@ Next session must start by:
 - **E-5**: Wired \sr_expected_value\ into \conflict_resolver.py\ to dynamically reduce ASR confidences when structure is identified.
 - **E-7**: Implemented robust dead-letter S3 cleanup within the exception handler of \stage_c.py\.
 - **E-8**: Highlighted \classify_video\ as deprecated in oute.py\.
+
+
+### 2026-05-28: Executed Wave 3 & 4 Shadow Pipeline
+Files changed: src/ytclfr/probing/vlm_structural_probe.py, src/ytclfr/alignment/semantic_chunker.py, src/ytclfr/extractors/paddle_ocr.py, src/ytclfr/ingestion/metadata_pyav.py, alembic/versions/0013_add_pipeline_version.py, src/ytclfr/api/v3/jobs.py, diff.md, build.md, decisions.md, context.md
+
+Summary:
+  - Directed by executive mandate, implemented Wave 3 and 4 advanced modules (VLM, Semantic Chunking, PaddleOCR, PyAV) as parallel shadow files.
+  - Avoided destructive overwrites of legacy systems.
+  - Added a 10% shadow traffic router in `api/v3/jobs.py` to route production traffic to the new V4 orchestrator without impacting the main response path.
+  - Wrote Alembic migration 0013 to track `pipeline_version` across pipeline evolutions.
+
+
+### 2026-05-28: Executed Wave 1 & 2 Critical Fixes
+Files changed: alembic/versions/0012_restore_search_indexes.py, alembic/env.py, src/ytclfr/tasks/v3/v3_extraction_tasks.py, src/ytclfr/tasks/v3/stage_b_extraction.py, src/ytclfr/probing/frame_sampler.py, src/ytclfr/storage/segment_store.py, src/ytclfr/api/sse.py, src/ytclfr/probing/structural_probe.py, src/ytclfr/probing/audio_checker.py, src/ytclfr/tasks/cleanup_tasks.py, src/ytclfr/core/celery_app.py, src/ytclfr/core/config.py, src/ytclfr/ingestion/cookie_pool.py, src/ytclfr/ingestion/downloader.py
+
+Summary:
+  - Restored dropped database indexes (HNSW and GIN) for vector and text search (Migration 0012).
+  - Wired V3 ASR Extractor properly into Stage B so `asr_metrics_json` is captured.
+  - Replaced O(N) `cv2` frame seeking with `ffmpeg` image2pipe to eliminate massive CPU regression.
+  - Replaced synchronous Ollama embedding generation with `httpx.AsyncClient` pooling, cutting latency from minutes to seconds.
+  - Eliminated recursive SSE sanitization (`_sanitize_for_json`), casting numpy types directly at the source.
+  - Implemented S3 Orphan Cleanup via Celery Beat to prevent bucket bloat for dead-letter jobs.
+  - Implemented a thread-safe rotating Cookie Pool to evade yt-dlp ban mechanisms.
+
+
+### 2026-05-28: Post-Wave Alembic Migration Fix
+Files changed: alembic/versions/0013_add_pipeline_version.py, alembic/versions/3019f6d173fb_restore_search_indexes.py
+
+Summary:
+  - Reparented migration `0013` to point to `3019f6d173fb` to fix an Alembic "multiple heads" conflict caused by parallel feature development.
+  - Fixed a `psycopg2.errors.UndefinedColumn` SQL bug in `3019f6d173fb_restore_search_indexes.py` by correcting the GIN index target column from `segment_text` to the actual column name `text`.
+  - Successfully executed `alembic upgrade head` to apply both the Wave 1 search index restoration and the Wave 3/4 pipeline versioning columns.

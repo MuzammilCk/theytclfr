@@ -351,3 +351,13 @@ THE AGENT MUST NEVER:
 - Build scope listed under OUT OF SCOPE
 - Make an architectural decision without writing it to decisions.md
 - Leave a session without updating diff.md
+
+
+## 1.11 — V4 Shadow Pipeline (Experimental)
+A parallel shadow architecture runs advanced ML models (PaddleOCR, VLM struct probes) on 10% of traffic. This prevents library crashes from affecting production. The new pipeline routes through `v4_shadow_pipeline`.
+
+## 1.12 — yt-dlp Cookie Rotation
+The system utilizes a `cookies/` directory managed by a thread-safe round-robin `CookiePool` to distribute YouTube download traffic across multiple Netscape-formatted cookie files, preventing rapid IP bans.
+
+## 1.13 — Scheduled Maintenance Tasks
+A daily Celery Beat task runs to scan the database for `dead_letter` jobs and delete their orphaned video files from the S3 bucket to prevent unbounded storage costs.

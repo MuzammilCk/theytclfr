@@ -7,6 +7,7 @@ import yt_dlp
 
 from ytclfr.core.config import Settings
 from ytclfr.core.logging import get_logger
+from ytclfr.ingestion.cookie_pool import CookiePool
 
 logger = get_logger(__name__)
 
@@ -29,32 +30,26 @@ class DownloadResult:
 class VideoDownloader:
     def __init__(self, settings: Settings):
         self.settings = settings
-        self._cookies_file: Path | None = (
-            Path(settings.ytdlp_cookies_file) if settings.ytdlp_cookies_file else None
-        )
+        self.cookie_pool = CookiePool(settings)
 
-    def _validate_cookies(self) -> None:
-        if self._cookies_file is None:
-            return
-        if not self._cookies_file.exists():
+    def _get_cookie_file(self) -> Path | None:
+        cookie_file = self.cookie_pool.get_cookie()
+        if cookie_file is None:
+            return None
+        if not cookie_file.exists():
             raise IngestionError(
-                f"Cookies file not found: "
-                f"{self._cookies_file}. "
-                "Export Firefox cookies: close Firefox, "
-                "visit youtube.com logged in, then run: "
-                "yt-dlp --cookies-from-browser firefox "
-                "--cookies cookies.txt "
-                '"https://youtu.be/jNQXAC9IVRw"'
+                f"Cookies file not found: {cookie_file}. "
+                "Ensure yt-dlp cookies are provided."
             )
-        if self._cookies_file.stat().st_size == 0:
+        if cookie_file.stat().st_size == 0:
             raise IngestionError(
-                f"Cookies file is empty: "
-                f"{self._cookies_file}. "
-                "Re-export cookies from Firefox."
+                f"Cookies file is empty: {cookie_file}. "
+                "Re-export cookies."
             )
+        return cookie_file
 
     def download(self, url: str, job_id: uuid.UUID, output_dir: Path) -> DownloadResult:
-        self._validate_cookies()
+        cookie_file = self._get_cookie_file()
 
         logger.debug(f"Starting download for {url} into {output_dir}")
 
@@ -66,8 +61,8 @@ class VideoDownloader:
             "no_warnings": True,
             "js_runtimes": {"node": {}},
         }
-        if self._cookies_file is not None:
-            ydl_opts_info["cookiefile"] = str(self._cookies_file)
+        if cookie_file is not None:
+            ydl_opts_info["cookiefile"] = str(cookie_file)
 
         with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
             try:
@@ -84,6 +79,8 @@ class VideoDownloader:
                         "LOGIN_REQUIRED",
                     ]
                 ):
+                    if cookie_file is not None:
+                        self.cookie_pool.mark_exhausted(cookie_file)
                     raise IngestionError(
                         "YouTube bot detection triggered. "
                         "Cookies missing, expired, or invalid. "
@@ -108,13 +105,17 @@ class VideoDownloader:
             "no_warnings": True,
             "js_runtimes": {"node": {}},
         }
-        if self._cookies_file is not None:
-            ydl_opts_download["cookiefile"] = str(self._cookies_file)
+        if cookie_file is not None:
+            ydl_opts_download["cookiefile"] = str(cookie_file)
 
         with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
             try:
                 extracted = ydl.extract_info(url, download=True)
             except Exception as exc:
+                error_msg = str(exc)
+                if any(kw in error_msg for kw in ["Sign in to confirm", "not a bot", "LOGIN_REQUIRED"]):
+                    if cookie_file is not None:
+                        self.cookie_pool.mark_exhausted(cookie_file)
                 raise IngestionError(f"Download failed: {exc}") from exc
             result_info: Any = ydl.sanitize_info(extracted or info) or {}
 
