@@ -52,4 +52,7 @@ import ytclfr.tasks.stage_a  # noqa: F401, E402 — V2 Stage A Signal Census
 import ytclfr.tasks.stage_b  # noqa: F401, E402 — V2 Stage B Targeted Extraction
 import ytclfr.tasks.stage_c  # noqa: F401, E402 — V2 Stage C Evidence Fusion
 import ytclfr.tasks.stage_d  # noqa: F401, E402 — V2 Stage D Taxonomy Mapping
-
+import ytclfr.tasks.v3.stage_a_census  # noqa: F401, E402 — V3 Stage A Signal Census
+import ytclfr.tasks.v3.stage_b_extraction  # noqa: F401, E402 — V3 Stage B Targeted Extraction
+import ytclfr.tasks.v3.stage_c_fusion  # noqa: F401, E402 — V3 Stage C Evidence Fusion
+import ytclfr.tasks.v3.stage_d_taxonomy  # noqa: F401, E402 — V3 Stage D Taxonomy Mapping

@@ -124,12 +124,29 @@ class VideoDownloader:
 
         video_path = files[0]
 
+        # Prune massive yt-dlp fields to prevent DB bloat and Celery serialization overhead
+        # but PRESERVE the keys for subtitles and automatic_captions so that
+        # probing.metadata_probe still detects them.
+        keys_to_remove = ["formats", "thumbnails", "heatmap"]
+        pruned_metadata = {k: v for k, v in result_info.items() if k not in keys_to_remove}
+        
+        # Shrink subtitles and captions down to just the language keys
+        if "subtitles" in pruned_metadata and isinstance(pruned_metadata["subtitles"], dict):
+            pruned_metadata["subtitles"] = {
+                lang: [True] for lang in pruned_metadata["subtitles"] if pruned_metadata["subtitles"][lang]
+            }
+            
+        if "automatic_captions" in pruned_metadata and isinstance(pruned_metadata["automatic_captions"], dict):
+            pruned_metadata["automatic_captions"] = {
+                lang: [True] for lang in pruned_metadata["automatic_captions"] if pruned_metadata["automatic_captions"][lang]
+            }
+
         return DownloadResult(
             video_path=video_path,
             audio_path=None,
-            title=result_info.get("title", "Unknown Title"),
-            channel=result_info.get("uploader", "Unknown Channel"),
-            duration_seconds=float(result_info.get("duration", 0.0)),
+            title=pruned_metadata.get("title", "Unknown Title"),
+            channel=pruned_metadata.get("uploader", "Unknown Channel"),
+            duration_seconds=float(pruned_metadata.get("duration", 0.0)),
             thumbnail_url=result_info.get("thumbnail"),
-            metadata_raw=result_info,
+            metadata_raw=pruned_metadata,
         )

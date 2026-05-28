@@ -30,9 +30,13 @@ class S3StorageManager:
             )
         self.bucket_name = settings.s3_bucket_name
         config = Config(
-            connect_timeout=10,
-            read_timeout=30,
-            retries={"max_attempts": 3},
+            connect_timeout=30,
+            read_timeout=120,
+            retries={
+                "max_attempts": 5,
+                "mode": "adaptive",
+            },
+            max_pool_connections=10,
         )
         self._client = boto3.client(
             "s3",
@@ -43,7 +47,10 @@ class S3StorageManager:
         )
 
     def upload_file(self, file_path: Path, object_key: str) -> str:
-        """Upload a local file to S3.
+        """Upload a local file to S3 with adaptive transfer config.
+
+        - Files under 25MB: single PUT (no multipart overhead)
+        - Files over 25MB: multipart with 10MB chunks and 4x parallelism
 
         Args:
             file_path: Absolute path to the local file.
@@ -57,8 +64,36 @@ class S3StorageManager:
         """
         import os
 
+        from boto3.s3.transfer import TransferConfig
+
         try:
             file_size = os.path.getsize(file_path)
+            file_size_mb = file_size / (1024 * 1024)
+
+            # Adaptive multipart: skip multipart for small files,
+            # use larger chunks + parallelism for large files.
+            if file_size_mb < 25:
+                # Single PUT — no multipart overhead, no part-ACK latency
+                transfer_config = TransferConfig(
+                    multipart_threshold=100 * 1024 * 1024,  # 100MB = effectively disabled
+                    max_concurrency=1,
+                    use_threads=False,
+                )
+            else:
+                # Multipart with 10MB chunks and 4-way parallel upload
+                transfer_config = TransferConfig(
+                    multipart_threshold=25 * 1024 * 1024,
+                    multipart_chunksize=10 * 1024 * 1024,
+                    max_concurrency=4,
+                    use_threads=True,
+                )
+
+            logger.info(
+                "S3 upload starting: %s (%.1f MB, multipart=%s)",
+                file_path.name,
+                file_size_mb,
+                "yes" if file_size_mb >= 25 else "no",
+            )
 
             class ProgressPercentage:
                 def __init__(self, filename: str, size: int) -> None:
@@ -71,7 +106,6 @@ class S3StorageManager:
                     self._seen_so_far += bytes_amount
                     if self._size > 0:
                         percentage = (self._seen_so_far / self._size) * 100
-                        # Log progress in 10% steps
                         if percentage - self._last_logged_percentage >= 10:
                             logger.info(
                                 "S3 Upload %s: %.1f%% complete",
@@ -85,12 +119,14 @@ class S3StorageManager:
                 self.bucket_name,
                 object_key,
                 Callback=ProgressPercentage(file_path.name, file_size),
+                Config=transfer_config,
             )
             s3_uri = f"s3://{self.bucket_name}/{object_key}"
             logger.info(
-                "Uploaded %s to %s",
+                "Uploaded %s to %s (%.1f MB)",
                 file_path.name,
                 s3_uri,
+                file_size_mb,
             )
             return s3_uri
         except Exception as exc:
