@@ -37,25 +37,7 @@ MIN_CONFIDENCE_THRESHOLD: float = 0.0
 _settings = get_settings()
 
 
-def _sanitize_for_json(obj):
-    """Recursively convert numpy scalars to native Python types."""
-    try:
-        import numpy as np
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-    except ImportError:
-        pass
-    if isinstance(obj, dict):
-        return {k: _sanitize_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_sanitize_for_json(v) for v in obj]
-    return obj
+from ytclfr.core.serialization import _sanitize_for_json
 
 
 def _emit_sse(event: StageCEvent) -> None:
@@ -174,16 +156,27 @@ def v3_run_evidence_fusion(
                 audio_segs = segments
 
         with db_session() as session:
-            bundle_orm = V3ExtractorBundleORM(
-                job_id=job_uuid,
-                asr_segments_json=asr_segs,
-                ocr_segments_json=ocr_segs,
-                audio_segments_json=audio_segs,
-                asr_metrics_json=asr_metrics_json,
-                total_duration_seconds=total_duration,
-            )
-            session.add(bundle_orm)
-            session.commit()
+            existing_bundle = session.query(V3ExtractorBundleORM).filter(
+                V3ExtractorBundleORM.job_id == job_uuid
+            ).first()
+            if existing_bundle:
+                existing_bundle.asr_segments_json = asr_segs
+                existing_bundle.ocr_segments_json = ocr_segs
+                existing_bundle.audio_segments_json = audio_segs
+                existing_bundle.asr_metrics_json = asr_metrics_json
+                existing_bundle.total_duration_seconds = total_duration
+                session.commit()
+            else:
+                bundle_orm = V3ExtractorBundleORM(
+                    job_id=job_uuid,
+                    asr_segments_json=asr_segs,
+                    ocr_segments_json=ocr_segs,
+                    audio_segments_json=audio_segs,
+                    asr_metrics_json=asr_metrics_json,
+                    total_duration_seconds=total_duration,
+                )
+                session.add(bundle_orm)
+                session.commit()
 
         # Step 4 — Run V1 alignment engine (reused, version-agnostic)
         from ytclfr.alignment.engine import align

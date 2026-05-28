@@ -260,9 +260,41 @@ def _probe_audio_inner(
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=FutureWarning)
-            y, sr = librosa.load(
-                audio_path, sr=None, mono=True, duration=60.0
-            )
+            
+            import tempfile
+            import os
+            
+            tmp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+            tmp_wav_path = tmp_wav.name
+            tmp_wav.close()
+            
+            try:
+                subprocess.run(
+                    [
+                        "ffmpeg", "-nostdin", "-i", audio_path,
+                        "-f", "wav", "-acodec", "pcm_s16le",
+                        "-ac", "1", "-ar", "22050", "-t", "60",
+                        "-y", tmp_wav_path,
+                        "-loglevel", "quiet",
+                    ],
+                    check=True,
+                    timeout=120,
+                )
+                _check_timeout(timeout_event)
+                y, sr = librosa.load(
+                    tmp_wav_path, sr=None, mono=True, duration=60.0
+                )
+            except Exception as e:
+                logger.warning("ffmpeg WAV pre-extraction failed, falling back to librosa direct load: %s", e)
+                _check_timeout(timeout_event)
+                y, sr = librosa.load(
+                    audio_path, sr=None, mono=True, duration=60.0
+                )
+            finally:
+                try:
+                    os.unlink(tmp_wav_path)
+                except OSError:
+                    pass
         tempo_result = librosa.beat.beat_track(y=y, sr=sr)
         # librosa may return tempo as array or scalar
         tempo_val = tempo_result[0]

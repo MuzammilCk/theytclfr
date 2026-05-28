@@ -45,7 +45,6 @@ def get_v3_job_result(
         # Attach internal state
         from ytclfr.storage.manifest_store import SignalManifestStore
         from ytclfr.db.models.v3.v3_extractor_bundles import V3ExtractorBundleORM
-        from ytclfr.db.models.v3.v3_evidence_graphs import V3EvidenceGraphORM
 
         manifest = SignalManifestStore().get_by_job_id(db, job_id)
         if manifest:
@@ -60,6 +59,8 @@ def get_v3_job_result(
                 "asr_metrics": bundle.asr_metrics_json,
             }
 
+    if view == ViewMode.DEBUG:
+        from ytclfr.db.models.v3.v3_evidence_graphs import V3EvidenceGraphORM
         evidence = db.query(V3EvidenceGraphORM).filter(V3EvidenceGraphORM.job_id == job_id).first()
         if evidence:
             response_dict["_debug_evidence_graph"] = {

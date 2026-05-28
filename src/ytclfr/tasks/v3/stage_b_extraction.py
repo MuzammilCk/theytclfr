@@ -39,7 +39,6 @@ POST_STAGE_B_STATUSES: set[str] = {
     "v3_stage_c_running",
     "v3_stage_c_complete",
     "v3_stage_d_running",
-    "v3_stage_d_complete",
 }
 
 # ── MODULE-LEVEL SINGLETONS ─────────────────────────────────────
@@ -79,25 +78,7 @@ def _build_extractor_names(manifest: SignalManifest) -> list[str]:
     return names
 
 
-def _sanitize_for_json(obj):
-    """Recursively convert numpy scalars to native Python types."""
-    try:
-        import numpy as np
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-    except ImportError:
-        pass
-    if isinstance(obj, dict):
-        return {k: _sanitize_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_sanitize_for_json(v) for v in obj]
-    return obj
+from ytclfr.core.serialization import _sanitize_for_json
 
 
 def _emit_sse(event: StageBEvent) -> None:
@@ -238,6 +219,9 @@ def v3_run_targeted_extraction(
             dispatched_names = _build_extractor_names(manifest)
 
             # Map extractor names to Celery signatures
+            # FIXME (BUG #2): V3 Stage B currently uses the V1/V2 ASR extractor (run_asr).
+            # This means ASRCompletenessMetrics are never populated for V3.
+            # A migration to extractors/v3_asr.py is planned for a future release.
             _name_to_sig = {
                 "asr": run_asr.s(job_id),
                 "ocr": run_ocr.s(job_id),

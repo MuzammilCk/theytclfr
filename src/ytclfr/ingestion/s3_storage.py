@@ -76,8 +76,8 @@ class S3StorageManager:
                 # Single PUT — no multipart overhead, no part-ACK latency
                 transfer_config = TransferConfig(
                     multipart_threshold=100 * 1024 * 1024,  # 100MB = effectively disabled
-                    max_concurrency=1,
-                    use_threads=False,
+                    max_concurrency=10,
+                    use_threads=True,
                 )
             else:
                 # Multipart with 10MB chunks and 4-way parallel upload
@@ -145,12 +145,18 @@ class S3StorageManager:
         Raises:
             S3StorageError: If the download fails.
         """
+        from boto3.s3.transfer import TransferConfig
         try:
             download_path.parent.mkdir(parents=True, exist_ok=True)
+            transfer_config = TransferConfig(
+                max_concurrency=10,
+                use_threads=True,
+            )
             self._client.download_file(
                 self.bucket_name,
                 object_key,
                 str(download_path),
+                Config=transfer_config,
             )
             logger.info(
                 "Downloaded s3://%s/%s to %s",

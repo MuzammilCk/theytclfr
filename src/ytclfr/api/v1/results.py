@@ -46,6 +46,9 @@ def get_job_result(
         raise HTTPException(status_code=404, detail="Job result not found")
 
     result_dict = output_model.output_json
+    if output_model.content_type and output_model.content_type.startswith("v3_"):
+        raise HTTPException(status_code=400, detail="This is a V3 job. Please use the /api/v3/jobs/{job_id}/result endpoint.")
+    
     if output_model.content_type and output_model.content_type.startswith("v2_"):
         from ytclfr.contracts.v2_output import V2FinalOutput
         try:

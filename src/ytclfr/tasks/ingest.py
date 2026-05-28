@@ -163,13 +163,6 @@ def upload_video_to_s3(self: Any, job_id: str, local_video_path: str, pipeline_v
             else:
                 from ytclfr.tasks.stage_a import run_signal_census
                 run_signal_census.delay(job_id)
-                
-                # Shadow Testing V3
-                import random
-                if random.random() < 0.10:
-                    from ytclfr.tasks.v3.stage_a_census import v3_run_signal_census
-                    logger.info(f"Shadow testing V3 for job {job_id}")
-                    v3_run_signal_census.delay(job_id)
 
             return {"job_id": job_id, "status": "downloaded"}
 
