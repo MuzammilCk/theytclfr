@@ -527,3 +527,9 @@ No phase may be skipped. No item may be removed from a phase checklist without a
 - Resolved multiple heads conflict between Wave 1 (`3019f6d173fb`) and Wave 3/4 (`0013`) migrations by reparenting `0013`'s `down_revision`.
 - Fixed a silent SQL `ProgrammingError` in `3019f6d173fb_restore_search_indexes.py` where `segment_text` was incorrectly referenced instead of the correct `text` column in `aligned_segments`.
 - Database is now successfully upgraded to `0013` head.
+
+### 2026-05-28: Shadow Pipeline Execution Engine
+- [x] V4 Celery Orchestrator (`shadow_orchestrator.py`)
+- [x] Task Registration (`celery_app.py`)
+- [x] Evaluation Script (`v4_evaluate.py`)
+- [x] Database Collision Avoidance (`uuid5`)

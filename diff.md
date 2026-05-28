@@ -801,3 +801,13 @@ Summary:
   - Reparented migration `0013` to point to `3019f6d173fb` to fix an Alembic "multiple heads" conflict caused by parallel feature development.
   - Fixed a `psycopg2.errors.UndefinedColumn` SQL bug in `3019f6d173fb_restore_search_indexes.py` by correcting the GIN index target column from `segment_text` to the actual column name `text`.
   - Successfully executed `alembic upgrade head` to apply both the Wave 1 search index restoration and the Wave 3/4 pipeline versioning columns.
+
+
+### 2026-05-28: V4 Shadow Wiring & Diffing Engine Complete
+Files changed: src/ytclfr/tasks/v4_shadow/shadow_orchestrator.py, src/ytclfr/queue/celery_app.py, scripts/v4_evaluate.py
+
+Summary:
+  - Created `run_v4_shadow_pipeline` Celery task to execute advanced ML modules (PyAV metadata fast extraction, ffmpeg/cv2 frame sampling, and VLM structural probing) in the background.
+  - Implemented a deterministic `uuid5` hashing strategy to isolate V4's writes to `final_outputs` and avoid `UNIQUE(job_id)` database collisions with the V3 production pipeline.
+  - Registered the new task in `celery_app.py` so workers can pick it up.
+  - Built `v4_evaluate.py` to compare V3 taxonomy outputs against V4 VLM structural types for shadow jobs.

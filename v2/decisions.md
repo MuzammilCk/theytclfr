@@ -456,3 +456,11 @@ Status: ACCEPTED
 Context: The `_sanitize_for_json` recursive function fired on every SSE event, creating huge CPU overhead for nested EvidenceGraph payloads.
 Decision: Dropped recursive sanitization. All numpy arrays and metrics must be explicitly cast to native int/float at creation time in the prober/extractor.
 Consequences: Near-zero CPU overhead during SSE emission.
+
+
+## DR-V4-06 — UUID5 Shadow ID for Database Collision Avoidance
+Date: 2026-05-28
+Status: ACCEPTED
+Context: The `final_outputs` table has a `UNIQUE(job_id)` constraint to enforce one final result per user submission. However, the V4 shadow pipeline processes the exact same `job_id` in parallel with V3. If V4 attempts to write its shadow result using the original `job_id`, it will trigger a Postgres `IntegrityError` and crash the Celery worker.
+Decision: The V4 `shadow_orchestrator` generates a deterministic shadow job ID using `uuid.uuid5(uuid.NAMESPACE_DNS, f"{job_id}_v4_shadow")`. V4 saves its output using this shadow ID. The original `job_id` is preserved inside the `output_json` payload for evaluation cross-referencing.
+Consequences: Enables safe, parallel writes to the `final_outputs` table without altering the existing schema or dropping the uniqueness constraint. Both V3 and V4 results coexist gracefully.
