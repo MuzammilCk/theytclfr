@@ -142,9 +142,25 @@ class VideoDownloader:
                 lang: [True] for lang in pruned_metadata["automatic_captions"] if pruned_metadata["automatic_captions"][lang]
             }
 
+        audio_path = video_path.with_suffix(".m4a")
+        import subprocess
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg", "-i", str(video_path),
+                    "-vn", "-c:a", "copy", str(audio_path), "-y"
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except subprocess.CalledProcessError as e:
+            logger.warning("Failed to extract audio track: %s", e)
+            audio_path = None
+
         return DownloadResult(
             video_path=video_path,
-            audio_path=None,
+            audio_path=audio_path,
             title=pruned_metadata.get("title", "Unknown Title"),
             channel=pruned_metadata.get("uploader", "Unknown Channel"),
             duration_seconds=float(pruned_metadata.get("duration", 0.0)),

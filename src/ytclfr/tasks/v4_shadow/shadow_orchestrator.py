@@ -5,12 +5,12 @@ import tempfile
 from celery import shared_task
 import cv2
 
-from ytclfr.db.base import db_session
-from ytclfr.db.models.job import JobModel
+from ytclfr.db.session import db_session
+from ytclfr.db.models.job import Job
 from ytclfr.db.models.final_output import FinalOutputModel
 from ytclfr.ingestion.s3_storage import S3StorageManager
 from ytclfr.probing.vlm_structural_probe import probe_structure_vlm
-from ytclfr.probing.metadata_pyav import extract_metadata_fast
+from ytclfr.ingestion.metadata_pyav import extract_metadata_pyav
 
 @shared_task(queue="heavy")
 def run_v4_shadow_pipeline(job_id: str):
@@ -19,7 +19,7 @@ def run_v4_shadow_pipeline(job_id: str):
     
     with db_session() as db:
         # Fetch Job
-        job = db.query(JobModel).filter(JobModel.id == job_id).first()
+        job = db.query(Job).filter(Job.id == job_id).first()
         if not job or not job.s3_video_uri:
             return "No video in S3"
         
@@ -32,7 +32,7 @@ def run_v4_shadow_pipeline(job_id: str):
             s3.download_file(job.s3_video_uri, local_video_path)
             
             # Fast Metadata
-            meta = extract_metadata_fast(local_video_path)
+            meta = extract_metadata_pyav(local_video_path)
             
             # Extract 4 frames evenly
             frames = []

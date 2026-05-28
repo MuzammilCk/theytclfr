@@ -66,7 +66,7 @@ def download_video(self: Any, job_id: str, pipeline_version: str = "v2") -> dict
 
             session.commit()
 
-            upload_video_to_s3.delay(job_id, str(result.video_path), pipeline_version=pipeline_version)
+            upload_video_to_s3.delay(job_id, str(result.video_path), str(result.audio_path) if result.audio_path else None, pipeline_version=pipeline_version)
             
             return {"job_id": job_id, "status": "upload_pending"}
 
@@ -104,7 +104,7 @@ def download_video(self: Any, job_id: str, pipeline_version: str = "v2") -> dict
     max_retries=5,
     default_retry_delay=60,
 )
-def upload_video_to_s3(self: Any, job_id: str, local_video_path: str, pipeline_version: str = "v2") -> dict[str, Any]:
+def upload_video_to_s3(self: Any, job_id: str, local_video_path: str, local_audio_path: str | None = None, pipeline_version: str = "v3") -> dict[str, Any]:
     settings_local = get_settings()
     parsed_job_id = uuid.UUID(job_id)
     temp_manager = TempStorageManager(settings_local)
@@ -128,14 +128,20 @@ def upload_video_to_s3(self: Any, job_id: str, local_video_path: str, pipeline_v
 
             # Phase 10: Upload video to S3 and clear local path
             from ytclfr.ingestion.s3_storage import S3StorageManager
+            from pathlib import Path
 
             s3_manager = S3StorageManager(settings_local)
             s3_object_key = f"{job_id}/video.mp4"
-            from pathlib import Path
             s3_uri = s3_manager.upload_file(Path(local_video_path), s3_object_key)
+            
+            s3_audio_uri = None
+            if local_audio_path:
+                s3_audio_key = f"{job_id}/audio.m4a"
+                s3_audio_uri = s3_manager.upload_file(Path(local_audio_path), s3_audio_key)
 
             job.status = "downloaded"
             job.s3_video_uri = s3_uri
+            job.s3_audio_uri = s3_audio_uri
             job.local_media_path = None  # Clear local path, it's in S3 now
 
             session.commit()

@@ -5,7 +5,7 @@ from typing import Any
 from ytclfr.core.config import get_settings
 from ytclfr.core.logging import get_logger
 from ytclfr.db.models.job import Job
-from ytclfr.db.models.v3.v3_extractor_bundles import V3ExtractorBundle
+from ytclfr.db.models.v3.v3_extractor_bundles import V3ExtractorBundleORM
 from ytclfr.db.session import db_session
 from ytclfr.extractors.base import BaseExtractorTask
 from ytclfr.ingestion.temp_storage import TempStorageManager
@@ -36,9 +36,9 @@ def v3_run_asr(self: Any, job_id: str) -> dict[str, object]:
                     f"Job {job_id} has no S3 video URI — upload may have failed"
                 )
 
-            bundle = session.query(V3ExtractorBundle).filter_by(job_id=job_uuid).first()
+            bundle = session.query(V3ExtractorBundleORM).filter_by(job_id=job_uuid).first()
             if bundle and bundle.asr_segments_json:
-                logger.info("Idempotency hit: V3ExtractorBundle for ASR already exists")
+                logger.info("Idempotency hit: V3ExtractorBundleORM for ASR already exists")
                 return {
                     "job_id": str(job_id),
                     "extractor_type": "asr",
@@ -65,7 +65,7 @@ def v3_run_asr(self: Any, job_id: str) -> dict[str, object]:
             
             # Find or create bundle
             if not bundle:
-                bundle = V3ExtractorBundle(job_id=job_uuid)
+                bundle = V3ExtractorBundleORM(job_id=job_uuid)
                 session.add(bundle)
 
             bundle.asr_segments_json = [s.model_dump() for s in segments]

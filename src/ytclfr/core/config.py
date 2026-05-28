@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     embedding_dim: int = 768
     redis_result_cache_ttl: int = 3600
     whisper_model_size: str = "small"
-    whisper_device: str = "cpu"
-    whisper_compute_type: str = "int8"
+    whisper_device: str = "cuda"
+    whisper_compute_type: str = "float16"
     tesseract_cmd_path: str = "tesseract"
     ocr_frame_sample_rate: int = 1
     ytdlp_cookies_file: str | None = None
