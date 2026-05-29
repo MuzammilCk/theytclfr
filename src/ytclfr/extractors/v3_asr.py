@@ -23,9 +23,11 @@ class V3ASRExtractor:
     def extract(self, job_id: UUID, video_path: Path) -> tuple[list[ASRSegment], ASRCompletenessMetrics, float]:
         """Transcribe and compute VAD-to-Transcription Yield Heuristic."""
         # 1. Run Silero VAD directly to get VAD speech segments
-        from faster_whisper.vad import get_vad_model, get_speech_timestamps
-        vad_model = get_vad_model()
-        vad_segments = get_speech_timestamps(str(video_path), vad_model)
+        from faster_whisper.audio import decode_audio
+        from faster_whisper.vad import VadOptions, get_speech_timestamps
+        audio = decode_audio(str(video_path))
+        vad_options = VadOptions(min_silence_duration_ms=500)
+        vad_segments = get_speech_timestamps(audio, vad_options=vad_options)
         
         total_vad_speech_ms = 0.0
         # vad_segments returns dict with 'start' and 'end' in samples. default sample rate is 16000

@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.1:8b"
     groq_api_key: str
     groq_model: str = "llama-3.3-70b-versatile"
+    gemini_api_key: str
+    vlm_model: str = "gemini-3.1-flash-lite"
     llm_request_timeout_seconds: int = 120
     llm_max_retries: int = 3
     ollama_embedding_model: str = "nomic-embed-text"

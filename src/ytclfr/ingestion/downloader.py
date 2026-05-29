@@ -148,7 +148,7 @@ class VideoDownloader:
             subprocess.run(
                 [
                     "ffmpeg", "-i", str(video_path),
-                    "-vn", "-c:a", "copy", str(audio_path), "-y"
+                    "-vn", "-c:a", "aac", "-b:a", "128k", str(audio_path), "-y"
                 ],
                 check=True,
                 stdout=subprocess.DEVNULL,
