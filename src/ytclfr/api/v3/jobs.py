@@ -24,6 +24,7 @@ class JobResponse(BaseModel):
     youtube_url: str
     created_at: datetime
     schema_version: str = "v3"
+    error_message: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -58,6 +59,25 @@ def submit_job(
         status=job.status,
         youtube_url=job.youtube_url,
         created_at=job.created_at,
+        error_message=job.error_message,
+    )
+
+@router.get("/jobs/{job_id}", response_model=JobResponse)
+def get_job(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    _token: typing.Any = Depends(require_auth),
+) -> JobResponse:
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return JobResponse(
+        job_id=job.id,
+        status=job.status,
+        youtube_url=job.youtube_url,
+        created_at=job.created_at,
+        error_message=job.error_message,
     )
 
 class RetryResponse(BaseModel):

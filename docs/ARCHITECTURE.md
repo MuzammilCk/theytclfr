@@ -8,7 +8,7 @@ The following diagram illustrates the lifecycle of a video processing job throug
 
 ```mermaid
 flowchart TD
-    User([User / API Client]) -->|POST /api/v1/jobs <br> URL| API(FastAPI REST API)
+    User([User / API Client]) -->|POST /api/v3/jobs <br> URL| API(FastAPI REST API)
     API -->|job enqueue| RedisCache[(Redis Broker/Cache)]
     RedisCache -->|consume task| Worker[Celery Worker Pool]
     
@@ -38,7 +38,7 @@ flowchart TD
     
     JSONGen -->|Persist Results| DB[(PostgreSQL + pgvector)]
     DB --> API
-    API -->|GET /api/v1/jobs/id/result| User
+    API -->|GET /api/v3/results/id| User
 ```
 
 ## 2. Core Components

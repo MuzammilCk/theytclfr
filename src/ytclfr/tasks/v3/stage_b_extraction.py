@@ -6,7 +6,8 @@ from ytclfr.db.session import db_session
 from ytclfr.db.models.job import Job
 from ytclfr.queue.celery_app import celery_app
 from ytclfr.storage.manifest_store import SignalManifestStore
-from ytclfr.tasks.v3.v3_extraction_tasks import v3_run_asr
+from ytclfr.tasks.v3.v3_extraction_tasks import v3_run_asr, v3_run_ocr
+from celery import chord
 
 logger = get_logger(__name__)
 
@@ -28,19 +29,18 @@ def v3_run_extraction_orchestrator(self: Any, job_id: str) -> dict[str, Any]:
         db.commit()
         
         # Decide which extractors to run
+        tasks = []
         if manifest.has_speech:
-            v3_run_asr.delay(job_id)
+            tasks.append(v3_run_asr.s(job_id))
             
-        # OCR will be paddle_ocr - stub for now, will call paddle OCR task if created
         if manifest.ocr_required:
-            logger.info("OCR required but not implemented yet in V3 extractor tasks")
+            tasks.append(v3_run_ocr.s(job_id))
             
         from ytclfr.tasks.v3.stage_c_fusion import v3_run_evidence_fusion
-        # For simplicity, chain fusion after ASR or immediately if no ASR
-        # In a real celery setup we would use chords, but we can just delay it and it will wait for bundle?
-        # Actually in V3, extraction tasks update the bundle, and then stage C is triggered.
-        # We can just delay stage C and let it retry if bundle isn't ready, or chord it.
-        # Let's just enqueue stage C for now.
-        v3_run_evidence_fusion.apply_async((job_id,), countdown=10)
+        
+        if tasks:
+            chord(tasks)(v3_run_evidence_fusion.s(job_id))
+        else:
+            v3_run_evidence_fusion.delay(job_id)
         
     return {"job_id": job_id, "status": "orchestrating"}

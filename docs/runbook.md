@@ -9,7 +9,7 @@
 **Recovery:**
 1. Update AWS environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`).
 2. Restart workers or API if credentials are baked in at startup.
-3. Call the `POST /api/v1/jobs/{job_id}/retry` endpoint for the affected `dead_letter` jobs. The system will detect if `s3_video_uri` is missing and resume from `download_video`.
+3. Call the `POST /api/v3/jobs/{job_id}/retry` endpoint for the affected `dead_letter` jobs. The system will detect if `s3_video_uri` is missing and resume from `download_video`.
 
 ## 2. Incident: Redis OOM / Connection Lost
 **Symptoms:**
@@ -19,8 +19,8 @@
 
 **Recovery:**
 1. Restart the Redis service (`sudo systemctl restart redis` or Docker equivalent).
-2. For any jobs that were actively processing and failed permanently (transitioning to `dead_letter` after retries), call `POST /api/v1/jobs/{job_id}/retry`.
-3. Check `GET /api/v1/metrics` to ensure job pipeline resumes successfully.
+2. For any jobs that were actively processing and failed permanently (transitioning to `dead_letter` after retries), call `POST /api/v3/jobs/{job_id}/retry`.
+3. Check `GET /api/v3/metrics` to ensure job pipeline resumes successfully.
 
 ## 3. Incident: Ollama Process Killed (OOM)
 **Symptoms:**
@@ -30,7 +30,7 @@
 **Recovery:**
 1. Ensure Ollama is running and has sufficient memory (`ollama serve`).
 2. Any jobs that failed during extraction or alignment will be marked `dead_letter`.
-3. Call `POST /api/v1/jobs/{job_id}/retry`. The pipeline will resume from the extraction or alignment phase without redownloading from S3.
+3. Call `POST /api/v3/jobs/{job_id}/retry`. The pipeline will resume from the extraction or alignment phase without redownloading from S3.
 
 ## 4. Incident: Invalid YouTube URL bypasses frontend
 **Symptoms:**
@@ -50,7 +50,7 @@
 **Recovery:**
 1. Check `GROQ_API_KEY` configuration and Groq status page.
 2. The pipeline is designed to degrade gracefully. If rule-based results are acceptable, no action is needed.
-3. If Groq-based reasoning is strictly required for those jobs, you must manually run `POST /api/v1/jobs/{job_id}/retry` after restoring API access.
+3. If Groq-based reasoning is strictly required for those jobs, you must manually run `POST /api/v3/jobs/{job_id}/retry` after restoring API access.
 
 ## 6. Incident: V3 Task Unregistered
 **Symptoms:**

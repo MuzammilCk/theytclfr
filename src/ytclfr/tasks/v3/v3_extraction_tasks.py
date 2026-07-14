@@ -111,3 +111,122 @@ def v3_run_asr(self: Any, job_id: str) -> dict[str, object]:
                     local_video_path.unlink(missing_ok=True)
                 except Exception as cleanup_exc:
                     logger.warning("Failed to clean up local file %s: %s", local_video_path, cleanup_exc)
+
+@celery_app.task(  # type: ignore
+    bind=True,
+    base=BaseExtractorTask,
+    name="ytclfr.tasks.v3.v3_run_ocr",
+    queue="heavy",
+)
+def v3_run_ocr(self: Any, job_id: str) -> dict[str, object]:
+    """Run V3 OCR extraction on the downloaded video."""
+    settings = get_settings()
+    job_uuid = uuid.UUID(job_id)
+    local_video_path: Path | None = None
+
+    with db_session() as session:
+        try:
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if not job:
+                raise ValueError(f"Job {job_id} not found")
+
+            if not job.s3_video_uri:
+                raise ValueError(
+                    f"Job {job_id} has no S3 video URI — upload may have failed"
+                )
+
+            bundle = session.query(V3ExtractorBundleORM).filter_by(job_id=job_uuid).first()
+            if bundle and bundle.ocr_segments_json:
+                logger.info("Idempotency hit: V3ExtractorBundleORM for OCR already exists")
+                return {
+                    "job_id": str(job_id),
+                    "extractor_type": "ocr",
+                    "status": "success",
+                }
+
+            from ytclfr.ingestion.s3_storage import S3StorageManager
+
+            s3_manager = S3StorageManager(settings)
+            temp_manager = TempStorageManager(settings)
+            local_dir = temp_manager.get_job_dir(job_uuid)
+            local_video_path = local_dir / f"video_ocr_{uuid.uuid4().hex}.mp4"
+
+            s3_object_key = f"{job_id}/video.mp4"
+            s3_manager.download_file(s3_object_key, local_video_path)
+
+            from ytclfr.extractors.paddle_ocr import extract_text_from_frame_v2
+            import cv2
+            
+            segments = []
+            cap = cv2.VideoCapture(str(local_video_path))
+            if cap.isOpened():
+                fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+                if fps <= 0: fps = 30.0
+                frame_interval = int(fps / max(1, settings.ocr_frame_sample_rate))
+                if frame_interval < 1: frame_interval = 1
+                
+                frame_idx = 0
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    
+                    if frame_idx % frame_interval == 0:
+                        text, conf = extract_text_from_frame_v2(frame)
+                        if text:
+                            timestamp = frame_idx / fps
+                            segments.append({
+                                "start_time": timestamp,
+                                "end_time": timestamp + (1.0 / max(1, settings.ocr_frame_sample_rate)),
+                                "text": text,
+                                "confidence": conf
+                            })
+                    frame_idx += 1
+                cap.release()
+
+            if not bundle:
+                bundle = V3ExtractorBundleORM(job_id=job_uuid)
+                session.add(bundle)
+
+            bundle.ocr_segments_json = segments
+            session.commit()
+
+            logger.info(
+                "V3 OCR extraction complete for job %s: %d segments",
+                job_id,
+                len(segments),
+            )
+            return {
+                "job_id": str(job_id),
+                "extractor_type": "ocr",
+                "status": "success",
+            }
+
+        except Exception as exc:
+            session.rollback()
+            if self.request.retries >= self.max_retries:
+                try:
+                    job_obj = session.query(Job).filter(Job.id == job_uuid).first()
+                    if job_obj:
+                        job_obj.status = "dead_letter"
+                        session.commit()
+                except Exception:
+                    pass
+                logger.error(
+                    "Extractor ocr exhausted all retries for job %s: %s",
+                    job_id,
+                    str(exc),
+                )
+                return {
+                    "job_id": str(job_id),
+                    "extractor_type": "ocr",
+                    "status": "failed",
+                }
+            raise self.retry(exc=exc)
+
+        finally:
+            if local_video_path and local_video_path.exists():
+                try:
+                    local_video_path.unlink(missing_ok=True)
+                except Exception as cleanup_exc:
+                    logger.warning("Failed to clean up local file %s: %s", local_video_path, cleanup_exc)

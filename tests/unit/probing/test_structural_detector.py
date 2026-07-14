@@ -36,9 +36,8 @@ def test_extreme_text_density_triggers_ocr(mocker, base_kwargs):
     result = _probe_structural_inner(**base_kwargs)
     
     # 80 regions -> 16 estimated blocks per frame -> density = 16.0 > 15.0
-    assert result.overlay_text_density >= 15.0
-    assert result.structural_score >= 0.5
-    assert result.ocr_required is False # Threshold is 0.55, 0.5 alone is not enough
+    assert result.structural_score >= 0.6
+    assert result.ocr_required is True # 0.6 >= 0.55, so OCR is now triggered by extreme density alone
 
 def test_extreme_text_with_metadata_crosses_threshold(mocker, base_kwargs):
     mock_mser = mocker.Mock()

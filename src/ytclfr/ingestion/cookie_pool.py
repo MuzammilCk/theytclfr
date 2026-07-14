@@ -16,7 +16,7 @@ class CookiePool:
         if not self.cookies_dir or not self.cookies_dir.exists():
             # Fall back to single file
             single_file = Path(self.settings.ytdlp_cookies_file) if self.settings.ytdlp_cookies_file else None
-            return single_file if single_file and single_file.exists() else None
+            return single_file
 
         cookies = list(self.cookies_dir.glob("*.txt"))
         

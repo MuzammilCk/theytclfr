@@ -22,7 +22,7 @@
 
 Detailed documentation is available in the `docs/` directory:
 
-- [**System Architecture (`docs/ARCHITECTURE.md`)**](docs/ARCHITECTURE.md) - Learn about the high-level data flow, core components, and the transition from V1 to the evidence-based late binding pipeline of V2.
+- [**System Architecture (`docs/ARCHITECTURE.md`)**](docs/ARCHITECTURE.md) - Learn about the high-level data flow, core components, and the transition to the evidence-based V3 pipeline served at `/api/v3/*`.
 - [**Local Setup Guide (`docs/LOCAL_SETUP.md`)**](docs/LOCAL_SETUP.md) - Step-by-step instructions for setting up the development environment, databases, and dependencies on your local machine.
 - [**Runbook (`docs/runbook.md`)**](docs/runbook.md) - Troubleshooting and incident response guidelines for operational issues.
 
