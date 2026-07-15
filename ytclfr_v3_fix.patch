@@ -1,0 +1,299 @@
+diff -ruN a/src/ytclfr/contracts/events.py b/src/ytclfr/contracts/events.py
+--- a/src/ytclfr/contracts/events.py	2026-07-15 07:09:39.383029230 +0000
++++ b/src/ytclfr/contracts/events.py	2026-07-15 07:09:39.384333135 +0000
+@@ -1,6 +1,6 @@
+ """Event schemas for the ytclfr pipeline."""
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from enum import Enum, StrEnum
+ from uuid import UUID
+ 
+@@ -46,7 +46,7 @@
+ 
+     event_type: StageAStatus
+     job_id: str
+-    timestamp: datetime = Field(default_factory=datetime.utcnow)
++    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+     manifest_id: str | None = None
+     error: str | None = None
+     details: dict = Field(default_factory=dict)
+@@ -72,7 +72,7 @@
+ 
+     event_type: StageBStatus
+     job_id: str
+-    timestamp: datetime = Field(default_factory=datetime.utcnow)
++    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+     extractors_dispatched: list[str] = Field(default_factory=list)
+     error: str | None = None
+     details: dict = Field(default_factory=dict)
+@@ -100,7 +100,7 @@
+ 
+     event_type: StageCStatus
+     job_id: str
+-    timestamp: datetime = Field(default_factory=datetime.utcnow)
++    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+     evidence_graph_id: str | None = None
+     error: str | None = None
+     details: dict = Field(default_factory=dict)
+@@ -125,7 +125,7 @@
+ 
+     event_type: StageDStatus
+     job_id: str
+-    timestamp: datetime = Field(default_factory=datetime.utcnow)
++    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+     taxonomy: dict = Field(default_factory=dict)
+     error: str | None = None
+     details: dict = Field(default_factory=dict)
+diff -ruN a/src/ytclfr/contracts/evidence.py b/src/ytclfr/contracts/evidence.py
+--- a/src/ytclfr/contracts/evidence.py	2026-07-15 07:09:39.389166290 +0000
++++ b/src/ytclfr/contracts/evidence.py	2026-07-15 07:09:39.390573598 +0000
+@@ -6,7 +6,7 @@
+ produce the final taxonomy and FinalOutput.
+ """
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from typing import Any, Literal
+ from uuid import UUID
+ from typing_extensions import deprecated
+@@ -114,7 +114,7 @@
+     total_segments: int = Field(ge=0)
+     confidence: float = Field(ge=0.0, le=1.0)
+     created_at: datetime = Field(
+-        default_factory=datetime.utcnow
++        default_factory=lambda: datetime.now(UTC)
+     )
+ 
+     @field_validator("confidence")
+diff -ruN a/src/ytclfr/contracts/manifest.py b/src/ytclfr/contracts/manifest.py
+--- a/src/ytclfr/contracts/manifest.py	2026-07-15 07:09:39.395273986 +0000
++++ b/src/ytclfr/contracts/manifest.py	2026-07-15 07:09:39.396584963 +0000
+@@ -7,7 +7,7 @@
+ Pure Pydantic v2 only.  No Celery, SQLAlchemy, or task imports.
+ """
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from typing import Literal
+ from uuid import UUID
+ 
+@@ -127,7 +127,7 @@
+         )
+     )
+     created_at: datetime = Field(
+-        default_factory=datetime.utcnow,
++        default_factory=lambda: datetime.now(UTC),
+         description="UTC timestamp when manifest was created",
+     )
+ 
+diff -ruN a/src/ytclfr/contracts/v2_output.py b/src/ytclfr/contracts/v2_output.py
+--- a/src/ytclfr/contracts/v2_output.py	2026-07-15 07:09:39.401707335 +0000
++++ b/src/ytclfr/contracts/v2_output.py	2026-07-15 07:09:39.403088318 +0000
+@@ -8,7 +8,7 @@
+ V1 API endpoint updates are deferred to Pipeline Wiring (W-6).
+ """
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from typing import Literal
+ from uuid import UUID
+ from typing_extensions import deprecated
+@@ -99,7 +99,7 @@
+         description="Notes when rule-based fallback was used",
+     )
+     created_at: datetime = Field(
+-        default_factory=datetime.utcnow
++        default_factory=lambda: datetime.now(UTC)
+     )
+ 
+     @field_validator("confidence")
+diff -ruN a/src/ytclfr/contracts/v3/bundle.py b/src/ytclfr/contracts/v3/bundle.py
+--- a/src/ytclfr/contracts/v3/bundle.py	2026-07-15 07:09:39.407965465 +0000
++++ b/src/ytclfr/contracts/v3/bundle.py	2026-07-15 07:09:39.409246208 +0000
+@@ -5,7 +5,7 @@
+ untranscribed_speech_ratio for the VAD-to-Transcription Yield heuristic.
+ """
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from typing import Literal
+ from uuid import UUID
+ 
+@@ -76,5 +76,5 @@
+     )
+     
+     total_duration_seconds: float = Field(ge=0.0)
+-    extracted_at: datetime = Field(default_factory=datetime.utcnow)
++    extracted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+ 
+diff -ruN a/src/ytclfr/contracts/v3/evidence.py b/src/ytclfr/contracts/v3/evidence.py
+--- a/src/ytclfr/contracts/v3/evidence.py	2026-07-15 07:09:39.413949491 +0000
++++ b/src/ytclfr/contracts/v3/evidence.py	2026-07-15 07:09:39.415348441 +0000
+@@ -5,7 +5,7 @@
+ Groq-derived semantic insights.
+ """
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from typing import Any, Literal
+ from uuid import UUID
+ 
+@@ -57,7 +57,7 @@
+     
+     total_segments: int = Field(ge=0)
+     confidence: float = Field(ge=0.0, le=1.0)
+-    created_at: datetime = Field(default_factory=datetime.utcnow)
++    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+ 
+     @field_validator("confidence")
+     @classmethod
+diff -ruN a/src/ytclfr/contracts/v3/ingestion.py b/src/ytclfr/contracts/v3/ingestion.py
+--- a/src/ytclfr/contracts/v3/ingestion.py	2026-07-15 07:09:39.420225708 +0000
++++ b/src/ytclfr/contracts/v3/ingestion.py	2026-07-15 07:09:39.421500112 +0000
+@@ -4,7 +4,7 @@
+ strict URIs and metadata to Stage A.
+ """
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from uuid import UUID
+ 
+ from pydantic import BaseModel, ConfigDict, Field
+@@ -30,6 +30,6 @@
+         description="Raw yt-dlp metadata payload",
+     )
+     ingested_at: datetime = Field(
+-        default_factory=datetime.utcnow
++        default_factory=lambda: datetime.now(UTC)
+     )
+ 
+diff -ruN a/src/ytclfr/contracts/v3/manifest.py b/src/ytclfr/contracts/v3/manifest.py
+--- a/src/ytclfr/contracts/v3/manifest.py	2026-07-15 07:09:39.426360857 +0000
++++ b/src/ytclfr/contracts/v3/manifest.py	2026-07-15 07:09:39.427697140 +0000
+@@ -5,7 +5,7 @@
+ this manifest to decide which extractors to run.
+ """
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from typing import Literal
+ from uuid import UUID
+ 
+@@ -125,7 +125,7 @@
+         )
+     )
+     created_at: datetime = Field(
+-        default_factory=datetime.utcnow,
++        default_factory=lambda: datetime.now(UTC),
+         description="UTC timestamp when manifest was created",
+     )
+ 
+diff -ruN a/src/ytclfr/contracts/v3/response.py b/src/ytclfr/contracts/v3/response.py
+--- a/src/ytclfr/contracts/v3/response.py	2026-07-15 07:09:39.432363934 +0000
++++ b/src/ytclfr/contracts/v3/response.py	2026-07-15 07:09:39.433609645 +0000
+@@ -4,7 +4,7 @@
+ Does not include internal state unless requested via Resource Views.
+ """
+ 
+-from datetime import datetime
++from datetime import UTC, datetime
+ from typing import Literal
+ from uuid import UUID
+ 
+@@ -41,7 +41,7 @@
+     items: list[ExtractedItem] = Field(default_factory=list)
+     confidence: dict = Field(default_factory=dict)
+     fallback_notes: list[str] = Field(default_factory=list)
+-    created_at: datetime = Field(default_factory=datetime.utcnow)
++    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+ 
+     @field_validator("confidence")
+     @classmethod
+diff -ruN a/src/ytclfr/tasks/v3/stage_a_census.py b/src/ytclfr/tasks/v3/stage_a_census.py
+--- a/src/ytclfr/tasks/v3/stage_a_census.py	2026-07-15 07:09:39.368484919 +0000
++++ b/src/ytclfr/tasks/v3/stage_a_census.py	2026-07-15 07:09:39.370017725 +0000
+@@ -13,7 +13,6 @@
+ from ytclfr.ingestion.metadata_pyav import extract_metadata_pyav
+ from ytclfr.contracts.v3.manifest import SignalManifest
+ from ytclfr.storage.manifest_store import SignalManifestStore
+-from ytclfr.tasks.v3.v3_extraction_tasks import v3_run_asr
+ from ytclfr.probing.audio_checker import probe_audio
+ from ytclfr.probing.frame_sampler import probe_visual
+ from ytclfr.probing.metadata_probe import probe_metadata_dict
+@@ -41,10 +40,11 @@
+         existing_manifest = store.get_by_job_id(db, job_uuid)
+         if existing_manifest:
+             logger.info(f"V3 Stage A idempotency hit for job {job_id}")
+-            v3_run_asr.delay(job_id)
+-            # also queue OCR / audio here if needed in v3_stage_b_extraction
+-            from ytclfr.tasks.v3.stage_b_extraction import v3_run_extraction_orchestrator
+-            v3_run_extraction_orchestrator.delay(job_id)
++            # v3_run_targeted_extraction already dispatches ASR and/or OCR
++            # itself based on the manifest flags (see stage_b_extraction.py) —
++            # do not also queue v3_run_asr directly here, or ASR runs twice.
++            from ytclfr.tasks.v3.stage_b_extraction import v3_run_targeted_extraction
++            v3_run_targeted_extraction.delay(job_id)
+             return {"job_id": job_id, "status": "skipped"}
+ 
+         s3 = S3StorageManager(settings)
+@@ -119,8 +119,8 @@
+             store.create(db, manifest)
+             
+             # Queue extraction orchestrator
+-            from ytclfr.tasks.v3.stage_b_extraction import v3_run_extraction_orchestrator
+-            v3_run_extraction_orchestrator.delay(job_id)
++            from ytclfr.tasks.v3.stage_b_extraction import v3_run_targeted_extraction
++            v3_run_targeted_extraction.delay(job_id)
+             
+             job.status = "v3_stage_a_complete"
+             db.commit()
+diff -ruN a/src/ytclfr/tasks/v3/stage_b_extraction.py b/src/ytclfr/tasks/v3/stage_b_extraction.py
+--- a/src/ytclfr/tasks/v3/stage_b_extraction.py	2026-07-15 07:09:39.376640677 +0000
++++ b/src/ytclfr/tasks/v3/stage_b_extraction.py	2026-07-15 07:09:39.377970246 +0000
+@@ -11,8 +11,8 @@
+ 
+ logger = get_logger(__name__)
+ 
+-@celery_app.task(bind=True, name="ytclfr.tasks.v3.stage_b_extraction.v3_run_extraction_orchestrator", queue="fast", max_retries=3, default_retry_delay=30)
+-def v3_run_extraction_orchestrator(self: Any, job_id: str) -> dict[str, Any]:
++@celery_app.task(bind=True, name="ytclfr.tasks.v3.stage_b_extraction.v3_run_targeted_extraction", queue="fast", max_retries=3, default_retry_delay=30)
++def v3_run_targeted_extraction(self: Any, job_id: str) -> dict[str, Any]:
+     job_uuid = uuid.UUID(job_id)
+     
+     with db_session() as db:
+diff -ruN a/tests/unit/storage/test_embeddings.py b/tests/unit/storage/test_embeddings.py
+--- a/tests/unit/storage/test_embeddings.py	2026-07-15 07:09:39.438603198 +0000
++++ b/tests/unit/storage/test_embeddings.py	2026-07-15 07:09:39.439909866 +0000
+@@ -9,6 +9,7 @@
+         jwt_secret_key="test"
+     )
+     mock_post = mocker.patch("httpx.Client.post")
++    mock_post.return_value.status_code = 200
+     mock_post.return_value.json.return_value = {"embedding": [0.1] * 768}
+     
+     emb = generate_embedding("hello", settings)
+@@ -21,8 +22,21 @@
+         groq_api_key="test",
+         jwt_secret_key="test"
+     )
+-    mock_post = mocker.patch("httpx.Client.post")
+-    mock_post.return_value.json.return_value = {"embedding": [0.1] * 768}
++    # generate_embeddings_batch runs on the async path internally
++    # (_generate_embeddings_batch_async uses httpx.AsyncClient), so the
++    # mock target must be AsyncClient.post, not Client.post — otherwise
++    # this silently falls through to a real network call.
++    #
++    # unittest.mock propagates AsyncMock to every auto-created descendant
++    # of an AsyncMock (including .return_value.json), so response.json()
++    # would return an un-awaited coroutine instead of a dict. Assigning an
++    # explicit plain MagicMock as return_value keeps .json() synchronous,
++    # matching the real httpx.Response API.
++    fake_response = mocker.MagicMock()
++    fake_response.status_code = 200
++    fake_response.json.return_value = {"embedding": [0.1] * 768}
++    mock_post = mocker.patch("httpx.AsyncClient.post")
++    mock_post.return_value = fake_response
+     
+     embs = generate_embeddings_batch(["hello", "world"], settings)
+     assert len(embs) == 2

@@ -1,6 +1,6 @@
 """Event schemas for the ytclfr pipeline."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from uuid import UUID
 
@@ -46,7 +46,7 @@ class StageAEvent(BaseModel):
 
     event_type: StageAStatus
     job_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     manifest_id: str | None = None
     error: str | None = None
     details: dict = Field(default_factory=dict)
@@ -72,7 +72,7 @@ class StageBEvent(BaseModel):
 
     event_type: StageBStatus
     job_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     extractors_dispatched: list[str] = Field(default_factory=list)
     error: str | None = None
     details: dict = Field(default_factory=dict)
@@ -100,7 +100,7 @@ class StageCEvent(BaseModel):
 
     event_type: StageCStatus
     job_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     evidence_graph_id: str | None = None
     error: str | None = None
     details: dict = Field(default_factory=dict)
@@ -125,7 +125,7 @@ class StageDEvent(BaseModel):
 
     event_type: StageDStatus
     job_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     taxonomy: dict = Field(default_factory=dict)
     error: str | None = None
     details: dict = Field(default_factory=dict)

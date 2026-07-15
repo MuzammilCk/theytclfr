@@ -5,7 +5,7 @@ Includes the raw segments and completeness metrics like
 untranscribed_speech_ratio for the VAD-to-Transcription Yield heuristic.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -76,4 +76,4 @@ class ExtractorBundle(BaseModel):
     )
     
     total_duration_seconds: float = Field(ge=0.0)
-    extracted_at: datetime = Field(default_factory=datetime.utcnow)
+    extracted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

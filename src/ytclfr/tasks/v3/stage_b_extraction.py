@@ -11,8 +11,8 @@ from celery import chord
 
 logger = get_logger(__name__)
 
-@celery_app.task(bind=True, name="ytclfr.tasks.v3.stage_b_extraction.v3_run_extraction_orchestrator", queue="fast", max_retries=3, default_retry_delay=30)
-def v3_run_extraction_orchestrator(self: Any, job_id: str) -> dict[str, Any]:
+@celery_app.task(bind=True, name="ytclfr.tasks.v3.stage_b_extraction.v3_run_targeted_extraction", queue="fast", max_retries=3, default_retry_delay=30)
+def v3_run_targeted_extraction(self: Any, job_id: str) -> dict[str, Any]:
     job_uuid = uuid.UUID(job_id)
     
     with db_session() as db:

@@ -6,7 +6,7 @@ Groq-derived semantic insights. Stage D reads this to
 produce the final taxonomy and FinalOutput.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 from typing_extensions import deprecated
@@ -114,7 +114,7 @@ class EvidenceGraph(BaseModel):
     total_segments: int = Field(ge=0)
     confidence: float = Field(ge=0.0, le=1.0)
     created_at: datetime = Field(
-        default_factory=datetime.utcnow
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @field_validator("confidence")

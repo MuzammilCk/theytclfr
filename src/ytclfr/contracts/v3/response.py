@@ -4,7 +4,7 @@ The pristine, client-facing JSON object returned by the V3 API.
 Does not include internal state unless requested via Resource Views.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -41,7 +41,7 @@ class FinalResponse(BaseModel):
     items: list[ExtractedItem] = Field(default_factory=list)
     confidence: dict = Field(default_factory=dict)
     fallback_notes: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @field_validator("confidence")
     @classmethod

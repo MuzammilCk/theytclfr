@@ -5,7 +5,7 @@ a detected physical signal — not a classification guess.  Stage B reads
 this manifest to decide which extractors to run.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -125,7 +125,7 @@ class SignalManifest(BaseModel):
         )
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
         description="UTC timestamp when manifest was created",
     )
 

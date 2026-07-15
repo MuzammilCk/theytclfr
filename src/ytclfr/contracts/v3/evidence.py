@@ -5,7 +5,7 @@ It holds the aligned timeline, extracted entities, and
 Groq-derived semantic insights.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -57,7 +57,7 @@ class EvidenceGraph(BaseModel):
     
     total_segments: int = Field(ge=0)
     confidence: float = Field(ge=0.0, le=1.0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @field_validator("confidence")
     @classmethod

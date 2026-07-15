@@ -8,7 +8,7 @@ The V1 FinalOutput contract (contracts/output.py) is NOT modified.
 V1 API endpoint updates are deferred to Pipeline Wiring (W-6).
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 from typing_extensions import deprecated
@@ -99,7 +99,7 @@ class V2FinalOutput(BaseModel):
         description="Notes when rule-based fallback was used",
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow
+        default_factory=lambda: datetime.now(UTC)
     )
 
     @field_validator("confidence")

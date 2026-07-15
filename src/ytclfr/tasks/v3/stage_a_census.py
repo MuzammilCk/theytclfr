@@ -13,7 +13,6 @@ from ytclfr.probing.vlm_structural_probe import probe_structure_vlm
 from ytclfr.ingestion.metadata_pyav import extract_metadata_pyav
 from ytclfr.contracts.v3.manifest import SignalManifest
 from ytclfr.storage.manifest_store import SignalManifestStore
-from ytclfr.tasks.v3.v3_extraction_tasks import v3_run_asr
 from ytclfr.probing.audio_checker import probe_audio
 from ytclfr.probing.frame_sampler import probe_visual
 from ytclfr.probing.metadata_probe import probe_metadata_dict
@@ -41,10 +40,11 @@ def v3_run_signal_census(self: Any, job_id: str) -> dict[str, Any]:
         existing_manifest = store.get_by_job_id(db, job_uuid)
         if existing_manifest:
             logger.info(f"V3 Stage A idempotency hit for job {job_id}")
-            v3_run_asr.delay(job_id)
-            # also queue OCR / audio here if needed in v3_stage_b_extraction
-            from ytclfr.tasks.v3.stage_b_extraction import v3_run_extraction_orchestrator
-            v3_run_extraction_orchestrator.delay(job_id)
+            # v3_run_targeted_extraction already dispatches ASR and/or OCR
+            # itself based on the manifest flags (see stage_b_extraction.py) —
+            # do not also queue v3_run_asr directly here, or ASR runs twice.
+            from ytclfr.tasks.v3.stage_b_extraction import v3_run_targeted_extraction
+            v3_run_targeted_extraction.delay(job_id)
             return {"job_id": job_id, "status": "skipped"}
 
         s3 = S3StorageManager(settings)
@@ -119,8 +119,8 @@ def v3_run_signal_census(self: Any, job_id: str) -> dict[str, Any]:
             store.create(db, manifest)
             
             # Queue extraction orchestrator
-            from ytclfr.tasks.v3.stage_b_extraction import v3_run_extraction_orchestrator
-            v3_run_extraction_orchestrator.delay(job_id)
+            from ytclfr.tasks.v3.stage_b_extraction import v3_run_targeted_extraction
+            v3_run_targeted_extraction.delay(job_id)
             
             job.status = "v3_stage_a_complete"
             db.commit()

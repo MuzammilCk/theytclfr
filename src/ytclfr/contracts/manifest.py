@@ -7,7 +7,7 @@ this manifest to decide which extractors to run.
 Pure Pydantic v2 only.  No Celery, SQLAlchemy, or task imports.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -127,7 +127,7 @@ class SignalManifest(BaseModel):
         )
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(UTC),
         description="UTC timestamp when manifest was created",
     )
 
