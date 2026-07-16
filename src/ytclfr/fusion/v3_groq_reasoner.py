@@ -1,4 +1,5 @@
 import logging
+import time
 from dataclasses import dataclass
 import json
 
@@ -13,6 +14,11 @@ GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_TEMPERATURE: float = 0.1
 GROQ_MAX_TOKENS: int = 2000
 MAX_SCENE_BOUNDARIES: int = 20
+GROQ_MAX_ATTEMPTS: int = 2
+GROQ_RETRY_BACKOFF_SECONDS: float = 1.5
+_VALID_ENTITY_TYPES: frozenset[str] = frozenset({
+    "product", "person", "place", "topic", "unknown"
+})
 
 
 @dataclass
@@ -43,16 +49,29 @@ def v3_reason_over_evidence(
         logger.warning("GROQ_API_KEY is not configured — skipping Groq reasoning")
         return _GROQ_FAILURE_RESULT
 
-    try:
-        prompt = _build_prompt(evidence_graph)
-        raw_response = _call_groq_api(prompt, settings)
-        return _parse_response(raw_response)
-    except Exception as exc:
-        logger.warning(
-            "Groq reasoning failed — pipeline continues without it: %s",
-            exc,
-        )
-        return _GROQ_FAILURE_RESULT
+    prompt = _build_prompt(evidence_graph)
+    last_exc: Exception | None = None
+    for attempt in range(1, GROQ_MAX_ATTEMPTS + 1):
+        try:
+            raw_response = _call_groq_api(prompt, settings)
+            return _parse_response(raw_response)
+        except Exception as exc:
+            last_exc = exc
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            if status_code in (401, 403):
+                break  # bad/expired key — retrying won't help
+            if attempt < GROQ_MAX_ATTEMPTS:
+                logger.warning(
+                    "Groq reasoning attempt %d/%d failed, retrying: %s",
+                    attempt, GROQ_MAX_ATTEMPTS, exc,
+                )
+                time.sleep(GROQ_RETRY_BACKOFF_SECONDS)
+
+    logger.warning(
+        "Groq reasoning failed after %d attempt(s) — pipeline continues without it: %s",
+        GROQ_MAX_ATTEMPTS, last_exc,
+    )
+    return _GROQ_FAILURE_RESULT
 
 
 def _build_prompt(evidence_graph: EvidenceGraph) -> str:
@@ -77,17 +96,23 @@ def _build_prompt(evidence_graph: EvidenceGraph) -> str:
         "Analyze the following JSON EvidenceGraph of a video and respond ONLY with a "
         "valid JSON object. No markdown, no backticks.\n\n"
         f"EVIDENCE_GRAPH:\n{evidence_json}\n\n"
+        "entities_extracted_by_heuristics are candidate entities already found by "
+        "regex heuristics — reuse and correctly re-type the real ones, drop any that "
+        "are clearly not meaningful entities, and add any genuine entities the "
+        "heuristics missed.\n\n"
         "Respond with this exact JSON structure:\n"
         '{\n'
         '  "dominant_subject": "what this video is primarily about in one sentence",\n'
         '  "summary": "2-3 sentence summary of the video content",\n'
         '  "entities": [\n'
-        '    {"name": "entity name", "type": "product|person|place|topic", "timestamps": [0.0, 12.5]}\n'
+        '    {"name": "entity name", "entity_type": "product|person|place|topic", '
+        '"mentioned_at": [0.0, 12.5], "confidence": 0.8}\n'
         '  ],\n'
         '  "scene_boundaries": [0.0, 45.2, 120.0]\n'
         '}\n\n'
-        "scene_boundaries: timestamps (seconds) where major topic "
-        "shifts occur. Always include 0.0."
+        "confidence: your confidence (0.0-1.0) that this entity and its type are "
+        "correct. scene_boundaries: timestamps (seconds) where major topic shifts "
+        "occur. Always include 0.0."
     )
 
 
@@ -124,16 +149,32 @@ def _parse_response(raw_json: str) -> V3GroqReasoningResult:
     raw_entities = data.get("entities", [])
     refined: list[dict] = []
     for e in raw_entities:
-        if isinstance(e, dict) and "name" in e and "type" in e:
-            refined.append({
-                "name": str(e["name"]),
-                "type": str(e.get("type", "unknown")),
-                "timestamps": [
-                    float(t)
-                    for t in e.get("timestamps", [])
-                    if isinstance(t, (int, float))
-                ],
-            })
+        if not isinstance(e, dict) or "name" not in e:
+            continue
+
+        # Prefer the contract's real field names; fall back to the old
+        # ones defensively in case the model doesn't follow the prompt
+        # exactly — LLM output isn't perfectly deterministic even at
+        # low temperature.
+        entity_type = str(e.get("entity_type", e.get("type", "unknown")))
+        if entity_type not in _VALID_ENTITY_TYPES:
+            entity_type = "unknown"
+
+        try:
+            confidence = float(e.get("confidence", 0.7))
+            confidence = max(0.0, min(1.0, confidence))
+        except (TypeError, ValueError):
+            confidence = 0.7
+
+        raw_timestamps = e.get("mentioned_at", e.get("timestamps", []))
+        refined.append({
+            "name": str(e["name"]),
+            "entity_type": entity_type,
+            "mentioned_at": [
+                float(t) for t in raw_timestamps if isinstance(t, (int, float))
+            ],
+            "confidence": confidence,
+        })
 
     raw_boundaries = data.get("scene_boundaries", [0.0])
     boundaries = [

@@ -57,9 +57,11 @@ class TestTaxonomyMapper:
         assert result.parent_category == "Education"
         assert result.confidence == 0.9
 
+    @patch("ytclfr.taxonomy.mapper.time.sleep")
     @patch("ytclfr.taxonomy.mapper._call_groq")
-    def test_network_failure_returns_fallback(self, mock_call):
-        """Network error returns groq_used=False without raising."""
+    def test_network_failure_returns_fallback(self, mock_call, mock_sleep):
+        """Network error returns groq_used=False without raising, after
+        exhausting retries."""
         mock_call.side_effect = ConnectionError("timeout")
         result = classify_taxonomy(
             dominant_subject="sports highlights",
@@ -70,6 +72,57 @@ class TestTaxonomyMapper:
             settings=_make_settings(),
         )
         assert result.groq_used is False
+        assert mock_call.call_count == 2
+
+    @patch("ytclfr.taxonomy.mapper.time.sleep")
+    @patch("ytclfr.taxonomy.mapper._call_groq")
+    def test_retries_once_then_succeeds(self, mock_call, mock_sleep):
+        """A transient failure on the first attempt should not sink the
+        whole classification if a retry succeeds."""
+        mock_call.side_effect = [
+            ConnectionError("timeout"),
+            json.dumps({
+                "parent_category": "Education",
+                "child_category": "Tutorial",
+                "intent": "Learn",
+                "confidence": 0.8,
+            }),
+        ]
+        result = classify_taxonomy(
+            dominant_subject="Python tutorial",
+            groq_summary=None,
+            entities=[],
+            has_speech=True,
+            has_music=False,
+            settings=_make_settings(),
+        )
+        assert result.groq_used is True
+        assert result.parent_category == "Education"
+        assert mock_call.call_count == 2
+        mock_sleep.assert_called_once()
+
+    @patch("ytclfr.taxonomy.mapper.time.sleep")
+    @patch("ytclfr.taxonomy.mapper._call_groq")
+    def test_auth_failure_does_not_retry(self, mock_call, mock_sleep):
+        """A 401/403 won't fix itself on retry — fail fast instead of
+        wasting the backoff window."""
+        class FakeResponse:
+            status_code = 401
+        class FakeAuthError(Exception):
+            response = FakeResponse()
+
+        mock_call.side_effect = FakeAuthError("bad key")
+        result = classify_taxonomy(
+            dominant_subject="sports highlights",
+            groq_summary=None,
+            entities=[],
+            has_speech=True,
+            has_music=False,
+            settings=_make_settings(),
+        )
+        assert result.groq_used is False
+        assert mock_call.call_count == 1
+        mock_sleep.assert_not_called()
 
     @patch("ytclfr.taxonomy.mapper._call_groq")
     def test_invalid_parent_category_normalized_to_other(

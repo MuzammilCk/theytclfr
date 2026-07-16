@@ -11,10 +11,11 @@ from ytclfr.tasks.v3.stage_d_taxonomy import v3_run_taxonomy_mapping
 from celery.exceptions import Retry
 from ytclfr.storage.manifest_store import SignalManifestStore
 from ytclfr.core.config import get_settings
-from ytclfr.contracts.v3.evidence import FusedSegment, EvidenceGraph
+from ytclfr.contracts.v3.evidence import FusedSegment, EvidenceGraph, ExtractedEntity
 from ytclfr.contracts.v3.bundle import ASRCompletenessMetrics
 from ytclfr.fusion.v3_conflict_resolver import v3_resolve_conflicts
 from ytclfr.fusion.v3_groq_reasoner import v3_reason_over_evidence
+from ytclfr.fusion.entity_extractor import extract_entities_from_timeline
 
 logger = get_logger(__name__)
 
@@ -38,10 +39,6 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
                 logger.warning("Bundle not ready for job " + job_id)
                 raise self.retry(countdown=10)
                 
-            # Perform Fusion (simplified for now to meet schema)
-            # We should parse bundle.asr_segments_json, perform sliding window NLP, 
-            # and extract entities.
-            
             # Check idempotency
             existing = db.query(V3EvidenceGraphORM).filter(V3EvidenceGraphORM.job_id == job_uuid).first()
             if existing:
@@ -95,12 +92,29 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
             all_segments = final_asr + final_ocr
             all_segments.sort(key=lambda x: x.timestamp)
 
+            # Heuristic entity extraction gives us a deterministic baseline
+            # (ranked-list items, Title-Case phrases) before Groq ever runs,
+            # so a video still gets real entities even if Groq is unavailable,
+            # and Groq gets real candidates to refine instead of a cold blob
+            # of raw transcript text. entity_extractor only reads seg.text /
+            # seg.timestamp, so it works fine against FusedSegment even though
+            # it was originally written against the legacy AlignedSegment type.
+            heuristic_entities = [
+                ExtractedEntity(
+                    name=e.name,
+                    entity_type=e.entity_type,
+                    mentioned_at=e.mentioned_at,
+                    confidence=e.confidence,
+                )
+                for e in extract_entities_from_timeline(all_segments)  # type: ignore[arg-type]
+            ]
+
             evidence_graph = EvidenceGraph(
                 job_id=job_uuid,
                 structural_video_type=manifest.structural_video_type,
                 primary_evidence_modality=conflict_res.primary_evidence_modality,
                 segments=all_segments,
-                entities=[],
+                entities=heuristic_entities,
                 confidence=1.0,
                 total_segments=len(all_segments)
             )
@@ -108,10 +122,18 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
             settings = get_settings()
             groq_res = v3_reason_over_evidence(evidence_graph, settings)
 
+            # Prefer Groq's refined entities when reasoning actually
+            # succeeded and returned something; otherwise keep the
+            # heuristic baseline rather than persisting an empty list.
+            if groq_res.reasoning_used and groq_res.refined_entities:
+                final_entities_json = groq_res.refined_entities
+            else:
+                final_entities_json = [e.model_dump(mode="json") for e in heuristic_entities]
+
             new_graph = V3EvidenceGraphORM(
                 job_id=job_uuid,
                 segments_json={"segments": [s.model_dump() for s in all_segments]},
-                entities_json={"entities": groq_res.refined_entities},
+                entities_json={"entities": final_entities_json},
                 dominant_subject=groq_res.dominant_subject or "Unknown topic",
                 groq_summary=groq_res.summary or "Summarized content",
                 scene_boundaries_json={"boundaries": groq_res.scene_boundaries},

@@ -8,6 +8,7 @@ in intent_resolver.py provides a fallback TaxonomyResult.
 Never raises to its caller.
 """
 import logging
+import time
 from dataclasses import dataclass
 
 from ytclfr.core.config import Settings
@@ -22,6 +23,8 @@ GROQ_TAXONOMY_TEMPERATURE: float = 0.1
 GROQ_TAXONOMY_MAX_TOKENS: int = 500
 MAX_ENTITIES_IN_PROMPT: int = 8
 MAX_SUMMARY_CHARS: int = 500
+GROQ_MAX_ATTEMPTS: int = 2
+GROQ_RETRY_BACKOFF_SECONDS: float = 1.5
 
 VALID_PARENT_CATEGORIES: frozenset[str] = frozenset({
     "Education", "Shopping", "Sports", "Music",
@@ -84,30 +87,43 @@ def classify_taxonomy(
             groq_used=False,
         )
 
-    try:
-        prompt = _build_taxonomy_prompt(
-            dominant_subject, groq_summary, entities, structural_video_type
-        )
-        raw = _call_groq(prompt, settings)
-        return _parse_taxonomy_response(raw)
-    except Exception as exc:
-        logger.warning(
-            "Groq taxonomy classification failed: %s. "
-            "Using rule-based fallback.",
-            exc,
-        )
-        fallback = _make_fallback_result(
-            dominant_subject, has_speech, has_music, structural_video_type,
-            note=f"Groq failed: {exc}"
-        )
-        return GroqTaxonomyResult(
-            parent_category=fallback.parent_category,
-            child_category=fallback.child_category,
-            intent=fallback.intent,
-            confidence=fallback.confidence,
-            fallback_notes=fallback.fallback_notes,
-            groq_used=False,
-        )
+    prompt = _build_taxonomy_prompt(
+        dominant_subject, groq_summary, entities, structural_video_type
+    )
+    last_exc: Exception | None = None
+    for attempt in range(1, GROQ_MAX_ATTEMPTS + 1):
+        try:
+            raw = _call_groq(prompt, settings)
+            return _parse_taxonomy_response(raw)
+        except Exception as exc:
+            last_exc = exc
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            if status_code in (401, 403):
+                break  # bad/expired key — retrying won't help
+            if attempt < GROQ_MAX_ATTEMPTS:
+                logger.warning(
+                    "Groq taxonomy attempt %d/%d failed, retrying: %s",
+                    attempt, GROQ_MAX_ATTEMPTS, exc,
+                )
+                time.sleep(GROQ_RETRY_BACKOFF_SECONDS)
+
+    logger.warning(
+        "Groq taxonomy classification failed after %d attempt(s): %s. "
+        "Using rule-based fallback.",
+        GROQ_MAX_ATTEMPTS, last_exc,
+    )
+    fallback = _make_fallback_result(
+        dominant_subject, has_speech, has_music, structural_video_type,
+        note=f"Groq failed: {last_exc}"
+    )
+    return GroqTaxonomyResult(
+        parent_category=fallback.parent_category,
+        child_category=fallback.child_category,
+        intent=fallback.intent,
+        confidence=fallback.confidence,
+        fallback_notes=fallback.fallback_notes,
+        groq_used=False,
+    )
 
 # ── Private helpers ─────────────────────────────────────────
 
