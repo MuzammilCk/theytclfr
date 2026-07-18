@@ -4,6 +4,7 @@ from typing import Any
 from ytclfr.core.logging import get_logger
 from ytclfr.db.session import db_session
 from ytclfr.db.models.job import Job
+from ytclfr.db.models.v3.v3_extractor_bundles import V3ExtractorBundleORM
 from ytclfr.queue.celery_app import celery_app
 from ytclfr.storage.manifest_store import SignalManifestStore
 from ytclfr.tasks.v3.v3_extraction_tasks import v3_run_asr, v3_run_ocr
@@ -41,6 +42,19 @@ def v3_run_targeted_extraction(self: Any, job_id: str) -> dict[str, Any]:
         if tasks:
             chord(tasks)(v3_run_evidence_fusion.s(job_id))
         else:
+            # Nothing to extract — Stage C still expects a bundle row to
+            # exist, or it retries (3x, 10s apart) and then permanently
+            # fails with "Bundle not ready". Create an empty one so a
+            # genuinely silent/textless video completes instead of
+            # dying here every time.
+            existing_bundle = db.query(V3ExtractorBundleORM).filter_by(job_id=job_uuid).first()
+            if not existing_bundle:
+                db.add(V3ExtractorBundleORM(
+                    job_id=job_uuid,
+                    asr_segments_json=[],
+                    ocr_segments_json=[],
+                ))
+                db.commit()
             v3_run_evidence_fusion.delay(job_id)
         
     return {"job_id": job_id, "status": "orchestrating"}

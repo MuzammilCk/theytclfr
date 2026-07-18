@@ -1,0 +1,174 @@
+diff -ruN a/src/ytclfr/tasks/v3/stage_b_extraction.py b/src/ytclfr/tasks/v3/stage_b_extraction.py
+--- a/src/ytclfr/tasks/v3/stage_b_extraction.py	2026-07-16 12:02:17.145088332 +0000
++++ b/src/ytclfr/tasks/v3/stage_b_extraction.py	2026-07-16 12:02:17.146293119 +0000
+@@ -4,6 +4,7 @@
+ from ytclfr.core.logging import get_logger
+ from ytclfr.db.session import db_session
+ from ytclfr.db.models.job import Job
++from ytclfr.db.models.v3.v3_extractor_bundles import V3ExtractorBundleORM
+ from ytclfr.queue.celery_app import celery_app
+ from ytclfr.storage.manifest_store import SignalManifestStore
+ from ytclfr.tasks.v3.v3_extraction_tasks import v3_run_asr, v3_run_ocr
+@@ -41,6 +42,19 @@
+         if tasks:
+             chord(tasks)(v3_run_evidence_fusion.s(job_id))
+         else:
++            # Nothing to extract — Stage C still expects a bundle row to
++            # exist, or it retries (3x, 10s apart) and then permanently
++            # fails with "Bundle not ready". Create an empty one so a
++            # genuinely silent/textless video completes instead of
++            # dying here every time.
++            existing_bundle = db.query(V3ExtractorBundleORM).filter_by(job_id=job_uuid).first()
++            if not existing_bundle:
++                db.add(V3ExtractorBundleORM(
++                    job_id=job_uuid,
++                    asr_segments_json=[],
++                    ocr_segments_json=[],
++                ))
++                db.commit()
+             v3_run_evidence_fusion.delay(job_id)
+         
+     return {"job_id": job_id, "status": "orchestrating"}
+diff -ruN a/tests/unit/stage_b/test_stage_b_extraction.py b/tests/unit/stage_b/test_stage_b_extraction.py
+--- a/tests/unit/stage_b/test_stage_b_extraction.py	1970-01-01 00:00:00.000000000 +0000
++++ b/tests/unit/stage_b/test_stage_b_extraction.py	2026-07-16 12:02:17.156220919 +0000
+@@ -0,0 +1,139 @@
++"""Tests for v3_run_targeted_extraction (Stage B orchestrator).
++
++Covers the bundle-creation fix: when a manifest indicates nothing needs
++extracting (no speech, no OCR required), Stage C still expects a
++V3ExtractorBundleORM row to exist. Without one it retries 3x at 10s
++apart and then permanently fails every genuinely silent/textless video.
++"""
++from unittest.mock import MagicMock, patch
++from uuid import uuid4
++
++from ytclfr.db.models.job import Job
++from ytclfr.db.models.v3.v3_extractor_bundles import V3ExtractorBundleORM
++from ytclfr.contracts.v3.manifest import SignalManifest
++from ytclfr.tasks.v3.stage_b_extraction import v3_run_targeted_extraction
++
++
++def _make_manifest(**overrides) -> SignalManifest:
++    defaults = dict(
++        job_id=uuid4(),
++        audio_type="silent",
++        has_speech=False,
++        has_music=False,
++        has_burned_in_text=False,
++        has_subtitle_track=False,
++        has_faces=False,
++        motion_density=1.0,
++        motion_score=0.1,
++        aspect_ratio="9:16",
++        content_format="live_action",
++        scene_cut_count=1,
++        duration_seconds=19.0,
++        probing_confidence=0.7,
++        ocr_required=False,
++    )
++    defaults.update(overrides)
++    return SignalManifest(**defaults)
++
++
++def _make_mock_db(job, existing_bundle=None):
++    mock_db = MagicMock()
++
++    def query_side_effect(model):
++        m = MagicMock()
++        if model is Job:
++            m.filter.return_value.first.return_value = job
++        elif model is V3ExtractorBundleORM:
++            m.filter_by.return_value.first.return_value = existing_bundle
++        return m
++
++    mock_db.query.side_effect = query_side_effect
++    return mock_db
++
++
++def test_no_extraction_needed_creates_stub_bundle_and_dispatches_fusion():
++    """has_speech=False, ocr_required=False → no chord, but a stub
++    bundle must exist before fusion runs, or Stage C fails forever."""
++    job_id = uuid4()
++    job = MagicMock(id=job_id)
++    manifest = _make_manifest(job_id=job_id, has_speech=False, ocr_required=False)
++    mock_db = _make_mock_db(job, existing_bundle=None)
++    added = []
++    mock_db.add.side_effect = lambda obj: added.append(obj)
++
++    with (
++        patch("ytclfr.tasks.v3.stage_b_extraction.db_session") as mock_session,
++        patch("ytclfr.tasks.v3.stage_b_extraction.SignalManifestStore") as mock_store_cls,
++        patch("ytclfr.tasks.v3.stage_c_fusion.v3_run_evidence_fusion") as mock_fusion,
++        patch("ytclfr.tasks.v3.v3_extraction_tasks.v3_run_asr"),
++        patch("ytclfr.tasks.v3.v3_extraction_tasks.v3_run_ocr"),
++    ):
++        mock_session.return_value.__enter__.return_value = mock_db
++        mock_store_cls.return_value.get_by_job_id.return_value = manifest
++
++        result = v3_run_targeted_extraction.apply(args=[str(job_id)])
++        value = result.get()
++
++    assert value["status"] == "orchestrating"
++    assert len(added) == 1
++    assert isinstance(added[0], V3ExtractorBundleORM)
++    assert added[0].asr_segments_json == []
++    assert added[0].ocr_segments_json == []
++    mock_fusion.delay.assert_called_once_with(str(job_id))
++
++
++def test_no_extraction_needed_does_not_duplicate_existing_bundle():
++    """If a bundle already exists (e.g. a retried task), don't insert
++    a second row for the same job_id."""
++    job_id = uuid4()
++    job = MagicMock(id=job_id)
++    manifest = _make_manifest(job_id=job_id, has_speech=False, ocr_required=False)
++    existing_bundle = MagicMock(spec=V3ExtractorBundleORM)
++    mock_db = _make_mock_db(job, existing_bundle=existing_bundle)
++    added = []
++    mock_db.add.side_effect = lambda obj: added.append(obj)
++
++    with (
++        patch("ytclfr.tasks.v3.stage_b_extraction.db_session") as mock_session,
++        patch("ytclfr.tasks.v3.stage_b_extraction.SignalManifestStore") as mock_store_cls,
++        patch("ytclfr.tasks.v3.stage_c_fusion.v3_run_evidence_fusion") as mock_fusion,
++        patch("ytclfr.tasks.v3.v3_extraction_tasks.v3_run_asr"),
++        patch("ytclfr.tasks.v3.v3_extraction_tasks.v3_run_ocr"),
++    ):
++        mock_session.return_value.__enter__.return_value = mock_db
++        mock_store_cls.return_value.get_by_job_id.return_value = manifest
++
++        v3_run_targeted_extraction.apply(args=[str(job_id)]).get()
++
++    assert added == []
++    mock_fusion.delay.assert_called_once_with(str(job_id))
++
++
++def test_speech_detected_uses_chord_and_creates_no_bundle():
++    """When there IS work to do, Stage B must not touch the bundle
++    table itself — v3_run_asr/v3_run_ocr own that, via the chord."""
++    job_id = uuid4()
++    job = MagicMock(id=job_id)
++    manifest = _make_manifest(job_id=job_id, has_speech=True, ocr_required=False)
++    mock_db = _make_mock_db(job, existing_bundle=None)
++    added = []
++    mock_db.add.side_effect = lambda obj: added.append(obj)
++
++    with (
++        patch("ytclfr.tasks.v3.stage_b_extraction.db_session") as mock_session,
++        patch("ytclfr.tasks.v3.stage_b_extraction.SignalManifestStore") as mock_store_cls,
++        patch("ytclfr.tasks.v3.stage_b_extraction.chord") as mock_chord,
++        patch("ytclfr.tasks.v3.stage_c_fusion.v3_run_evidence_fusion"),
++        patch("ytclfr.tasks.v3.v3_extraction_tasks.v3_run_asr") as mock_asr,
++        patch("ytclfr.tasks.v3.v3_extraction_tasks.v3_run_ocr"),
++    ):
++        mock_session.return_value.__enter__.return_value = mock_db
++        mock_store_cls.return_value.get_by_job_id.return_value = manifest
++        mock_asr.s.return_value = MagicMock()
++
++        result = v3_run_targeted_extraction.apply(args=[str(job_id)])
++        value = result.get()
++
++    assert value["status"] == "orchestrating"
++    assert added == []  # bundle creation belongs to v3_run_asr, not Stage B
++    assert mock_chord.called
