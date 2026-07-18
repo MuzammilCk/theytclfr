@@ -56,4 +56,3 @@ import ytclfr.tasks.v3.stage_b_extraction  # noqa: F401, E402 — V3 Stage B Tar
 import ytclfr.tasks.v3.stage_c_fusion  # noqa: F401, E402 — V3 Stage C Evidence Fusion
 import ytclfr.tasks.v3.stage_d_taxonomy  # noqa: F401, E402 — V3 Stage D Taxonomy Mapping
 import ytclfr.tasks.cleanup_tasks  # noqa: F401, E402
-import ytclfr.tasks.v4_shadow.shadow_orchestrator  # noqa: F401, E402

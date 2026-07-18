@@ -48,11 +48,6 @@ def submit_job(
 
     # Note: download_video will be updated to accept pipeline_version
     download_video.delay(str(job.id), pipeline_version="v3")
-    
-    import random
-    if random.random() < 0.10:
-        from ytclfr.tasks.v4_shadow.shadow_orchestrator import run_v4_shadow_pipeline
-        run_v4_shadow_pipeline.apply_async(args=[str(job.id)], queue="heavy")
 
     return JobResponse(
         job_id=job.id,
