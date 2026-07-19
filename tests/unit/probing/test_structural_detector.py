@@ -138,3 +138,72 @@ def test_all_signals_compound(mocker, base_kwargs):
     # 0.5 (extreme text) + 0.2 (motion) + 0.2 (scene repeat) + 0.15 (metadata) = 1.05 -> clamped to 1.0
     assert result.structural_score == 1.0
     assert result.ocr_required is True
+
+
+def test_ordinal_hits_trigger_ocr_even_with_thin_text_density(mocker, base_kwargs):
+    """This is the real 'Top 25 Movies' scenario: clean title cards
+    with minimal on-screen text (so MSER density stays low) but clear
+    ordinal markers ('#1', 'Top 25'). Previously ordinal_pattern_score
+    was a hardcoded 0.0 that was never even added to structural_score,
+    so this case fell through and OCR never ran."""
+    mock_mser = mocker.Mock()
+    mock_mser.detectRegions.return_value = ([1] * 5, None)  # thin density
+    mocker.patch("cv2.MSER_create", return_value=mock_mser)
+    mocker.patch("cv2.cvtColor")
+    mocker.patch("cv2.boundingRect", return_value=(0, 0, 20, 20))
+    mocker.patch(
+        "ytclfr.extractors.paddle_ocr.extract_text_from_frame_v2",
+        return_value=("Top 25 Movies - #1", 0.9),
+    )
+
+    kwargs = base_kwargs.copy()
+    kwargs["sampled_frames"] = [1, 2, 3, 4]  # >= ORDINAL_PATTERN_MIN_HITS
+
+    result = _probe_structural_inner(**kwargs)
+
+    assert result.ordinal_pattern_score == 1.0
+    assert result.structural_score >= 0.55
+    assert result.ocr_required is True
+    assert result.structural_video_type in ("list", "ranking")
+
+
+def test_single_ordinal_hit_contributes_partial_score(mocker, base_kwargs):
+    """One ordinal hit (below ORDINAL_PATTERN_MIN_HITS) should nudge
+    the score up without single-handedly crossing the threshold."""
+    mock_mser = mocker.Mock()
+    mock_mser.detectRegions.return_value = ([], None)
+    mocker.patch("cv2.MSER_create", return_value=mock_mser)
+    mocker.patch("cv2.cvtColor")
+
+    call_count = {"n": 0}
+    def one_hit(frame):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return ("No. 5 on our list", 0.9)
+        return ("", 0.0)
+
+    mocker.patch("ytclfr.extractors.paddle_ocr.extract_text_from_frame_v2", side_effect=one_hit)
+
+    result = _probe_structural_inner(**base_kwargs)  # 3 sampled frames
+
+    assert 0.0 < result.ordinal_pattern_score < 1.0
+    assert result.structural_score == 0.20
+    assert result.ocr_required is False
+
+
+def test_ocr_failure_on_sampled_frame_does_not_crash(mocker, base_kwargs):
+    """A single frame's OCR call raising must not take down the whole
+    probe — this still needs to return a usable result."""
+    mock_mser = mocker.Mock()
+    mock_mser.detectRegions.return_value = ([], None)
+    mocker.patch("cv2.MSER_create", return_value=mock_mser)
+    mocker.patch("cv2.cvtColor")
+    mocker.patch(
+        "ytclfr.extractors.paddle_ocr.extract_text_from_frame_v2",
+        side_effect=RuntimeError("OCR engine crashed"),
+    )
+
+    result = _probe_structural_inner(**base_kwargs)
+
+    assert result.ordinal_pattern_score == 0.0
+    assert result.structural_score == 0.0

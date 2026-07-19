@@ -146,12 +146,22 @@ def _probe_structural_inner(
     overlay_text_density = total_text_regions / len(sampled_frames)
     ocr_expected_coverage = frames_with_text / len(sampled_frames)
 
-    # 2. Ordinal Pattern Score (placeholder: without full OCR in Stage A,
-    # we can't reliably read the text. We simulate this for now or rely
-    # on metadata hints later. We keep it 0.0 unless we run lightweight OCR).
-    # Since we can't run Tesseract on all frames here without blocking,
-    # ordinal_pattern_score remains 0.0.
-    ordinal_pattern_score = 0.0
+    # 2. Ordinal Pattern Score — run OCR on the (small, already-sampled)
+    # frame set and check for ordinal/ranking text ("#1", "Top 10",
+    # "No. 5"). This is bounded to the same handful of frames already
+    # used for the MSER/histogram checks above, not a new full-video
+    # OCR pass, so it stays cheap and non-blocking.
+    ordinal_hits = 0
+    for frame in sampled_frames:
+        try:
+            from ytclfr.extractors.paddle_ocr import extract_text_from_frame_v2
+            text, _conf = extract_text_from_frame_v2(frame)
+            if text and ORDINAL_REGEX.search(text):
+                ordinal_hits += 1
+        except Exception as exc:
+            logger.warning("Ordinal-pattern OCR failed on a sampled frame: %s", exc)
+
+    ordinal_pattern_score = min(1.0, ordinal_hits / ORDINAL_PATTERN_MIN_HITS)
 
     # 3. Scene Repeat Score (Histogram similarity across sampled frames)
     # Lists often have repeated layouts (e.g. title cards).
@@ -201,6 +211,15 @@ def _probe_structural_inner(
     if metadata_prior_confidence > 0.5 and overlay_text_density > OVERLAY_DENSITY_HIGH:
         structural_score += 0.15
         
+    # E. Ordinal Pattern Evidence — a real "#1"/"Top 10"/"No. 5" hit is
+    # more direct evidence of list structure than any of the indirect
+    # visual proxies above (it's literally reading the ranking off the
+    # screen), so a clear hit can cross the threshold on its own.
+    if ordinal_hits >= ORDINAL_PATTERN_MIN_HITS:
+        structural_score += 0.60
+    elif ordinal_hits > 0:
+        structural_score += 0.20
+
     structural_score = min(structural_score, 1.0)
     
     # 5. Classify Video Type
