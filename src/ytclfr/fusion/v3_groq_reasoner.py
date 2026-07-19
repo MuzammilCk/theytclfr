@@ -92,10 +92,22 @@ def _build_prompt(evidence_graph: EvidenceGraph) -> str:
     
     evidence_json = json.dumps(evidence_payload, indent=2)
 
+    structural_hint = ""
+    if evidence_graph.structural_video_type in ("list", "ranking", "countdown"):
+        structural_hint = (
+            "\n\nStructural signal: this video was detected as a "
+            f"'{evidence_graph.structural_video_type}' — most likely a ranked or "
+            "numbered list (e.g. \"Top 25 Movies\"). Expect MULTIPLE distinct "
+            "ranked items rather than a single overall topic. Extract each "
+            "individual item you can identify (e.g. each movie/product/place "
+            "named) as its own entity, not just the general subject of the video."
+        )
+
     return (
         "Analyze the following JSON EvidenceGraph of a video and respond ONLY with a "
         "valid JSON object. No markdown, no backticks.\n\n"
-        f"EVIDENCE_GRAPH:\n{evidence_json}\n\n"
+        f"EVIDENCE_GRAPH:\n{evidence_json}"
+        f"{structural_hint}\n\n"
         "entities_extracted_by_heuristics are candidate entities already found by "
         "regex heuristics — reuse and correctly re-type the real ones, drop any that "
         "are clearly not meaningful entities, and add any genuine entities the "

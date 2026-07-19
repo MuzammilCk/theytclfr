@@ -150,7 +150,56 @@ def test_groq_success_uses_refined_entities():
     assert saved_graph.groq_reasoning_used is True
 
 
-def test_groq_success_but_empty_entities_falls_back_to_heuristics():
+def _make_bundle_with_ocr(ocr_texts_by_time):
+    bundle = MagicMock()
+    bundle.asr_segments_json = []
+    bundle.ocr_segments_json = [
+        {"start_time": t, "end_time": t + 1.0, "text": text, "confidence": 0.9}
+        for t, text in ocr_texts_by_time
+    ]
+    bundle.asr_metrics_json = None
+    return bundle
+
+
+def test_countdown_pattern_in_ocr_corrects_missed_structural_type():
+    """The real 'Top 25 Movies' scenario: Stage A's sparse 15-frame
+    sample called structural_video_type 'none', but the full OCR
+    transcript across the whole video clearly shows a countdown.
+    Stage C should catch and correct this using score_ocr_patterns —
+    exactly what that module's own docstring says it's for."""
+    job_id = uuid4()
+    job = MagicMock(id=job_id)
+    bundle = _make_bundle_with_ocr([
+        (1.0, "25. The Terminator"), (30.0, "24. Inception"),
+        (60.0, "23. Interstellar"), (90.0, "22. Looper"),
+        (120.0, "21. Arrival"),
+    ])
+    manifest = _make_manifest(job_id=job_id, structural_video_type="none")
+
+    groq_result = V3GroqReasoningResult(
+        dominant_subject="Top 25 movies", summary="A countdown of top movies.",
+        refined_entities=[], scene_boundaries=[0.0], reasoning_used=True,
+    )
+
+    saved_graph = _run(job_id, job, bundle, manifest, groq_result)
+
+    assert saved_graph.structural_video_type == "countdown"
+
+
+def test_no_ocr_pattern_leaves_structural_type_untouched():
+    job_id = uuid4()
+    job = MagicMock(id=job_id)
+    bundle = _make_bundle()  # ASR-only, no OCR
+    manifest = _make_manifest(job_id=job_id, structural_video_type="none")
+
+    groq_result = V3GroqReasoningResult(
+        dominant_subject="A tutorial", summary="A tutorial video.",
+        refined_entities=[], scene_boundaries=[0.0], reasoning_used=True,
+    )
+
+    saved_graph = _run(job_id, job, bundle, manifest, groq_result)
+
+    assert saved_graph.structural_video_type == "none"
     """Groq can 'succeed' (valid JSON) but return zero entities — that
     should still fall back to the heuristic baseline rather than
     persisting an empty list."""

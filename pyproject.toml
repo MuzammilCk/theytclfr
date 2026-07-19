@@ -21,6 +21,7 @@ dependencies = [
     "faster-whisper",
     "torch",
     "pytesseract",
+    "Pillow",
     "yt-dlp",
     "python-jose[cryptography]",
     "python-multipart",

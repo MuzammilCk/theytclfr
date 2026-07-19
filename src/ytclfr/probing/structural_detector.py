@@ -154,7 +154,7 @@ def _probe_structural_inner(
     ordinal_hits = 0
     for frame in sampled_frames:
         try:
-            from ytclfr.extractors.paddle_ocr import extract_text_from_frame_v2
+            from ytclfr.extractors.ocr_extractor import extract_text_from_frame_v2
             text, _conf = extract_text_from_frame_v2(frame)
             if text and ORDINAL_REGEX.search(text):
                 ordinal_hits += 1

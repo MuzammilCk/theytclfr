@@ -154,7 +154,7 @@ def v3_run_ocr(self: Any, job_id: str) -> dict[str, object]:
             s3_object_key = f"{job_id}/video.mp4"
             s3_manager.download_file(s3_object_key, local_video_path)
 
-            from ytclfr.extractors.paddle_ocr import extract_text_from_frame_v2
+            from ytclfr.extractors.ocr_extractor import extract_text_from_frame_v2
             import cv2
             
             segments = []

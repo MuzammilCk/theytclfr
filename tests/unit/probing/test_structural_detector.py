@@ -152,7 +152,7 @@ def test_ordinal_hits_trigger_ocr_even_with_thin_text_density(mocker, base_kwarg
     mocker.patch("cv2.cvtColor")
     mocker.patch("cv2.boundingRect", return_value=(0, 0, 20, 20))
     mocker.patch(
-        "ytclfr.extractors.paddle_ocr.extract_text_from_frame_v2",
+        "ytclfr.extractors.ocr_extractor.extract_text_from_frame_v2",
         return_value=("Top 25 Movies - #1", 0.9),
     )
 
@@ -182,7 +182,7 @@ def test_single_ordinal_hit_contributes_partial_score(mocker, base_kwargs):
             return ("No. 5 on our list", 0.9)
         return ("", 0.0)
 
-    mocker.patch("ytclfr.extractors.paddle_ocr.extract_text_from_frame_v2", side_effect=one_hit)
+    mocker.patch("ytclfr.extractors.ocr_extractor.extract_text_from_frame_v2", side_effect=one_hit)
 
     result = _probe_structural_inner(**base_kwargs)  # 3 sampled frames
 
@@ -199,7 +199,7 @@ def test_ocr_failure_on_sampled_frame_does_not_crash(mocker, base_kwargs):
     mocker.patch("cv2.MSER_create", return_value=mock_mser)
     mocker.patch("cv2.cvtColor")
     mocker.patch(
-        "ytclfr.extractors.paddle_ocr.extract_text_from_frame_v2",
+        "ytclfr.extractors.ocr_extractor.extract_text_from_frame_v2",
         side_effect=RuntimeError("OCR engine crashed"),
     )
 

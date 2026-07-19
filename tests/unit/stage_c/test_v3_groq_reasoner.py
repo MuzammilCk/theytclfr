@@ -123,6 +123,16 @@ class TestBuildPrompt:
         assert "Python Tutorial" in prompt
         assert "entities_extracted_by_heuristics" in prompt
 
+    def test_countdown_structural_type_adds_explicit_list_instruction(self):
+        graph = _graph(structural_video_type="countdown")
+        prompt = _build_prompt(graph)
+        assert "MULTIPLE distinct ranked items" in prompt
+
+    def test_none_structural_type_has_no_list_instruction(self):
+        graph = _graph(structural_video_type="none")
+        prompt = _build_prompt(graph)
+        assert "MULTIPLE distinct ranked items" not in prompt
+
 
 class TestRetryBehavior:
 

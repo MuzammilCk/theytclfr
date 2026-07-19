@@ -16,6 +16,7 @@ from ytclfr.contracts.v3.bundle import ASRCompletenessMetrics
 from ytclfr.fusion.v3_conflict_resolver import v3_resolve_conflicts
 from ytclfr.fusion.v3_groq_reasoner import v3_reason_over_evidence
 from ytclfr.fusion.entity_extractor import extract_entities_from_timeline
+from ytclfr.probing.ocr_pattern_scorer import score_ocr_patterns
 
 logger = get_logger(__name__)
 
@@ -92,6 +93,24 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
             all_segments = final_asr + final_ocr
             all_segments.sort(key=lambda x: x.timestamp)
 
+            # score_ocr_patterns analyzes the FULL OCR transcript across
+            # the whole video (unlike Stage A's sparse frame sample), so
+            # it can catch a countdown/ranked-list structure that Stage
+            # A's initial gate missed. This module already existed,
+            # fully tested, but was never called from anywhere.
+            ocr_pattern_result = score_ocr_patterns(final_ocr)
+            effective_structural_type = manifest.structural_video_type
+            if (
+                effective_structural_type in ("none", "unknown")
+                and ocr_pattern_result.countdown_likelihood >= 0.5
+            ):
+                effective_structural_type = "countdown"
+            elif (
+                effective_structural_type in ("none", "unknown")
+                and ocr_pattern_result.ordinal_pattern_score >= 0.5
+            ):
+                effective_structural_type = "list"
+
             # Heuristic entity extraction gives us a deterministic baseline
             # (ranked-list items, Title-Case phrases) before Groq ever runs,
             # so a video still gets real entities even if Groq is unavailable,
@@ -111,7 +130,7 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
 
             evidence_graph = EvidenceGraph(
                 job_id=job_uuid,
-                structural_video_type=manifest.structural_video_type,
+                structural_video_type=effective_structural_type,
                 primary_evidence_modality=conflict_res.primary_evidence_modality,
                 segments=all_segments,
                 entities=heuristic_entities,
@@ -141,7 +160,7 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
                 modality_coverage_json={"asr": 1.0 if final_asr else 0.0, "ocr": 1.0 if final_ocr else 0.0},
                 conflict_count=conflict_res.conflict_count,
                 conflict_details_json={"details": conflict_res.conflict_details},
-                structural_video_type=manifest.structural_video_type,
+                structural_video_type=effective_structural_type,
                 evidence_priority_notes_json={"notes": conflict_res.evidence_priority_notes},
                 primary_evidence_modality=conflict_res.primary_evidence_modality,
                 total_segments=len(all_segments),
