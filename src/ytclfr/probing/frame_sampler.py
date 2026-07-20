@@ -212,17 +212,19 @@ def _probe_visual_inner(
     # reliable than guessing from edge geometry, and it's the same
     # extractor already used for real extraction — no new dependency.
     positive_text_frames = 0
-    TEXT_OCR_SAMPLE_STRIDE: int = 3  # check every 3rd frame — bounded cost
-    TEXT_OCR_MIN_CONFIDENCE: float = 0.4
+    TEXT_OCR_MIN_CONFIDENCE: float = 0.25  # real-world stylized video text
+    # reads at meaningfully lower Tesseract confidence than clean
+    # synthetic text — a stricter threshold risks false negatives,
+    # and the cost of an unnecessary OCR attempt (milliseconds) is far
+    # lower than the cost of missing real on-screen content entirely.
     try:
         from ytclfr.extractors.ocr_extractor import extract_text_from_frame_v2
         checked = 0
-        for frame in frames[::TEXT_OCR_SAMPLE_STRIDE]:
-            checked += 1
-            text, conf = extract_text_from_frame_v2(frame)
+        for frame in frames:  # check every sampled frame, not a stride —
+            checked += 1      # fast-paced content can hide entirely
+            text, conf = extract_text_from_frame_v2(frame)  # between stride gaps
             if text.strip() and conf >= TEXT_OCR_MIN_CONFIDENCE:
                 positive_text_frames += 1
-        # scale the frame-count threshold down to match the strided sample
         adaptive_text_min = max(1, min(TEXT_REGION_MIN_FRAMES, checked) // 2)
     except Exception as exc:
         logger.warning("Text detection via OCR failed, defaulting to no text: %s", exc)

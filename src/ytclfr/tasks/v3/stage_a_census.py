@@ -64,8 +64,17 @@ def v3_run_signal_census(self: Any, job_id: str) -> dict[str, Any]:
             audio_res = probe_audio(str(local_video_path), raw_meta)
             visual_res = probe_visual(str(local_video_path), retain_frames=True)
 
+            VLM_FRAME_COUNT = 4
+            all_frames = visual_res.sampled_frames
+            if len(all_frames) > VLM_FRAME_COUNT:
+                step = len(all_frames) / VLM_FRAME_COUNT
+                vlm_frame_indices = [int(i * step) for i in range(VLM_FRAME_COUNT)]
+                selected_frames = [all_frames[i] for i in vlm_frame_indices]
+            else:
+                selected_frames = all_frames
+
             frames = []
-            for frame in visual_res.sampled_frames:
+            for frame in selected_frames:
                 h, w = frame.shape[:2]
                 if w > 768:
                     new_w = 768
