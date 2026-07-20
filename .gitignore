@@ -26,6 +26,6 @@ prompts.txt
 full_phase_architeccture_plan.txt
 cookies.txt
 *.patch
-youtube_cookies.txt
+*.txt
 .claude
 .mcp.json
