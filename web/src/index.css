@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+/* ============================================================
+   ytclfr Nexus — Premium Minimal (3D) design system
+   Single-hue indigo accent on deep ink. Hairline borders,
+   layered glass, generous negative space. No violet glow,
+   no gradient-text, no neon bloom. SATOSHI for UI, JOST for
+   the wordmark, FIRA CODE for data.
+   ============================================================ */
+
+@theme {
+  /* Surfaces — deep ink, never pure black (avoids OLED smear) */
+  --color-abyss: #06080f;
+  --color-void: #0a0e18;
+  --color-surface: #0d1320;
+  --color-surface-2: #121a2b;
+  --color-elevated: #18233a;
+
+  /* Brand — a SINGLE restrained indigo hue */
+  --color-primary: #6366f1;
+  --color-primary-deep: #4f46e5;
+  --color-secondary: #818cf8;
+  --color-accent: #818cf8; /* soft indigo, not violet */
+
+  --color-text: #e8ecf4;
+  --color-text-dim: #9aa6bd;
+  --color-text-faint: #646f86;
+
+  --color-border: #1f2940;
+  --color-border-soft: #18213480;
+
+  --color-destructive: #f87171;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+
+  /* Modality hues — harmonized data palette (not brand color) */
+  --color-asr: #60a5fa;
+  --color-ocr: #d9a566;
+  --color-audio: #a99cf0;
+  --color-merged: #5fd0b0;
+  --color-conflict: #f0a3a3;
+
+  /* Type */
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Jost", "Satoshi", sans-serif;
+  --font-mono: "Fira Code", ui-monospace, monospace;
+
+  /* Radius scale (consistent, no radius/border clashes) */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 16px;
+  --radius-2xl: 22px;
+
+  /* Motion tokens (mirror src/lib/gsap.ts MOTION) */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 160ms;
+  --dur: 240ms;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  /* one calm indigo wash, no violet blobs */
+  background:
+    radial-gradient(1100px 720px at 50% -12%, #111a3c 0%, transparent 56%),
+    var(--color-abyss);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* Wordmark / display face */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Frosted panels — hairline, restrained */
+.glass {
+  background: linear-gradient(
+    180deg,
+    rgba(24, 35, 58, 0.66),
+    rgba(13, 19, 32, 0.66)
+  );
+  backdrop-filter: blur(18px) saturate(120%);
+  border: 1px solid var(--color-border);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+    0 18px 50px -28px rgba(0, 0, 0, 0.8);
+}
+
+.glass-soft {
+  background: rgba(13, 19, 32, 0.55);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border-soft);
+}
+
+.hairline {
+  border: 1px solid var(--color-border);
+}
+
+/* Thin, refined scrollbars */
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #232f49;
+  border-radius: 99px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #2e3d5c;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus visibility (a11y) */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Ambient backdrop grid for the 3D stage */
+.grid-backdrop {
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at 50% 45%, black 35%, transparent 78%);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+/* Entrance animation utility (CSS fallback) */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

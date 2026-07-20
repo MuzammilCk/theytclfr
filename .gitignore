@@ -27,3 +27,5 @@ full_phase_architeccture_plan.txt
 cookies.txt
 *.patch
 youtube_cookies.txt
+.claude
+.mcp.json

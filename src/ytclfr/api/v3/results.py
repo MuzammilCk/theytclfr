@@ -12,6 +12,17 @@ from ytclfr.contracts.v3.response import FinalResponse
 
 router = APIRouter(prefix="/jobs/{job_id}", tags=["results"])
 
+
+def _unwrap(val, key: str):
+    """The V3 evidence JSON columns are stored as single-key dicts
+    (e.g. ``{"segments": [...]}``); some default to plain lists. Normalise
+    both shapes to the flat list the contract expects."""
+    if isinstance(val, dict) and key in val:
+        return val[key]
+    if isinstance(val, list):
+        return val
+    return []
+
 class ViewMode(str, Enum):
     BASIC = "BASIC"
     FULL = "FULL"
@@ -64,10 +75,22 @@ def get_v3_job_result(
         evidence = db.query(V3EvidenceGraphORM).filter(V3EvidenceGraphORM.job_id == job_id).first()
         if evidence:
             response_dict["_debug_evidence_graph"] = {
-                "segments": evidence.segments_json,
-                "entities": evidence.entities_json,
-                "conflict_details": evidence.conflict_details_json,
+                "job_id": str(evidence.job_id),
+                "segments": _unwrap(evidence.segments_json, "segments"),
+                "entities": _unwrap(evidence.entities_json, "entities"),
+                "dominant_subject": evidence.dominant_subject,
+                "groq_summary": evidence.groq_summary,
+                "scene_boundaries": evidence.scene_boundaries_json or [],
+                "groq_reasoning_used": evidence.groq_reasoning_used,
+                "modality_coverage": evidence.modality_coverage_json or {},
+                "conflict_count": evidence.conflict_count,
+                "conflict_details": _unwrap(evidence.conflict_details_json, "conflict_details"),
+                "structural_video_type": evidence.structural_video_type,
+                "evidence_priority_notes": evidence.evidence_priority_notes_json or [],
                 "primary_evidence_modality": evidence.primary_evidence_modality,
+                "total_segments": evidence.total_segments,
+                "confidence": evidence.confidence,
+                "created_at": evidence.created_at.isoformat() if evidence.created_at else "",
             }
 
     return JSONResponse(content=response_dict)
