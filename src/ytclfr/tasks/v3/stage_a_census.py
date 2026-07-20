@@ -10,7 +10,6 @@ from ytclfr.db.session import db_session
 from ytclfr.db.models.job import Job
 from ytclfr.ingestion.s3_storage import S3StorageManager
 from ytclfr.probing.vlm_structural_probe import probe_structure_vlm
-from ytclfr.ingestion.metadata_pyav import extract_metadata_pyav
 from ytclfr.contracts.v3.manifest import SignalManifest
 from ytclfr.storage.manifest_store import SignalManifestStore
 from ytclfr.probing.audio_checker import probe_audio
@@ -65,26 +64,19 @@ def v3_run_signal_census(self: Any, job_id: str) -> dict[str, Any]:
             audio_res = probe_audio(str(local_video_path), raw_meta)
             visual_res = probe_visual(str(local_video_path), retain_frames=True)
 
-            is_shadow_v4 = (job_uuid.int % 10 == 0)
-            
-            vlm_struct_type = "none"
-            overlay_density = 0.0
+            frames = []
+            for frame in visual_res.sampled_frames:
+                h, w = frame.shape[:2]
+                if w > 768:
+                    new_w = 768
+                    new_h = int(h * (768 / w))
+                    frame = cv2.resize(frame, (new_w, new_h))
+                _, encoded = cv2.imencode('.jpg', frame)
+                frames.append(encoded.tobytes())
 
-            if is_shadow_v4:
-                meta = extract_metadata_pyav(local_video_path)
-                frames = []
-                for frame in visual_res.sampled_frames:
-                    h, w = frame.shape[:2]
-                    if w > 768:
-                        new_w = 768
-                        new_h = int(h * (768 / w))
-                        frame = cv2.resize(frame, (new_w, new_h))
-                    _, encoded = cv2.imencode('.jpg', frame)
-                    frames.append(encoded.tobytes())
-
-                vlm_result = probe_structure_vlm(frames)
-                vlm_struct_type = vlm_result.get("structural_video_type", "none")
-                overlay_density = vlm_result.get("overlay_text_density", 0.0)
+            vlm_result = probe_structure_vlm(frames)
+            vlm_struct_type = vlm_result.get("structural_video_type", "none")
+            overlay_density = vlm_result.get("overlay_text_density", 0.0)
 
             # Combine into manifest based on real prober returns
             manifest = SignalManifest(

@@ -175,48 +175,59 @@ def _probe_visual_inner(
     motion_density = float(round(cuts / duration_minutes, 2))
 
     # ── Step 5 — Face detection (CPU Haar cascade) ────────────
-    face_cascade = cv2.CascadeClassifier(
-        cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-    )
-    face_sample_count = min(FACE_SAMPLE_COUNT, len(frames))
-    face_frame_indices = [
-        int(i * len(frames) / face_sample_count)
-        for i in range(face_sample_count)
-    ]
-    positive_face_frames = 0
-    for idx in face_frame_indices:
-        if idx < len(frames):
-            gray = cv2.cvtColor(frames[idx], cv2.COLOR_BGR2GRAY)
-            detected = face_cascade.detectMultiScale(
-                gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30),
-            )
-            if len(detected) > 0:
-                positive_face_frames += 1
-
-    has_faces = bool(positive_face_frames >= FACE_MIN_POSITIVE_FRAMES)
-
-    # ── Step 6 — Burned-in text detection (subtitle bar) ──────
-    positive_text_frames = 0
-    WIDE_CONTOUR_WIDTH_FRACTION: float = 0.3
-    WIDE_CONTOUR_MIN_COUNT: int = 2
-    CANNY_LOW_THRESHOLD: int = 50
-    CANNY_HIGH_THRESHOLD: int = 150
-
-    for frame in frames:
-        h = frame.shape[0]
-        bar_height = int(h * TEXT_BAR_BOTTOM_FRACTION)
-        bottom_strip = frame[h - bar_height : h, :]
-        gray = cv2.cvtColor(bottom_strip, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, CANNY_LOW_THRESHOLD, CANNY_HIGH_THRESHOLD)
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        wide_contours = [
-            c for c in contours
-            if cv2.boundingRect(c)[2] > frame.shape[1] * WIDE_CONTOUR_WIDTH_FRACTION
+    # Wrapped independently: OpenCV 5.x removed cv2.CascadeClassifier,
+    # and this step running before text/format detection meant a
+    # failure here was silently killing every other signal in this
+    # function via the outer exception handler in probe_visual().
+    has_faces = False
+    try:
+        face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        )
+        face_sample_count = min(FACE_SAMPLE_COUNT, len(frames))
+        face_frame_indices = [
+            int(i * len(frames) / face_sample_count)
+            for i in range(face_sample_count)
         ]
-        if len(wide_contours) >= WIDE_CONTOUR_MIN_COUNT:
-            positive_text_frames += 1
+        positive_face_frames = 0
+        for idx in face_frame_indices:
+            if idx < len(frames):
+                gray = cv2.cvtColor(frames[idx], cv2.COLOR_BGR2GRAY)
+                detected = face_cascade.detectMultiScale(
+                    gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30),
+                )
+                if len(detected) > 0:
+                    positive_face_frames += 1
+        has_faces = bool(positive_face_frames >= FACE_MIN_POSITIVE_FRAMES)
+    except Exception as exc:
+        logger.warning("Face detection unavailable, defaulting to no faces: %s", exc)
 
-    adaptive_text_min = min(TEXT_REGION_MIN_FRAMES, max(1, len(frames) // 2))
+    # ── Step 6 — Burned-in text detection ─────────────────────
+    # Previously a Canny-edge "wide contour" heuristic looking only at
+    # the bottom 20% of the frame — built for subtitle bars, not title
+    # cards, and empirically doesn't fire on real rendered text at all
+    # (verified against a synthetic countdown video: 0/30 frames, even
+    # checked across the whole frame, not just the bottom strip).
+    # Actually running OCR on a subset of sampled frames is more
+    # reliable than guessing from edge geometry, and it's the same
+    # extractor already used for real extraction — no new dependency.
+    positive_text_frames = 0
+    TEXT_OCR_SAMPLE_STRIDE: int = 3  # check every 3rd frame — bounded cost
+    TEXT_OCR_MIN_CONFIDENCE: float = 0.4
+    try:
+        from ytclfr.extractors.ocr_extractor import extract_text_from_frame_v2
+        checked = 0
+        for frame in frames[::TEXT_OCR_SAMPLE_STRIDE]:
+            checked += 1
+            text, conf = extract_text_from_frame_v2(frame)
+            if text.strip() and conf >= TEXT_OCR_MIN_CONFIDENCE:
+                positive_text_frames += 1
+        # scale the frame-count threshold down to match the strided sample
+        adaptive_text_min = max(1, min(TEXT_REGION_MIN_FRAMES, checked) // 2)
+    except Exception as exc:
+        logger.warning("Text detection via OCR failed, defaulting to no text: %s", exc)
+        adaptive_text_min = 1
+
     has_burned_in_text = bool(positive_text_frames >= adaptive_text_min)
 
     # ── Step 7 — content_format heuristic ─────────────────────
