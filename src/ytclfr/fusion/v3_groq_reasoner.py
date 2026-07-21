@@ -12,7 +12,14 @@ logger = logging.getLogger(__name__)
 
 GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_TEMPERATURE: float = 0.1
-GROQ_MAX_TOKENS: int = 2000
+# Was 2000. An exhaustive ranked-list extraction (e.g. 25 movies, each
+# with a name + type + mentioned_at + confidence) is a plausible fit
+# for the old ceiling in isolation, but combined with dominant_subject
+# + summary + JSON structural overhead it left little headroom — and a
+# response cut off mid-object produces invalid JSON, which _parse_response
+# can't recover from at all (see the retry path in v3_reason_over_evidence).
+# More headroom directly reduces how often that happens.
+GROQ_MAX_TOKENS: int = 3500
 MAX_SCENE_BOUNDARIES: int = 20
 GROQ_MAX_ATTEMPTS: int = 2
 GROQ_RETRY_BACKOFF_SECONDS: float = 1.5
@@ -100,7 +107,14 @@ def _build_prompt(evidence_graph: EvidenceGraph) -> str:
             "numbered list (e.g. \"Top 25 Movies\"). Expect MULTIPLE distinct "
             "ranked items rather than a single overall topic. Extract each "
             "individual item you can identify (e.g. each movie/product/place "
-            "named) as its own entity, not just the general subject of the video."
+            "named) as its own entity, not just the general subject of the video. "
+            "entities_extracted_by_heuristics came from OCR text on a fast-cut "
+            "video, so some entries will be imperfect (partial words, stray "
+            "characters) — normalize and keep anything that is plausibly a real "
+            "item rather than dropping it; only exclude an entry if it is "
+            "clearly unreadable noise with no plausible name in it. Returning "
+            "fewer items than were plausibly present in the heuristic candidates "
+            "is worse than including a lower-confidence guess."
         )
 
     return (

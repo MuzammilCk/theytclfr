@@ -2,8 +2,10 @@
 
 Covers the entity-grounding fix: entities must no longer be hardcoded
 to an empty list. A deterministic heuristic baseline should always be
-computed, and Groq's refined entities should only replace it when
-Groq actually succeeds and returns something.
+computed, and when Groq succeeds it is merged with that baseline —
+Groq's version of an entity is preferred where it recognized one, but
+anything only the heuristic pass found is still kept rather than
+silently dropped.
 """
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -119,9 +121,11 @@ def test_groq_failure_falls_back_to_heuristic_entities():
     assert saved_graph.groq_reasoning_used is False
 
 
-def test_groq_success_uses_refined_entities():
-    """When Groq succeeds and returns entities, its refined set should
-    be used instead of the raw heuristic baseline."""
+def test_groq_success_merges_with_heuristic_entities():
+    """When Groq succeeds, its entities are kept (preferred for
+    anything it recognized), but the heuristic baseline is unioned in
+    rather than discarded — Groq under-delivering must never shrink
+    the final list below what the heuristic pass already found."""
     job_id = uuid4()
     job = MagicMock(id=job_id)
     bundle = _make_bundle()
@@ -145,7 +149,15 @@ def test_groq_success_uses_refined_entities():
     saved_graph = _run(job_id, job, bundle, manifest, groq_success)
 
     entities = saved_graph.entities_json["entities"]
-    assert entities == groq_success.refined_entities
+    names = {e["name"] for e in entities}
+    # Groq's entity is present, using Groq's own (higher) confidence.
+    assert "Python Tutorial" in names
+    python_tutorial = next(e for e in entities if e["name"] == "Python Tutorial")
+    assert python_tutorial["confidence"] == 0.95
+    # "Welcome" is a heuristic-only candidate Groq's mocked response
+    # didn't mention — the fix is that it survives instead of being
+    # silently dropped just because Groq's result "succeeded".
+    assert "Welcome" in names
     assert saved_graph.dominant_subject == "A Python programming tutorial"
     assert saved_graph.groq_reasoning_used is True
 

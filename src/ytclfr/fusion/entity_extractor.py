@@ -16,13 +16,20 @@ from ytclfr.contracts.evidence import ExtractedEntity
 
 # ── TUNABLE CONSTANTS ──────────────────────────────────────
 
-# Regex: consecutive Title-Case words (2+ letters each)
+# Regex: consecutive Title-Case words (2+ letters each), allowing a
+# colon-joined continuation or trailing number so "Dune: Part Two 2024"
+# is captured as one entity instead of splitting/truncating at the colon.
 CAPITALIZED_PHRASE: re.Pattern = re.compile(
-    r'\b([A-Z][a-z]{1,}(?:\s+[A-Z][a-z]{1,})*)\b'
+    r'\b([A-Z][a-z]{1,}(?:[\s:]+(?:[A-Z][a-z]{1,}|\d+))*)\b'
 )
 
+# Same idea for all-caps runs (the dominant style in stylized video/OCR
+# captions): previously stopped at the first character outside
+# [A-Z\s&'\-], so "BLADE RUNNER 2049" truncated to "BLADE RUNNER" and
+# "DUNE: PART TWO" truncated to just "DUNE". Digits and colons are now
+# part of the run itself, not a stopping point.
 ALL_CAPS_PHRASE: re.Pattern = re.compile(
-    r'\b([A-Z]{2}[A-Z\s&\'\-]{1,40})\b'
+    r"\b([A-Z]{2}[A-Z0-9\s&':\-]{1,40})\b"
 )
 
 RANKED_ITEM_PATTERN: re.Pattern = re.compile(

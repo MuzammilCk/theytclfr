@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import Any
 
@@ -19,6 +20,50 @@ from ytclfr.fusion.entity_extractor import extract_entities_from_timeline
 from ytclfr.probing.ocr_pattern_scorer import score_ocr_patterns
 
 logger = get_logger(__name__)
+
+_ENTITY_NAME_NORMALIZE_RE = re.compile(r"[^A-Z0-9]+")
+
+
+def _normalize_entity_name(name: str) -> str:
+    """Fold a name down to a bare comparison key (letters/digits only,
+    upper-cased). Used only to detect "same entity, different spelling
+    or casing" — never for display.
+    """
+    return _ENTITY_NAME_NORMALIZE_RE.sub("", name.upper())
+
+
+def _merge_entities(
+    groq_entities: list[dict],
+    heuristic_entities: list[ExtractedEntity],
+) -> list[dict]:
+    """Union Groq's refined entities with the deterministic heuristic
+    baseline, instead of letting Groq's result replace it outright.
+
+    Groq is genuinely better at typing and cleaning entity names, but
+    on a ranked-list video it can be conservative about what counts as
+    "a real entity" — especially with noisy OCR-derived candidates —
+    and return noticeably fewer items than the heuristic pass already
+    found. Previously that meant a 16-candidate heuristic list could
+    silently collapse to whatever smaller subset Groq chose to keep,
+    with nothing downstream able to tell the difference between "this
+    video only has 4 items" and "Groq only kept 4 of the 16 we gave
+    it". Keep Groq's version of anything it recognized (better
+    type/confidence), and add back anything it dropped instead of
+    discarding it — the final list can only be as short as the
+    heuristic floor, never shorter.
+    """
+    merged = list(groq_entities)
+    seen = {
+        _normalize_entity_name(e.get("name", ""))
+        for e in groq_entities
+        if e.get("name")
+    }
+    for entity in heuristic_entities:
+        key = _normalize_entity_name(entity.name)
+        if key and key not in seen:
+            seen.add(key)
+            merged.append(entity.model_dump(mode="json"))
+    return merged
 
 
 def _compute_evidence_confidence(
@@ -185,11 +230,11 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
             settings = get_settings()
             groq_res = v3_reason_over_evidence(evidence_graph, settings)
 
-            # Prefer Groq's refined entities when reasoning actually
-            # succeeded and returned something; otherwise keep the
-            # heuristic baseline rather than persisting an empty list.
+            # Union, not replace: keep Groq's typing/cleanup for anything
+            # it recognized, but never lose a heuristic candidate just
+            # because Groq's own response omitted it.
             if groq_res.reasoning_used and groq_res.refined_entities:
-                final_entities_json = groq_res.refined_entities
+                final_entities_json = _merge_entities(groq_res.refined_entities, heuristic_entities)
             else:
                 final_entities_json = [e.model_dump(mode="json") for e in heuristic_entities]
 
