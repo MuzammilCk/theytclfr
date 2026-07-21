@@ -21,6 +21,47 @@ from ytclfr.queue.celery_app import celery_app
 
 logger = get_logger(__name__)
 
+OVERLAY_TEXT_DENSITY_OCR_THRESHOLD: float = 0.15
+STRUCTURAL_TYPES_SUGGESTING_TEXT: frozenset[str] = frozenset({
+    "list", "ranking", "countdown", "compilation", "slideshow", "infographic",
+})
+
+
+def _compute_ocr_required(
+    *,
+    has_burned_in_text: bool,
+    vlm_struct_type: str,
+    overlay_density: float,
+    title_has_ordinals: bool,
+    title_has_list_keywords: bool,
+) -> bool:
+    """Decide whether Stage B should dispatch OCR for this job.
+
+    This used to be `has_burned_in_text` alone — a single per-frame
+    Tesseract heuristic sampled across 30 frames with no preprocessing.
+    On real stylized video captions that heuristic sits right at its
+    own decision threshold, so a handful of frames either side of the
+    cutoff (e.g. from a differently-tuned OCR install — see
+    extractors/ocr_extractor.py) can flip the result even for a video
+    that is obviously text-driven.
+
+    Stage A already computes three *other* signals for exactly this
+    ("is there meaningful on-screen text/structure") question moments
+    before this is called — the VLM's structural read, its
+    overlay-text-density estimate, and a zero-ML regex check on the
+    title/description — but none of them previously fed into this
+    decision. OR them in as independent corroborating evidence instead
+    of gating on one fragile signal alone.
+    """
+    return bool(
+        has_burned_in_text
+        or vlm_struct_type in STRUCTURAL_TYPES_SUGGESTING_TEXT
+        or overlay_density >= OVERLAY_TEXT_DENSITY_OCR_THRESHOLD
+        or title_has_ordinals
+        or title_has_list_keywords
+    )
+
+
 @celery_app.task(bind=True, name="ytclfr.tasks.v3.stage_a_census.v3_run_signal_census", queue="heavy", max_retries=3, default_retry_delay=30)
 def v3_run_signal_census(self: Any, job_id: str) -> dict[str, Any]:
     job_uuid = uuid.UUID(job_id)
@@ -87,6 +128,18 @@ def v3_run_signal_census(self: Any, job_id: str) -> dict[str, Any]:
             vlm_struct_type = vlm_result.get("structural_video_type", "none")
             overlay_density = vlm_result.get("overlay_text_density", 0.0)
 
+            ocr_required = _compute_ocr_required(
+                has_burned_in_text=visual_res.has_burned_in_text,
+                vlm_struct_type=vlm_struct_type,
+                overlay_density=overlay_density,
+                title_has_ordinals=bool(
+                    meta_res.metadata_structural_hints.get("title_has_ordinals")
+                ),
+                title_has_list_keywords=bool(
+                    meta_res.metadata_structural_hints.get("title_has_list_keywords")
+                ),
+            )
+
             # Combine into manifest based on real prober returns
             manifest = SignalManifest(
                 job_id=job_uuid,
@@ -106,13 +159,17 @@ def v3_run_signal_census(self: Any, job_id: str) -> dict[str, Any]:
                 probing_confidence=min(audio_res.confidence, visual_res.confidence),
                 metadata_prior_confidence=meta_res.confidence,
                 structural_score=0.5 if vlm_struct_type != "none" else 0.0,
-                list_likelihood=0.8 if vlm_struct_type == "list" else 0.0,
+                # "ranking" is a valid VLM category (see valid_types in
+                # vlm_structural_probe.py) and arguably the single most
+                # likely value for a "Top 25 ..." video, but it was falling
+                # through both of these checks and silently scoring 0.0.
+                list_likelihood=0.8 if vlm_struct_type in ("list", "ranking") else 0.0,
                 countdown_likelihood=0.8 if vlm_struct_type == "countdown" else 0.0,
                 overlay_text_density=overlay_density,
                 ordinal_pattern_score=1.0 if meta_res.metadata_structural_hints.get("title_has_ordinals") else 0.0,
                 scene_repeat_score=0.0,
-                ocr_required=visual_res.has_burned_in_text,
-                ocr_expected_coverage=0.5 if visual_res.has_burned_in_text else 0.0,
+                ocr_required=ocr_required,
+                ocr_expected_coverage=0.5 if ocr_required else 0.0,
                 asr_expected_value=0.8 if audio_res.has_speech else 0.0,
                 structural_video_type=vlm_struct_type,
             )

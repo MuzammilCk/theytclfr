@@ -141,9 +141,39 @@ def _build_taxonomy_prompt(
         e.get("name", "") for e in entities[:MAX_ENTITIES_IN_PROMPT]
     ) or "none"
 
+    # For list/ranking/countdown/compilation formats, a handful of
+    # visible entities is a red flag, not a complete picture: these
+    # videos typically name many items (e.g. "Top 25 ..."), so a small
+    # entity count usually means upstream extraction (e.g. OCR) missed
+    # most of the on-screen content — it is NOT evidence that the video
+    # is narrowly about whatever those few entities have in common.
+    # Previously this was only a soft "factor this heavily" note with no
+    # guard against exactly that failure mode: a handful of
+    # disproportionately sci-fi entities in a 25-movie ranking pulling
+    # the whole classification toward "Science Fiction" / "time travel"
+    # instead of "movie ranking/listicle".
+    SPARSE_LIST_ENTITY_THRESHOLD = 5
+    sparse_note = ""
+    if (
+        structural_video_type in ("list", "ranking", "countdown", "compilation")
+        and len(entities) < SPARSE_LIST_ENTITY_THRESHOLD
+    ):
+        sparse_note = (
+            f" Only {len(entities)} candidate item(s) were identified, which is "
+            "suspiciously few for this format — this most likely means extraction "
+            "was incomplete (e.g. on-screen text not fully captured), NOT that the "
+            "video is only about those items. Do NOT infer a narrow theme, genre, "
+            "or sub-topic (e.g. a shared theme among just the visible items) from "
+            "this small, likely-unrepresentative sample. Classify by the general "
+            "list/ranking format itself and set confidence well below 0.5 to "
+            "reflect the incomplete evidence."
+        )
+
     structural_hint = (
         f"\nNOTE: This video has a strict structural layout: '{structural_video_type}'. "
-        "Factor this format heavily into the child_category and intent.\n"
+        "Factor this format heavily into the child_category and intent — the "
+        "child_category should identify it as a ranked list/countdown, and intent "
+        f"should reflect browsing or discovering multiple ranked items.{sparse_note}\n"
         if structural_video_type != "none"
         else ""
     )

@@ -20,6 +20,50 @@ from ytclfr.probing.ocr_pattern_scorer import score_ocr_patterns
 
 logger = get_logger(__name__)
 
+
+def _compute_evidence_confidence(
+    *,
+    has_ocr: bool,
+    has_asr: bool,
+    is_degraded_asr: bool,
+    primary_evidence_modality: str,
+    conflict_count: int,
+    total_segments: int,
+    is_structural: bool,
+) -> float:
+    """Derive the persisted EvidenceGraph confidence from real signals.
+
+    This used to be a flat `confidence=0.9` regardless of input, so a
+    job with zero OCR segments, a handful of ASR segments, and a
+    "mixed" fallback modality (v3_resolve_conflicts's own label for
+    "no confident primary source") was reported exactly as trustworthy
+    as one with full multi-modal coverage. Stage D averages this value
+    straight into its own overall confidence, so a thin-evidence,
+    wrong classification could surface looking just as confident
+    (~0.85-0.9) as a well-supported one. Base the score on the same
+    completeness signals v3_resolve_conflicts already computes instead.
+    """
+    if total_segments == 0:
+        return 0.2
+    if not has_ocr and not has_asr:
+        return 0.2
+
+    confidence = 0.9
+    if is_structural and not has_ocr:
+        # List/ranking/countdown video but nothing to actually
+        # enumerate it with — the exact gap evidence_priority_notes
+        # already flags in v3_resolve_conflicts.
+        confidence -= 0.35
+    if is_degraded_asr and not has_ocr:
+        confidence -= 0.25
+    if primary_evidence_modality == "mixed":
+        confidence -= 0.1
+    if conflict_count > 0 and not has_ocr:
+        confidence -= 0.05 * conflict_count
+
+    return round(max(0.15, min(0.95, confidence)), 3)
+
+
 @celery_app.task(bind=True, name="ytclfr.tasks.v3.stage_c_fusion.v3_run_evidence_fusion", queue="fast", max_retries=3, default_retry_delay=30)
 def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, Any]:
     # Extract job_id whether called directly or via chord callback
@@ -149,6 +193,16 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
             else:
                 final_entities_json = [e.model_dump(mode="json") for e in heuristic_entities]
 
+            graph_confidence = _compute_evidence_confidence(
+                has_ocr=bool(final_ocr),
+                has_asr=bool(final_asr),
+                is_degraded_asr=bool(asr_metrics and asr_metrics.is_degraded),
+                primary_evidence_modality=conflict_res.primary_evidence_modality,
+                conflict_count=conflict_res.conflict_count,
+                total_segments=len(all_segments),
+                is_structural=effective_structural_type not in ("none", "unknown"),
+            )
+
             new_graph = V3EvidenceGraphORM(
                 job_id=job_uuid,
                 segments_json={"segments": [s.model_dump() for s in all_segments]},
@@ -164,7 +218,7 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
                 evidence_priority_notes_json={"notes": conflict_res.evidence_priority_notes},
                 primary_evidence_modality=conflict_res.primary_evidence_modality,
                 total_segments=len(all_segments),
-                confidence=0.9
+                confidence=graph_confidence
             )
             db.add(new_graph)
             

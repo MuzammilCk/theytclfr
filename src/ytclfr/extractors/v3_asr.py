@@ -60,13 +60,24 @@ class V3ASRExtractor:
                             "probability": round(word.probability, 4),
                         }
                     )
+            base_confidence = max(0.0, min(1.0, float(getattr(seg, "avg_logprob", -0.5)) + 1.0))
+            # faster-whisper exposes no_speech_prob per segment — Whisper's
+            # own estimate that a segment isn't speech at all. avg_logprob
+            # alone doesn't catch this: a hallucinated phrase can be
+            # transcribed "fluently" (high avg_logprob) while Whisper
+            # separately flags the underlying audio as likely non-speech.
+            # This matters most on continuous music beds with no real
+            # narration, where a stock hallucinated phrase can otherwise
+            # reach Stage C/D indistinguishable from a genuine transcript.
+            no_speech_prob = max(0.0, min(1.0, float(getattr(seg, "no_speech_prob", 0.0))))
+            confidence = base_confidence * (1.0 - no_speech_prob)
             asr_segments.append(
                 ASRSegment(
                     segment_type="asr",
                     start_time=round(seg.start, 3),
                     end_time=round(seg.end, 3),
                     text=seg.text.strip(),
-                    confidence=round(max(0.0, min(1.0, float(getattr(seg, "avg_logprob", -0.5)) + 1.0)), 4),
+                    confidence=round(max(0.0, min(1.0, confidence)), 4),
                     words=words_data,
                 )
             )
