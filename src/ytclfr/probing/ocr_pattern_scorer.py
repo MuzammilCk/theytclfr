@@ -1,7 +1,13 @@
-"""Scans OCR segments for ordinal and countdown patterns.
+"""Scans timestamped text segments for ordinal and countdown patterns.
 
-Called during Stage C (Evidence Fusion) after OCR extraction
-but before alignment and taxonomy mapping.
+Despite the historical name, this only ever looks at plain `.text` /
+`.timestamp` pairs — nothing here is OCR-specific. It was written and
+tested against OCR segments (Stage C calls it right after OCR
+extraction, before alignment and taxonomy mapping) but works
+identically against ASR segments: a purely spoken list ("...coming in
+at number three...") produces the same kind of decreasing-number
+sequence as an on-screen "#3" countdown card, just carried in `.text`
+transcribed from speech instead of read off a frame.
 """
 import re
 from dataclasses import dataclass
@@ -14,27 +20,27 @@ ORDINAL_PATTERN = re.compile(
 )
 
 @dataclass
-class OcrPatternResult:
+class OrdinalPatternResult:
     ordinal_pattern_score: float
     countdown_likelihood: float
 
 
-def score_ocr_patterns(ocr_segments: list[Any]) -> OcrPatternResult:
-    """Scans OCR segments for structural patterns.
+def score_ordinal_patterns(segments_in: list[Any]) -> OrdinalPatternResult:
+    """Scans text segments (OCR or ASR) for structural patterns.
     
     Args:
-        ocr_segments: List of OCR segment objects or dicts
+        segments_in: List of segment objects or dicts (OCR or ASR)
             which must have a 'text' and 'timestamp' attribute/key.
             
     Returns:
-        OcrPatternResult with calculated scores 0.0 to 1.0.
+        OrdinalPatternResult with calculated scores 0.0 to 1.0.
     """
-    if not ocr_segments:
-        return OcrPatternResult(0.0, 0.0)
+    if not segments_in:
+        return OrdinalPatternResult(0.0, 0.0)
 
     # Convert to standard format
     segments = []
-    for s in ocr_segments:
+    for s in segments_in:
         text = s.text if hasattr(s, 'text') else s.get('text', '')
         ts = s.timestamp if hasattr(s, 'timestamp') else s.get('timestamp', 0.0)
         segments.append({"text": str(text).strip(), "timestamp": float(ts)})
@@ -58,7 +64,7 @@ def score_ocr_patterns(ocr_segments: list[Any]) -> OcrPatternResult:
                 pass
 
     if not matched_numbers:
-        return OcrPatternResult(0.0, 0.0)
+        return OrdinalPatternResult(0.0, 0.0)
 
     # 1. Ordinal Pattern Score (density of numbers across segments)
     # If 20% of segments have numbers, that's a strong ordinal pattern.
@@ -81,7 +87,7 @@ def score_ocr_patterns(ocr_segments: list[Any]) -> OcrPatternResult:
         if decrements > increments:
             countdown_score = min(decrements / (len(matched_numbers) - 1) * 1.5, 1.0)
 
-    return OcrPatternResult(
+    return OrdinalPatternResult(
         ordinal_pattern_score=round(ordinal_score, 3),
         countdown_likelihood=round(countdown_score, 3)
     )

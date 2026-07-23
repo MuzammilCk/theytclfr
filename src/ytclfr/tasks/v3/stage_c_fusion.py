@@ -17,7 +17,7 @@ from ytclfr.contracts.v3.bundle import ASRCompletenessMetrics
 from ytclfr.fusion.v3_conflict_resolver import v3_resolve_conflicts
 from ytclfr.fusion.v3_groq_reasoner import v3_reason_over_evidence
 from ytclfr.fusion.entity_extractor import extract_entities_from_timeline
-from ytclfr.probing.ocr_pattern_scorer import score_ocr_patterns
+from ytclfr.probing.ocr_pattern_scorer import score_ordinal_patterns
 
 logger = get_logger(__name__)
 
@@ -182,12 +182,12 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
             all_segments = final_asr + final_ocr
             all_segments.sort(key=lambda x: x.timestamp)
 
-            # score_ocr_patterns analyzes the FULL OCR transcript across
+            # score_ordinal_patterns analyzes the FULL OCR transcript across
             # the whole video (unlike Stage A's sparse frame sample), so
             # it can catch a countdown/ranked-list structure that Stage
             # A's initial gate missed. This module already existed,
             # fully tested, but was never called from anywhere.
-            ocr_pattern_result = score_ocr_patterns(final_ocr)
+            ocr_pattern_result = score_ordinal_patterns(final_ocr)
             effective_structural_type = manifest.structural_video_type
             if (
                 effective_structural_type in ("none", "unknown")
@@ -199,6 +199,23 @@ def v3_run_evidence_fusion(self: Any, *args: Any, **kwargs: Any) -> dict[str, An
                 and ocr_pattern_result.ordinal_pattern_score >= 0.5
             ):
                 effective_structural_type = "list"
+
+            # A list can be entirely spoken with no on-screen text at all
+            # (a plain talking-head video narrating "...number three is
+            # X..." with no list graphic) — Stage A's structural read is
+            # visual-only (the VLM only ever sees frames, never a
+            # transcript), so that case previously left
+            # structural_video_type stuck at "none" even with OCR-fallback
+            # scoring in place, since there's no OCR text to score. Run
+            # the same pattern scorer against the ASR transcript as a
+            # further fallback: the function only ever looked at
+            # text/timestamp pairs, so it works unchanged on speech.
+            if effective_structural_type in ("none", "unknown"):
+                asr_pattern_result = score_ordinal_patterns(final_asr)
+                if asr_pattern_result.countdown_likelihood >= 0.5:
+                    effective_structural_type = "countdown"
+                elif asr_pattern_result.ordinal_pattern_score >= 0.5:
+                    effective_structural_type = "list"
 
             # Heuristic entity extraction gives us a deterministic baseline
             # (ranked-list items, Title-Case phrases) before Groq ever runs,

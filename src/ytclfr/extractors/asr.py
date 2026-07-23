@@ -24,12 +24,15 @@ class ASRExtractor:
     def __init__(self, settings: Settings) -> None:
         from faster_whisper import WhisperModel
 
-        import torch
         device = settings.whisper_device
-        if device == "cuda" and not torch.cuda.is_available():
-            logger.warning("CUDA requested but not available. Falling back to CPU.")
-            device = "cpu"
-            settings.whisper_compute_type = "int8"
+        try:
+            import torch
+            if device == "cuda" and not torch.cuda.is_available():
+                logger.warning("CUDA requested but not available. Falling back to CPU.")
+                device = "cpu"
+                settings.whisper_compute_type = "int8"
+        except ImportError:
+            pass
         
         self._model = WhisperModel(
             settings.whisper_model_size,

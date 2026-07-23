@@ -121,6 +121,45 @@ def test_groq_failure_falls_back_to_heuristic_entities():
     assert saved_graph.groq_reasoning_used is False
 
 
+def _make_spoken_countdown_bundle():
+    """A video with zero on-screen text — the list only exists in
+    narration. Descending numbers in the ASR transcript are the only
+    signal that this is a countdown."""
+    bundle = MagicMock()
+    bundle.asr_segments_json = [
+        {"start_time": 0.0, "end_time": 3.0, "text": "Coming in at number 3 is Inception", "confidence": 0.9},
+        {"start_time": 3.0, "end_time": 6.0, "text": "Number 2 on the list is The Godfather", "confidence": 0.9},
+        {"start_time": 6.0, "end_time": 9.0, "text": "And number 1 has to be The Shawshank Redemption", "confidence": 0.9},
+    ]
+    bundle.ocr_segments_json = []
+    bundle.asr_metrics_json = None
+    return bundle
+
+
+def test_spoken_countdown_with_zero_ocr_is_still_detected_as_structural():
+    """The reported gap: a list can be entirely spoken with no on-screen
+    text at all. Stage A's structural read is visual-only (the VLM
+    never sees a transcript), and the existing OCR-pattern fallback has
+    nothing to work with when there's no OCR. Without an ASR-side
+    fallback, structural_video_type stays 'none' forever for this case
+    — which means the taxonomy prompt's list/ranking hint never fires
+    and the sparse-evidence guard never engages, even though the video
+    is unambiguously a ranked list once you read the transcript."""
+    job_id = uuid4()
+    job = MagicMock(id=job_id)
+    bundle = _make_spoken_countdown_bundle()
+    manifest = _make_manifest(job_id=job_id, structural_video_type="none")
+
+    groq_failure = V3GroqReasoningResult(
+        dominant_subject=None, summary=None, refined_entities=[],
+        scene_boundaries=[], reasoning_used=False,
+    )
+
+    saved_graph = _run(job_id, job, bundle, manifest, groq_failure)
+
+    assert saved_graph.structural_video_type == "countdown"
+
+
 def test_groq_success_merges_with_heuristic_entities():
     """When Groq succeeds, its entities are kept (preferred for
     anything it recognized), but the heuristic baseline is unioned in
