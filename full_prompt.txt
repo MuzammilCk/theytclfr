@@ -1,0 +1,83 @@
+<USER_REQUEST>
+ROLE
+You are a Senior Engineer implementing Stage C of ytclfr V2 inside
+the Antigravity IDE. This session has three parts:
+Part A — housekeeping: read all V2 control files, verify baseline
+  tests still pass, confirm Stage A and B are stable.
+Part B — execute Stage C: Evidence Fusion.
+Part C — update all V2 control files (v2/diff.md, v2/decisions.md,
+  v2/build.md).
+
+RULES — READ BEFORE DOING ANYTHING
+- Read all five V2 control files first:
+  v2/context.md, v2/claude.md, v2/build.md, v2/diff.md, v2/decisions.md.
+- Do not add any library not in the frozen stack.
+  httpx is already in the stack (used in storage/embeddings.py).
+  Use it for the Groq API call. Do not add groq-python, openai, or
+  any other LLM client package.
+- Do not build Stage D logic. Every deferred item uses a
+  # STAGE-D-TODO: comment.
+- Do not delete, rename, or modify any V1 file except:
+    contracts/events.py (extend only — never remove existing events)
+    tasks/stage_b.py (replace ONE comment line — see STEP 8)
+    queue/celery_app.py (add ONE import line — see STEP 9)
+    alembic/env.py (add ONE import line — see STEP 3)
+- Do not modify tasks/align.py. build_timeline remains intact for
+  the V1 path. Stage C only REPLACES it as Stage B's chord callback.
+- One new Alembic migration for the evidence_graphs table.
+  Never edit any existing migration file.
+- run_fuse_evidence is the chord callback that replaces build_timeline
+  in Stage B. Its signature MUST be:
+    def run_fuse_evidence(self, extractor_results: list[dict], job_id: str)
+  extractor_results is the first arg prepended by Celery from the chord.
+  job_id is the second arg from .s(job_id) in the Stage B dispatch.
+  bind=True is required so self is available for self.retry().
+- Stage C MUST call align() and save_aligned_segments() for backward
+  compatibility with the V1 API endpoints that read aligned_segments.
+- Stage C MUST NOT call assemble_and_save_final_output(). That is
+  V1 output assembly. Stage D produces
+<truncated 45216 bytes>
+═════════════
+
+File: src/ytclfr/tasks/stage_b.py (existing — one block change only)
+
+Locate the STAGE-C-TODO block at Step 7:
+
+    # STAGE-C-TODO: Replace build_timeline.s(job_id) with
+    #   run_fuse_evidence.s(job_id) from tasks/stage_c.py
+    #   once Stage C is built and confirmed stable. At that
+    #   point build_timeline.s() is bypassed in the V2 path.
+    extractor_group = group(*tasks_to_run)
+    chord(extractor_group)(build_timeline.s(job_id))
+
+Replace it exactly with:
+
+    # Stage C callback — chord fires run_fuse_evidence when
+    # all extractors complete. build_timeline remains active
+    # for the V1 path (classify_video). See DR-V2-06.
+    from ytclfr.tasks.stage_c import run_fuse_evidence  # lazy import
+    extractor_group = group(*tasks_to_run)
+    chord(extractor_group)(run_fuse_evidence.s(job_id))
+
+    # STAGE-D-TODO: Stage D is triggered from within
+    #   run_fuse_evidence (tasks/stage_c.py) after the
+    #   EvidenceGraph is persisted, not from here.
+
+Rules:
+  - The import is INSIDE the function body (lazy import).
+    Do not add it to the module-level import block.
+  - Do not change any other line in stage_b.py.
+  - build_timeline must still be importable from tasks/align.py
+    (it is used by the V1 chord via classify_video).
+
+═══════════════════════════════════════════════════════════
+STEP 9 — CELERY REGISTRATION: queue/celery_app.py
+═══════════════════════════════════════════════════════════
+
+File: src/ytclfr/queue/celery_app.py (existing — one line only)
+
+Locate:
+    import ytclfr.tasks.stage_b  # noqa: F401, E402 — V2 
+<truncated 32383 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.

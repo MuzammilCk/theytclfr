@@ -137,6 +137,39 @@ class TestExtractorResultOCR:
             )
 
 
+# ── ExtractorResult (Audio) ───────────────────────────
+
+
+class TestExtractorResultAudio:
+    """Tests for ExtractorResult schema with Audio segments."""
+
+    def test_valid_fixture(self) -> None:
+        data = _load_fixture("extractor_result_audio.json")
+        result = ExtractorResult.model_validate(data)
+        assert str(result.job_id) == data["job_id"]
+        assert result.extractor_type == "audio"
+        assert len(result.segments) == 1
+        assert result.error is None
+
+    def test_rejects_invalid(self) -> None:
+        with pytest.raises(ValidationError):
+            ExtractorResult.model_validate(
+                {
+                    "job_id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+                    "extractor_type": "audio",
+                    "segments": [
+                        {
+                            "segment_type": "audio",
+                            "label": "speech",
+                            "confidence": 2.0,  # > 1.0, invalid
+                        }
+                    ],
+                    "total_duration_seconds": 100.0,
+                    "extracted_at": "2026-04-20T06:36:00Z",
+                }
+            )
+
+
 # ── AlignedTimeline ───────────────────────────────────
 
 

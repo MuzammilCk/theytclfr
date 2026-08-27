@@ -28,9 +28,9 @@ def test_validate_youtube_url_rejects_live():
         validate_youtube_url("https://www.youtube.com/live/abc12345678")
 
 
-def test_validate_youtube_url_rejects_shorts():
-    with pytest.raises(ValueError):
-        validate_youtube_url("https://www.youtube.com/shorts/abc123def45")
+def test_validate_youtube_url_accepts_shorts():
+    url = "https://www.youtube.com/shorts/abc123def45"
+    assert validate_youtube_url(url) == "https://www.youtube.com/watch?v=abc123def45"
 
 
 def test_validate_youtube_url_rejects_playlist():

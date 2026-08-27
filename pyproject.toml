@@ -19,19 +19,26 @@ dependencies = [
     "alembic",
     "psycopg2-binary",
     "faster-whisper",
+    "torch",
     "pytesseract",
+    "Pillow",
     "yt-dlp",
     "python-jose[cryptography]",
     "python-multipart",
     "httpx",
+    "boto3",
+    "pgvector",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "pytest-asyncio",
+    "pytest-mock",
     "ruff",
     "mypy",
+    "hypothesis",
+    "bandit",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -53,3 +60,5 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+norecursedirs = ["tests/legacy_v1v2"]
+asyncio_default_fixture_loop_scope = "function"

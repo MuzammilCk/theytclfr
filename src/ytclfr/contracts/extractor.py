@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-ExtractorResultType = Literal["asr", "ocr"]
+ExtractorResultType = Literal["asr", "ocr", "audio"]
 
 
 class ASRSegment(BaseModel):
@@ -38,14 +38,28 @@ class OCRSegment(BaseModel):
     }
 
 
+class AudioSegment(BaseModel):
+    """Audio classification result from metadata or acoustic analysis."""
+
+    segment_type: Literal["audio"] = "audio"
+    label: str  # "speech", "music", "no_audio"
+    confidence: float = Field(ge=0.0, le=1.0)
+    codec: str | None = None
+    bitrate_kbps: float | None = None
+
+    model_config = {
+        "frozen": True,
+    }
+
+
 class ExtractorResult(BaseModel):
-    """Result container for an extractor run (ASR or OCR)."""
+    """Result container for an extractor run (ASR, OCR, or audio classification)."""
 
     job_id: UUID
     extractor_type: ExtractorResultType
     segments: list[
         Annotated[
-            ASRSegment | OCRSegment,
+            ASRSegment | OCRSegment | AudioSegment,
             Field(discriminator="segment_type"),
         ]
     ]

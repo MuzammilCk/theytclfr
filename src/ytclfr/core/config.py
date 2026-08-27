@@ -1,3 +1,5 @@
+import os
+import tempfile
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -7,19 +9,27 @@ class Settings(BaseSettings):
     database_url: str
     database_pool_size: int = 5
     redis_url: str
-    temp_media_path: str = "/tmp/ytclfr_media"
+    temp_media_path: str = os.path.join(tempfile.gettempdir(), "ytclfr_media")
     temp_media_max_age_seconds: int = 3600
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
     groq_api_key: str
     groq_model: str = "llama-3.3-70b-versatile"
+    gemini_api_key: str
+    vlm_model: str = "gemini-3.1-flash-lite"
     llm_request_timeout_seconds: int = 120
     llm_max_retries: int = 3
+    ollama_embedding_model: str = "nomic-embed-text"
+    embedding_dim: int = 768
+    redis_result_cache_ttl: int = 3600
     whisper_model_size: str = "small"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
     tesseract_cmd_path: str = "tesseract"
     ocr_frame_sample_rate: int = 1
+    ytdlp_cookies_file: str | None = None
+    ytdlp_cookies_dir: str | None = None
+    router_frame_sample_count: int = 15
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     jwt_expiry_minutes: int = 60
@@ -29,9 +39,13 @@ class Settings(BaseSettings):
     celery_task_time_limit: int = 1800
     log_level: str = "INFO"
     environment: str = "development"
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    aws_region: str = "us-east-1"
+    s3_bucket_name: str | None = None
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
     )

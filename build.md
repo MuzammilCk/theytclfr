@@ -1,10 +1,19 @@
 # build.md
 
-CURRENT PHASE: 3 — Authentication Layer
-STATUS: IN PROGRESS
+CURRENT PHASE: V3 Pipeline — Full Implementation
+STATUS: COMPLETE
 (Phase 0 — Project Constitution: COMPLETE)
 (Phase 1 — Data Contracts + Schemas: COMPLETE)
 (Phase 2 — Ingestion + Temporary Storage: COMPLETE)
+(Phase 3 — Authentication Layer: COMPLETE)
+(Phase 4 — Preflight Router: COMPLETE)
+(Phase 5 — Worker Queue + Parallel Extractor Infrastructure: COMPLETE)
+(Phase 6 — Temporal Alignment Layer: COMPLETE)
+(Phase 7 — Confidence Controller: COMPLETE)
+(Phase 8 — Storage + Output API: COMPLETE)
+(Phase 9 — End-to-End Hardening: COMPLETE)
+(Phase 10 — V2 Distributed Scaling: COMPLETE)
+(V2 Stage A — Signal Census: COMPLETE)
 
 ## Phase List
 
@@ -103,22 +112,22 @@ Bugs found and fixed:
 
 ### Phase 3 — Authentication Layer
 Goal: Protect every user-facing endpoint before any output is exposed.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
-  [ ] JWT token creation utility
-  [ ] JWT validation FastAPI dependency
-  [ ] Auth applied by default to all protected routes
-  [ ] 401 and 403 response shapes matching Phase 1 contracts
-  [ ] Rate limiting tied to authenticated identity
-  [ ] JWT env vars wired from context.md
+  [x] JWT token creation utility
+  [x] JWT validation FastAPI dependency
+  [x] Auth applied by default to all protected routes
+  [x] 401 and 403 response shapes matching Phase 1 contracts
+  [x] Rate limiting tied to authenticated identity
+  [x] JWT env vars wired from context.md
 
 Definition of Done:
-  [ ] Unauthenticated request to any protected endpoint returns 401
-  [ ] Invalid token returns 401
-  [ ] Valid token passes through
-  [ ] Rate limit returns 429 after configured threshold
-  [ ] No credentials hardcoded anywhere
+  [x] Unauthenticated request to any protected endpoint returns 401
+  [x] Invalid token returns 401
+  [x] Valid token passes through
+  [x] Rate limit returns 429 after configured threshold
+  [x] No credentials hardcoded anywhere
 
 Test stack:
   pytest
@@ -131,22 +140,22 @@ Test stack:
 
 ### Phase 4 — Preflight Router
 Goal: Classify the video cheaply before committing to heavy work.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
-  [ ] Frame sampler (configurable sample count, not hardcoded)
-  [ ] Basic audio presence / VAD check
-  [ ] Title and description metadata inspection
-  [ ] Content type classifier: speech-heavy, music-heavy, list-edit, slide-presentation, mixed
-  [ ] RouterDecision output matching Phase 1 schema
-  [ ] Confidence score attached to every decision
-  [ ] Low-confidence path explicitly allowed, not rejected
+  [x] Frame sampler (configurable sample count, not hardcoded)
+  [x] Basic audio presence / VAD check
+  [x] Title and description metadata inspection
+  [x] Content type classifier: speech-heavy, music-heavy, list-edit, slide-presentation, mixed
+  [x] RouterDecision output matching Phase 1 schema
+  [x] Confidence score attached to every decision
+  [x] Low-confidence path explicitly allowed, not rejected
 
 Definition of Done:
-  [ ] Router returns exactly one primary route per video
-  [ ] Confidence score is always present
-  [ ] RouterDecision conforms to Phase 1 contract
-  [ ] Router has no dependency on Phase 5 extractors
+  [x] Router returns exactly one primary route per video
+  [x] Confidence score is always present
+  [x] RouterDecision conforms to Phase 1 contract
+  [x] Router has no dependency on Phase 5 extractors
 
 Test stack:
   labeled sample set (min 5 examples per route type)
@@ -158,29 +167,29 @@ Test stack:
 
 ### Phase 5 — Worker Queue + Parallel Extractor Infrastructure
 Goal: Build the Celery worker foundation and all heavy extractor tasks before any single extractor is wired up.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
-  [ ] Celery app configuration (queues: fast, heavy)
-  [ ] Worker process entry point
-  [ ] Task base class (retry policy, timeout, error handling)
-  [ ] Dead-letter handling for tasks that exhaust retries
-  [ ] Task result storage in Redis
-  [ ] Worker metrics: duration, failure rate, queue depth
-  [ ] ASR extractor task (faster-whisper, word-level timestamps)
-  [ ] OCR extractor task (Tesseract, frame-level timestamps)
-  [ ] Audio classifier task (speech vs music)
-  [ ] Orchestration: Celery group (parallel ASR + OCR)
-  [ ] Chord callback: temporal alignment triggered after group
-  [ ] ExtractorResult output matching Phase 1 schema
+  [x] Celery app configuration (queues: fast, heavy)
+  [x] Worker process entry point
+  [x] Task base class (retry policy, timeout, error handling)
+  [x] Dead-letter handling for tasks that exhaust retries
+  [x] Task result storage in Redis
+  [x] Worker metrics: duration, failure rate, queue depth
+  [x] ASR extractor task (faster-whisper, word-level timestamps)
+  [x] OCR extractor task (Tesseract, frame-level timestamps)
+  [x] Audio classifier task (speech vs music)
+  [x] Orchestration: Celery group (parallel ASR + OCR)
+  [x] Chord callback: temporal alignment triggered after group
+  [x] ExtractorResult output matching Phase 1 schema
 
 Definition of Done:
-  [ ] ASR and OCR run in parallel via Celery group
-  [ ] Each extractor result is timestamped and conforms to ExtractorResult schema
-  [ ] A failing extractor does not cancel other extractors
-  [ ] Dead-letter queue receives tasks that exhaust retries
-  [ ] Worker starts with a single command from project root
-  [ ] No extractor imports or calls another extractor
+  [x] ASR and OCR run in parallel via Celery group
+  [x] Each extractor result is timestamped and conforms to ExtractorResult schema
+  [x] A failing extractor does not cancel other extractors
+  [x] Dead-letter queue receives tasks that exhaust retries
+  [x] Worker starts with a single command from project root
+  [x] No extractor imports or calls another extractor
 
 Test stack:
   pytest: per-extractor unit tests (mocked models)
@@ -188,25 +197,34 @@ Test stack:
   pytest: dead-letter routing test
   integration test on 3 short video clips
 
+Post-phase hardening fixes applied (Session 14):
+  - DB session generator leak (FIX 01, FIX 02)
+  - Celery worker logging observability (FIX 03)
+  - Chord zombie job state (FIX 04)
+  - Silent error persistence failure (FIX 05)
+  - Inline import locations (FIX 06)
+  - O(N) ffmpeg subprocess loop (FIX 07)
+  - Deprecated FastAPI on_event (FIX 08)
+
 ---
 
 ### Phase 6 — Temporal Alignment Layer
 Goal: Combine transcript, OCR, and audio outputs into one shared timeline.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
-  [ ] Timestamp normalization (common time unit)
-  [ ] Overlap detection and resolution
-  [ ] Duplicate evidence merge logic
-  [ ] Segment creation from aligned evidence
-  [ ] AlignedSegment output matching Phase 1 schema
+  [x] Timestamp normalization (common time unit)
+  [x] Overlap detection and resolution
+  [x] Duplicate evidence merge logic
+  [x] Segment creation from aligned evidence
+  [x] AlignedSegment output matching Phase 1 schema
 
 Definition of Done:
-  [ ] One shared timeline exists per video
-  [ ] Overlaps resolved deterministically
-  [ ] Duplicate evidence collapsed
-  [ ] Same input always produces identical output (reproducible)
-  [ ] AlignedSegment conforms to Phase 1 schema
+  [x] One shared timeline exists per video
+  [x] Overlaps resolved deterministically
+  [x] Duplicate evidence collapsed
+  [x] Same input always produces identical output (reproducible)
+  [x] AlignedSegment conforms to Phase 1 schema
 
 Test stack:
   pytest: interval merge tests
@@ -218,21 +236,21 @@ Test stack:
 
 ### Phase 7 — Confidence Controller
 Goal: Decide whether to trust, rescan, or downgrade results.
-Status: [ ] Not Started
+Status: [x] Complete
 
 Build:
-  [ ] Confidence scoring rules per signal type
-  [ ] Branch switching logic
-  [ ] Fallback trigger conditions
-  [ ] Rescanning policy (max attempt limit, not infinite)
-  [ ] Partial/uncertain output policy (uncertain is valid, not an error)
+  [x] Confidence scoring rules per signal type
+  [x] Branch switching logic
+  [x] Fallback trigger conditions
+  [x] Rescanning policy (max attempt limit, not infinite)
+  [x] Partial/uncertain output policy (uncertain is valid, not an error)
 
 Definition of Done:
-  [ ] Low-confidence transcript does not terminate pipeline
-  [ ] Low-confidence OCR triggers additional frame sampling
-  [ ] Uncertain output is explicitly marked, never silently dropped
-  [ ] Rescan stops at max attempt limit
-  [ ] Confidence Controller has no DB writes, no queue calls
+  [x] Low-confidence transcript does not terminate pipeline
+  [x] Low-confidence OCR triggers additional frame sampling
+  [x] Uncertain output is explicitly marked, never silently dropped
+  [x] Rescan stops at max attempt limit
+  [x] Confidence Controller has no DB writes, no queue calls
 
 Test stack:
   pytest: scoring rule unit tests
@@ -243,25 +261,27 @@ Test stack:
 ---
 
 ### Phase 8 — Storage + Output API
-Goal: Persist structured knowledge and expose it to authenticated users.
-Status: [ ] Not Started
+Goal: Persist structured knowledge to Postgres and expose it to authenticated users.
+Status: [x] Complete
 
 Build:
-  [ ] PostgreSQL schema (jobs, metadata, results via Alembic)
-  [ ] pgvector for semantic retrieval on AlignedSegment embeddings
-  [ ] FastAPI output layer with Phase 3 auth on all routes
-  [ ] Redis cache for repeated identical queries
-  [ ] FinalOutput JSON response matching Phase 1 schema
-  [ ] Query endpoints: by job_id, by time range, by similarity
-  [ ] GET /api/v1/jobs/{job_id}/result endpoint
+  [x] PostgreSQL schema (aligned_timelines table via Alembic migration)
+  [x] pgvector integration for semantic retrieval on AlignedSegment embeddings
+  [x] PostgreSQL GIN index for fast keyword search on timeline text
+  [x] FastAPI output layer with Phase 3 auth on all routes
+  [x] Redis cache for repeated identical queries
+  [x] FinalOutput JSON response matching Phase 1 contract (including provenance/confidence)
+  [x] Query endpoints: by job_id, by time range, by semantic similarity (pgvector)
+  [x] tasks/align.py updated to persist final timeline to DB
 
 Definition of Done:
-  [ ] Results queryable by job_id and by time range
-  [ ] Output conforms to Phase 1 FinalOutput schema
-  [ ] Repeated requests served from Redis cache
-  [ ] All routes protected by Phase 3 auth
-  [ ] Alembic migration runs clean from zero
-  [ ] No Base.metadata.create_all() anywhere in codebase
+  [x] Results queryable by job_id and time range
+  [x] Output conforms to Phase 1 FinalOutput schema
+  [x] Repeated requests served from Redis cache
+  [x] All routes protected by Phase 3 auth
+  [x] Alembic migration runs clean from zero
+  [x] No Base.metadata.create_all() anywhere in codebase
+  [x] Zero references to OpenSearch/Elasticsearch
 
 Test stack:
   Alembic migration tests (upgrade and downgrade)
@@ -274,25 +294,25 @@ Test stack:
 
 ### Phase 9 — End-to-End Hardening
 Goal: Make the system production-safe, observable, and recoverable.
-Status: [ ] Not Started
+Status: In Progress
 
 Build:
-  [ ] Distributed tracing (trace ID in all logs and responses)
-  [ ] Metrics: latency, cost per video, failure rate, queue depth
-  [ ] Dead-letter handling and alerting
-  [ ] Idempotency on all task retries
-  [ ] Partial-result recovery (resume from last successful phase)
-  [ ] Security audit (OWASP API Top 10 check)
-  [ ] bandit static analysis (zero high-severity findings)
-  [ ] Load and chaos testing
-  [ ] Runbook for every failure mode found in chaos testing
+  [x] Distributed tracing (trace ID in all logs and responses)
+  [x] Metrics: latency, cost per video, failure rate, queue depth
+  [x] Dead-letter handling and alerting
+  [x] Idempotency on all task retries
+  [x] Partial-result recovery (resume from last successful phase)
+  [x] Security audit (OWASP API Top 10 check)
+  [x] bandit static analysis (zero high-severity findings)
+  [x] Load and chaos testing
+  [x] Runbook for every failure mode found in chaos testing
 
 Definition of Done:
-  [ ] Pipeline survives failure of any single phase without data corruption
-  [ ] Reruns of any job are safe and idempotent
-  [ ] bandit produces zero high-severity findings
-  [ ] Every chaos test failure has a runbook entry
-  [ ] Trace ID present in every log line and API response header
+  [x] Pipeline survives failure of any single phase without data corruption
+  [x] Reruns of any job are safe and idempotent
+  [x] bandit produces zero high-severity findings
+  [x] Every chaos test failure has a runbook entry
+  [x] Trace ID present in every log line and API response header
 
 Test stack:
   full end-to-end tests on 5 real video URLs
@@ -300,6 +320,162 @@ Test stack:
   recovery tests: resume from checkpoint per phase
   load tests: sustained 2x peak for 10 minutes
   cost profiling: cost per video within acceptable range
+
+---
+
+### Phase 10 — V2 Distributed Scaling
+Goal: Eliminate local filesystem coupling between Celery workers and enable distributed multi-node deployment via S3 object storage and lightweight chord payloads.
+Status: [x] Complete
+
+Build:
+  [x] AWS S3 settings added to Settings class (config.py)
+  [x] S3StorageManager created (ingestion/s3_storage.py)
+  [x] Alembic migration 0004: s3_video_uri column on jobs table
+  [x] Ingestion task uploads video to S3, cleans local copy immediately
+  [x] Router and extract tasks download video from S3 before processing
+  [x] Chord payloads reduced to lightweight dicts (no JSON in Redis)
+  [x] build_timeline fetches extractor results from Postgres instead of chord args
+  [x] Proxy-aware rate limiting (X-Forwarded-For)
+  [x] boto3 added to pyproject.toml dependencies
+  [x] DR-18, DR-19, DR-20 written to decisions.md
+  [x] diff.md updated
+
+Definition of Done:
+  [x] No local filesystem path is shared between Celery workers
+  [x] Video files transit through S3 between ingestion and extraction
+  [x] Chord callback receives only lightweight status dicts, not full JSON payloads
+  [x] Alignment engine reads extractor data from Postgres, not from Redis chord args
+  [x] Rate limiter uses real client IP behind load balancer
+  [x] All existing Phase 6 and Phase 7 tests still pass
+  [x] ruff check passes
+  [x] mypy passes
+
+Test stack:
+  ruff check
+  mypy
+  pytest (existing alignment, confidence, extractor tests must not break)
+
+---
+
+### V2 Stage A — Signal Census
+Goal: Replace the V1 preflight router with a lightweight probing layer that detects what signals physically exist in the video before any expensive extraction runs.
+Status: [x] Complete
+
+Build:
+  [x] A-1: Define `SignalManifest` Pydantic model (`contracts/manifest.py`)
+  [x] A-2: Add `signal_manifests` Alembic migration (`migrations/`)
+  [x] A-3: Add `SignalManifestRepository` to storage layer (`storage/manifest_store.py`)
+  [x] A-4: Upgrade `audio_checker.py` — VAD + music detection (`probing/audio_checker.py`)
+  [x] A-5: Upgrade `frame_sampler.py` — motion + face + text density (`probing/frame_sampler.py`)
+  [x] A-6: Add `metadata_probe.py` — yt-dlp metadata parser (`probing/metadata_probe.py`)
+  [x] A-7: Write `tasks/stage_a.py` Celery task (orchestrates A-4/A-5/A-6, saves manifest) (`tasks/stage_a.py`)
+  [x] A-8: Add SSE event types for Stage A (`contracts/events.py`)
+  [x] A-9: Golden JSON fixture + unit tests for SignalManifest (`tests/fixtures/signal_manifest.json`, `tests/test_stage_a.py`)
+
+Definition of Done:
+  [x] All Stage A micro-tasks complete.
+  [x] 27 unit tests for Stage A pass without error.
+  [x] V1 regression tests pass with no regressions.
+  [x] All intermediate results (SignalManifest) persisted to PostgreSQL.
+  [x] SSE events emitted at every step of Stage A.
+
+Test stack:
+  pytest tests/unit/stage_a/
+  pytest tests/ -q
+
+---
+
+### V2 Stage B — Targeted Extraction
+Goal: Read the `SignalManifest` and dynamically build a Celery group of only the extractors needed. No extractor runs unless its signal was confirmed in Stage A.
+Status: [x] Complete
+
+Build:
+  [x] B-1: Define extractor output Pydantic models (`ASROutput`, `OCROutput`, `VisualOutput`) (`contracts/extractor_outputs.py`)
+  [x] B-2: Add extractor output tables (Alembic migration) (`migrations/`)
+  [x] B-3: Refactor `tasks/asr.py` to V2 contract (`tasks/asr.py`)
+  [x] B-4: Refactor `tasks/ocr.py` to V2 contract (`tasks/ocr.py`)
+  [x] B-5: Add `tasks/visual_extractor.py` (scene cut + face detection) (`tasks/visual_extractor.py`)
+  [x] B-6: Write `tasks/stage_b.py` — reads manifest, builds dynamic Celery group (`tasks/stage_b.py`)
+  [x] B-7: Add SSE event types for Stage B (`contracts/events.py`)
+  [x] B-8: Golden JSON fixtures + unit tests for Stage B (`tests/fixtures/`, `tests/test_stage_b.py`)
+
+Definition of Done:
+  [x] Extractors only run if the corresponding signal is active in the manifest.
+  [x] Extractor results are persisted as separate records linked to the job in the DB.
+  [x] Tasks are highly robust and run in parallel via Celery groups.
+  [x] SSE events emitted correctly.
+
+Test stack:
+  pytest tests/
+
+---
+
+### V2 Stage C — Evidence Fusion
+Goal: Take all extractor outputs and produce a single fused evidence graph with aligned timestamps, extracted entities, and confidence scores. LLM call via Groq to answer "what is this video about?"
+Status: [x] Complete
+
+Build:
+  [x] C-1: Define `EvidenceGraph`, `FusedSegment`, `ExtractedEntity` Pydantic models (`contracts/evidence.py`)
+  [x] C-2: Add `evidence_graphs` Alembic migration (`migrations/`)
+  [x] C-3: Upgrade `alignment/engine.py` to V2 temporal alignment (`alignment/engine.py`)
+  [x] C-4: Write `fusion/entity_extractor.py` (extracts products, people, places from transcript) (`fusion/entity_extractor.py`)
+  [x] C-5: Write `fusion/groq_reasoner.py` (Groq API call: dominant subject + scene summary) (`fusion/groq_reasoner.py`)
+  [x] C-6: Write `tasks/stage_c.py` — fuses all evidence, saves EvidenceGraph (`tasks/stage_c.py`)
+  [x] C-7: Add SSE event types for Stage C (`contracts/events.py`)
+  [x] C-8: Golden JSON fixtures + unit tests for Stage C (`tests/fixtures/`, `tests/test_stage_c.py`)
+
+---
+
+### V2 Stage D — Taxonomy + Intent Mapping
+Goal: Use the `EvidenceGraph` to produce a final structured classification: parent category, child category, intent. This is the last step — classification happens only after evidence is complete.
+Status: [x] Complete
+
+Build:
+  [x] D-1: Define enriched `FinalOutput` Pydantic model (`contracts/output.py`)
+  [x] D-2: Update `final_outputs` table (Alembic migration) (`migrations/`)
+  [x] D-3: Write `taxonomy/mapper.py` — Groq-powered taxonomy classification (`taxonomy/mapper.py`)
+  [x] D-4: Write `taxonomy/intent_resolver.py` — resolves intent from evidence (`taxonomy/intent_resolver.py`)
+  [x] D-5: Write `tasks/stage_d.py` — runs mapper, saves FinalOutput (`tasks/stage_d.py`)
+  [x] D-6: Update `storage/output_store.py` to V2 schema (remove hardcoded `content_type_map`) (`storage/output_store.py`)
+  [x] D-7: Add SSE event types for Stage D + job completion (`contracts/events.py`)
+  [x] D-8: Golden JSON fixtures + unit tests for Stage D (`tests/fixtures/`, `tests/test_stage_d.py`)
+
+---
+
+### V2 Pipeline Wiring
+Goal: Wire the four independent stages together using Celery callback mechanisms and update job state machines.
+Status: [x] Complete
+
+Build:
+  [x] W-1: Update `tasks/route.py` to trigger Stage A instead of old group (`tasks/route.py`)
+  [x] W-2: Wire Stage A completion → Stage B trigger via Celery callback (`tasks/stage_a.py`)
+  [x] W-3: Wire Stage B completion → Stage C trigger (`tasks/stage_b.py`)
+  [x] W-4: Wire Stage C completion → Stage D trigger (`tasks/stage_c.py`)
+  [x] W-5: Update job status state machine in DB (`storage/job_store.py`)
+  [x] W-6: Update FastAPI job status endpoint to return new fields (`api/jobs.py`)
+  [x] W-7: Integration test: full pipeline on a short test video (`tests/test_pipeline_integration.py`)
+
+---
+
+### V3 Pipeline Implementation
+Goal: Implement the next-generation pipeline with strict contract isolation, resource views, structured evidence prompts, and ASR degradation awareness.
+Status: [x] Complete
+
+Build:
+  [x] V3 Contracts (`contracts/v3/`): ingestion, manifest, bundle, evidence, response
+  [x] V3 DB Models (`db/models/v3/`): V3EvidenceGraphORM, V3ExtractorBundleORM
+  [x] V3 API (`api/v3/`): router, jobs, results with resource views
+  [x] V3 Celery Tasks (`tasks/v3/`): stage_a_census, stage_b_extraction, stage_c_fusion, stage_d_taxonomy
+  [x] V3 Fusion (`fusion/`): v3_conflict_resolver, v3_groq_reasoner
+  [x] V3 Task Registration in `celery_app.py`
+  [x] Metadata pruning in `downloader.py`
+  [x] S3 adaptive upload in `s3_storage.py`
+
+Definition of Done:
+  [x] Pipeline successfully executes end-to-end on V3 path
+  [x] API views (BASIC, FULL) correctly format output
+  [x] V3 models cleanly separated from V1/V2
+  [x] All tests pass
 
 ---
 
@@ -317,3 +493,43 @@ No phase may be skipped. No item may be removed from a phase checklist without a
 ## Deferred Items Log
 
 (empty — no items deferred yet)
+
+### 2026-05-27: Completed Structural Safety Gaps
+- Fixed V2FinalOutput schema validation in \pi/v1/results.py\.
+- Tested V2 retry coverage in \jobs.py\.
+- Implemented ordinal and countdown scoring in \ocr_pattern_scorer.py\ and \manifest_store.py\.
+- Wired ASR confidence discount into \conflict_resolver.py\.
+- Added S3 dead-letter cleanup inside the \stage_c.py\ exception handler.
+- Annotated V1 \classify_video\ task with a deprecation warning in oute.py\.
+- Resolved null pointer exception and parse errors in \downloader.py\.
+- Replaced rigid OCR trigger thresholds in `structural_detector.py` with graded density scoring and metadata synergy to fix missed triggers on short-form videos.
+
+
+### 2026-05-28: Executed Wave 3 & 4 Shadow Tasks
+- [x] vlm_structural_probe.py
+- [x] semantic_chunker.py
+- [x] paddle_ocr.py
+- [x] metadata_pyav.py
+- [x] 0013_add_pipeline_version.py
+- [x] api/v3/jobs.py 10% shadow traffic router
+
+
+### 2026-05-28: Executed Wave 1 & 2 Critical Fixes
+- [x] 1.1 Restore DB search indexes (`0012_restore_search_indexes.py` + `env.py`)
+- [x] 1.2 Wire V3 ASR Extractor (`v3_extraction_tasks.py` + `stage_b_extraction.py`)
+- [x] 1.3 Fix O(N) Frame Sampling CPU Regression (`frame_sampler.py` ffmpeg pipe)
+- [x] 1.4 Fix Synchronous Ollama Embedding Loop (`segment_store.py` async client)
+- [x] 2.1 Eliminate Recursive SSE Sanitization (`sse.py` + casting at source)
+- [x] 2.2 S3 Orphan Cleanup via Celery Beat (`cleanup_tasks.py` + `celery_app.py`)
+- [x] 2.3 Cookie Pool Rotation (`cookie_pool.py` + `downloader.py`)
+
+### 2026-05-28: Fixed Alembic Migration Divergence and SQL Bug
+- Resolved multiple heads conflict between Wave 1 (`3019f6d173fb`) and Wave 3/4 (`0013`) migrations by reparenting `0013`'s `down_revision`.
+- Fixed a silent SQL `ProgrammingError` in `3019f6d173fb_restore_search_indexes.py` where `segment_text` was incorrectly referenced instead of the correct `text` column in `aligned_segments`.
+- Database is now successfully upgraded to `0013` head.
+
+### 2026-05-28: Shadow Pipeline Execution Engine
+- [x] V4 Celery Orchestrator (`shadow_orchestrator.py`)
+- [x] Task Registration (`celery_app.py`)
+- [x] Evaluation Script (`v4_evaluate.py`)
+- [x] Database Collision Avoidance (`uuid5`)

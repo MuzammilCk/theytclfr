@@ -1,8 +1,18 @@
+import contextvars
 import json
 import logging
 from datetime import datetime
 
 from ytclfr.core.config import Settings
+
+
+trace_id_var = contextvars.ContextVar("trace_id", default="system")
+
+
+class TraceIdFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.trace_id = trace_id_var.get()
+        return True
 
 
 class JSONFormatter(logging.Formatter):
@@ -12,6 +22,7 @@ class JSONFormatter(logging.Formatter):
             "level": record.levelname,
             "name": record.name,
             "message": record.getMessage(),
+            "trace_id": trace_id_var.get(),
         }
         if record.exc_info:
             log_data["exc_info"] = self.formatException(record.exc_info)
@@ -27,13 +38,14 @@ def configure_logging(settings: Settings) -> None:
         logger.removeHandler(handler)
 
     handler = logging.StreamHandler()
+    handler.addFilter(TraceIdFilter())
     formatter: logging.Formatter
     if settings.environment.lower() == "production":
         formatter = JSONFormatter()
     else:
         # Human-readable format in development
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            "%(asctime)s - [%(trace_id)s] - %(name)s - %(levelname)s - %(message)s"
         )
     handler.setFormatter(formatter)
     logger.addHandler(handler)

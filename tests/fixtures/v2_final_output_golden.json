@@ -1,0 +1,36 @@
+{
+  "job_id": "00000000-0000-0000-0000-000000000099",
+  "taxonomy": {
+    "parent_category": "Education",
+    "child_category": "Coding Tutorial",
+    "intent": "Learn to build FastAPI endpoints step by step",
+    "confidence": 0.87,
+    "groq_taxonomy_used": true
+  },
+  "summary": "A hands-on Python FastAPI tutorial covering endpoint creation and validation.",
+  "items": [
+    {"name": "Python", "item_type": "topic", "timestamp": 0.0, "confidence": 0.9},
+    {"name": "FastAPI", "item_type": "topic", "timestamp": 4.0, "confidence": 0.85}
+  ],
+  "evidence_graph_summary": [
+    {"timestamp": 0.0, "end_timestamp": 3.5,
+     "text": "Welcome to this Python tutorial",
+     "source": "asr", "confidence": 0.92}
+  ],
+  "provenance": {
+    "taxonomy_evidence": {
+      "dominant_subject": "Python FastAPI tutorial for beginners",
+      "scene_boundaries": [0.0, 45.0, 90.0],
+      "entity_count": 2,
+      "groq_summary_used": true
+    },
+    "taxonomy_method": "groq"
+  },
+  "confidence": {
+    "taxonomy": 0.87,
+    "evidence_graph": 0.85,
+    "overall": 0.86
+  },
+  "fallback_notes": [],
+  "created_at": "2025-01-01T10:00:00Z"
+}

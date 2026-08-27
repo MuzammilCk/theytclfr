@@ -8,6 +8,13 @@ from alembic import context
 
 from ytclfr.db.base import Base
 import ytclfr.db.models.job
+import ytclfr.db.models.router_decision
+import ytclfr.db.models.signal_manifest  # V2 Stage A
+import ytclfr.db.models.evidence_graph  # V2 Stage C
+import ytclfr.db.models.v3.v3_evidence_graphs   # V3 Stage C
+import ytclfr.db.models.v3.v3_extractor_bundles  # V3 Stage B
+import ytclfr.db.models.aligned_segment
+from pgvector.sqlalchemy import Vector
 
 config = context.config
 

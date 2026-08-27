@@ -1,0 +1,1890 @@
+ROLE
+You are a Senior Engineer implementing Stage D of ytclfr V2 inside
+the Antigravity IDE. This session has three parts:
+Part A — housekeeping: read all V2 control files, fix missing Stage C
+  control-file entries, verify baseline, confirm prerequisites.
+Part B — execute Stage D: Taxonomy + Intent Mapping.
+Part C — update all V2 control files (v2/diff.md, v2/decisions.md,
+  v2/build.md).
+
+RULES — READ BEFORE DOING ANYTHING
+- Read all five V2 control files first:
+  v2/context.md, v2/claude.md, v2/build.md, v2/diff.md, v2/decisions.md.
+- Do not add any library not in the frozen stack. httpx is already
+  in the stack. Use it for Groq. Do not add any taxonomy library.
+- Do not build Pipeline Wiring logic (W-1 through W-7).
+  Every deferred item uses a # PIPELINE-WIRING-TODO: comment.
+- Do not delete, rename, or modify any V1 file except:
+    contracts/events.py (extend only — never remove existing events)
+    tasks/stage_c.py (replace ONE comment line — see STEP 6)
+    queue/celery_app.py (add ONE import line — see STEP 7)
+- Do not add a new Alembic migration. Stage D persists to the
+  existing final_outputs table (migration 0006). The output_json
+  JSON column stores the V2FinalOutput dict directly.
+- taxonomy/mapper.py and taxonomy/intent_resolver.py are pure
+  functions — zero Celery, zero DB, zero side effects.
+- The Groq taxonomy call must NEVER raise. All failures degrade
+  gracefully: groq_taxonomy_used=False, rule-based fallback runs.
+  The pipeline must complete and produce a FinalOutput even without Groq.
+- run_taxonomy_mapping must be idempotent: if a final_output record
+  already exists for this job_id with content_type starting with "v2_",
+  log a warning and return early.
+- All thresholds and keyword sets must be named TUNABLE module-level
+  constants. Never inline.
+- Pydantic v2 syntax only. @validator and class Config are banned.
+- SQLAlchemy 2.x mapped_column style only.
+- Run verification commands before declaring done.
+- Update v2/diff.md, v2/decisions.md, v2/build.md before finishing.
+
+═══════════════════════════════════════════════════════════
+PART A — HOUSEKEEPING
+═══════════════════════════════════════════════════════════
+
+COMPLETE ALL FOUR STEPS BEFORE PART B.
+
+──────────────────────────────────────────────────────────
+PART A — STEP 1: Read and verify V2 control files
+──────────────────────────────────────────────────────────
+
+Read all five V2 control files. You will find these issues
+that must be fixed before Stage D begins:
+
+ISSUE A-1: v2/diff.md is missing Stage C entries.
+The last entry is B-5. There are no C-1 through C-9 entries.
+Stage C Part C was not applied.
+
+ISSUE A-2: v2/decisions.md is missing DR-V2-08, DR-V2-09,
+DR-V2-10. These Stage C decisions were never appended.
+
+ISSUE A-3: v2/decisions.md shows DR-V2-06 Status: ACCEPTED
+with the statement "Stage B fires build_timeline.s(job_id)".
+This is outdated — Stage B now fires run_fuse_evidence.s(job_id).
+DR-V2-06 must be updated to Status: SUPERSEDED.
+
+These are documentation gaps only. Stage C code is fully correct
+and complete. Fix the control files in STEP 2 before proceeding.
+
+──────────────────────────────────────────────────────────
+PART A — STEP 2: Fix missing Stage C control-file entries
+──────────────────────────────────────────────────────────
+
+Fix A-1 — Append to v2/diff.md after the B-5 entry:
+
+  ### C-1 — Stage C SSE Events
+  Date: 2026-05-25
+  Files:
+  - `src/ytclfr/contracts/events.py` — modified
+  Summary: Added StageCStatus (7 values: STARTED, ALIGNMENT_COMPLETE,
+    ENTITIES_EXTRACTED, GROQ_COMPLETE, GROQ_SKIPPED, COMPLETE, FAILED)
+    and StageCEvent Pydantic v2 model with evidence_graph_id field.
+    All V1, Stage A, and Stage B events preserved intact.
+
+  ### C-2 — EvidenceGraph Data Contracts
+  Date: 2026-05-25
+  Files:
+  - `src/ytclfr/contracts/evidence.py` — created
+  Summary: FusedSegment (frozen, timestamp/text/source/confidence/
+    entity_refs), ExtractedEntity (frozen, name/type/timestamps/
+    confidence), EvidenceGraph (from_attributes=True, all Stage C
+    output fields, confidence field_validator 0.0–1.0).
+
+  ### C-3 — DB model + Alembic migration for evidence_graphs
+  Date: 2026-05-25
+  Files:
+  - `src/ytclfr/db/models/evidence_graph.py` — created
+  - `alembic/versions/00328acb33af_add_evidence_graphs.py` — created
+  - `alembic/env.py` — modified (added evidence_graph import)
+  Summary: evidence_graphs table with UNIQUE constraint on job_id
+    (upsert pattern). JSON columns for segments, entities, and
+    scene_boundaries. FK to jobs with CASCADE delete.
+
+  ### C-4 — EvidenceGraphStore
+  Date: 2026-05-25
+  Files:
+  - `src/ytclfr/storage/evidence_store.py` — created
+  Summary: Repository with upsert() (insert or update by job_id)
+    and get_by_job_id() that reconstructs Pydantic models from JSON.
+
+  ### C-5 — fusion/ package: entity_extractor.py
+  Date: 2026-05-25
+  Files:
+  - `src/ytclfr/fusion/__init__.py` — created
+  - `src/ytclfr/fusion/entity_extractor.py` — created
+  Summary: Pure function extract_entities_from_timeline(). Regex
+    capitalized-phrase extraction with stop-word filter. TUNABLE
+    constants. Returns at most MAX_ENTITIES_RETURNED. Never raises.
+
+  ### C-6 — fusion/ package: groq_reasoner.py
+  Date: 2026-05-25
+  Files:
+  - `src/ytclfr/fusion/groq_reasoner.py` — created
+  Summary: Pure function reason_over_evidence(). Groq API via httpx
+    with json_object format. Transcript capped at MAX_TRANSCRIPT_CHARS.
+    Degrades to _GROQ_FAILURE_RESULT on missing key, network error,
+    or malformed JSON. Never raises to caller.
+
+  ### C-7 — tasks/stage_c.py: run_fuse_evidence
+  Date: 2026-05-25
+  Files:
+  - `src/ytclfr/tasks/stage_c.py` — created
+  Summary: Celery chord callback (bind=True, queue=fast) that replaces
+    build_timeline for V2 jobs. Runs V1 align()+save_aligned_segments
+    for backward compat. Entity extraction → Groq reasoning →
+    EvidenceGraph construction + upsert. S3 directory cleanup.
+    Sets job to stage_c_complete. STAGE-D-TODO at Step 13.
+
+  ### C-8 — Wire Stage B → Stage C
+  Date: 2026-05-25
+  Files:
+  - `src/ytclfr/tasks/stage_b.py` — modified
+  - `src/ytclfr/queue/celery_app.py` — modified
+  Summary: Stage B chord callback changed from build_timeline.s() to
+    run_fuse_evidence.s(). Lazy import inside function body.
+    celery_app.py registers ytclfr.tasks.stage_c.
+
+  ### C-9 — Stage C unit tests
+  Date: 2026-05-25
+  Files:
+  - `tests/fixtures/evidence_graph_golden.json` — created
+  - `tests/unit/stage_c/__init__.py` — created
+  - `tests/unit/stage_c/test_evidence_contracts.py` — created
+  - `tests/unit/stage_c/test_entity_extractor.py` — created
+  - `tests/unit/stage_c/test_groq_reasoner.py` — created
+  - `tests/unit/stage_c/test_stage_c_events.py` — created
+  Summary: Contract validation tests, entity extractor pure-function
+    tests, Groq mock tests (network failures degrade gracefully),
+    SSE event contract tests. All pass.
+
+Fix A-2 — Append to v2/decisions.md after DR-V2-07:
+
+  ## DR-V2-08 — run_fuse_evidence replaces build_timeline as Stage B chord callback
+  Date: 2026-05-25
+  Status: ACCEPTED
+  Context: Stage B fired build_timeline.s(job_id) as the chord
+    callback per DR-V2-06. Stage C was built as run_fuse_evidence
+    in tasks/stage_c.py, which adds entity extraction, Groq reasoning,
+    and EvidenceGraph persistence before job completion.
+  Decision: Stage B now calls chord(group)(run_fuse_evidence.s(job_id)).
+    build_timeline is NOT deleted — it remains for the V1 path
+    (classify_video still fires it). Chord callback signature matches
+    build_timeline exactly: (extractor_results, job_id), bind=True.
+  Consequences: V2 jobs go through run_fuse_evidence → EvidenceGraph
+    → Stage D. V1 jobs (classify_video) still use build_timeline.
+    run_fuse_evidence calls align() and save_aligned_segments() for
+    backward compat with V1 API endpoints reading aligned_segments.
+  Supersedes: DR-V2-06 (partially)
+
+  ## DR-V2-09 — Stage C calls V1 align() for backward compatibility
+  Date: 2026-05-25
+  Status: ACCEPTED
+  Context: V1 API endpoints read from aligned_segments table.
+    If Stage C stops saving aligned_segments, the V1 API breaks
+    for V2-path jobs.
+  Decision: run_fuse_evidence calls align() and save_aligned_segments()
+    before entity extraction and Groq. It does NOT call
+    assemble_and_save_final_output() — that is Stage D's responsibility.
+  Consequences: aligned_segments table stays consistent for all jobs.
+    V1 GET /results API works. Stage D can read either aligned_segments
+    or EvidenceGraph — both are available.
+  Supersedes: NONE
+
+  ## DR-V2-10 — Groq reasoning in Stage C is optional and degrades gracefully
+  Date: 2026-05-25
+  Status: ACCEPTED
+  Context: Groq is a cloud API with network failure and rate-limit
+    risk. Stage C cannot block if Groq is unavailable.
+  Decision: groq_reasoner.reason_over_evidence() never raises.
+    Missing GROQ_API_KEY returns _GROQ_FAILURE_RESULT immediately.
+    Any exception returns _GROQ_FAILURE_RESULT with reasoning_used=False.
+    EvidenceGraph is persisted regardless.
+  Consequences: Pipeline works end-to-end without Groq credentials.
+    dominant_subject, groq_summary may be None. Stage D must handle
+    this case with its own rule-based fallback.
+  Supersedes: NONE
+
+Fix A-3 — In v2/decisions.md, locate DR-V2-06 and update its Status:
+
+  Change:   Status: ACCEPTED
+  To:       Status: SUPERSEDED
+  Add line: Superseded by: DR-V2-08
+
+──────────────────────────────────────────────────────────
+PART A — STEP 3: Verify baseline
+──────────────────────────────────────────────────────────
+
+Run:
+  pytest tests/ -q --tb=short
+
+Expected: 209+ passed, ≤1 skipped.
+The 3 pre-existing test_chaos.py errors are acceptable.
+If any previously-passing test now fails, fix it before Part B.
+
+──────────────────────────────────────────────────────────
+PART A — STEP 4: Confirm Stage C STAGE-D-TODO exists
+──────────────────────────────────────────────────────────
+
+Open src/ytclfr/tasks/stage_c.py. Confirm Step 13 contains:
+
+    # STAGE-D-TODO: trigger run_taxonomy_mapping.delay(job_id)
+    # here once tasks/stage_d.py is built and confirmed stable.
+    # At that point Stage D reads the EvidenceGraph and produces
+    # the V2 FinalOutput (taxonomy + intent + structured items).
+
+If missing, write DECISION NEEDED and stop. STEP 6 depends on it.
+
+═══════════════════════════════════════════════════════════
+PART B — EXECUTE STAGE D: TAXONOMY + INTENT MAPPING
+═══════════════════════════════════════════════════════════
+
+Only begin Part B after Part A is fully complete.
+
+WHAT YOU ARE BUILDING:
+Stage D is the final classification stage. It reads the EvidenceGraph
+produced by Stage C, calls Groq to produce a taxonomy + intent
+mapping, and persists a V2FinalOutput to the existing final_outputs
+table. Stage D sets the job to "completed".
+
+The pipeline is complete when Stage D finishes.
+
+You are NOT building: API endpoint updates, Pipeline Wiring (W-1
+through W-7), V1 FinalOutput changes, or UI changes.
+These are deferred with # PIPELINE-WIRING-TODO: comments.
+
+No new Alembic migration. final_outputs table (0006) already exists.
+
+═══════════════════════════════════════════════════════════
+STEP 1 — STAGE D SSE EVENTS: contracts/events.py
+═══════════════════════════════════════════════════════════
+
+File: src/ytclfr/contracts/events.py (existing — extend only)
+
+Add a blank line after StageCEvent, then append:
+
+    # ── Stage D — Taxonomy + Intent Mapping events ─────────────────
+
+    class StageDStatus(str, Enum):
+        """Status codes for Stage D taxonomy mapping lifecycle."""
+
+        STARTED                = "stage_d_started"
+        EVIDENCE_LOADED        = "stage_d_evidence_loaded"
+        GROQ_TAXONOMY_COMPLETE = "stage_d_groq_taxonomy_complete"
+        GROQ_TAXONOMY_SKIPPED  = "stage_d_groq_taxonomy_skipped"
+        COMPLETE               = "stage_d_complete"
+        FAILED                 = "stage_d_failed"
+
+    class StageDEvent(BaseModel):
+        """SSE event emitted by tasks/stage_d.py."""
+
+        model_config = ConfigDict(use_enum_values=True)
+
+        event_type: StageDStatus
+        job_id: str
+        timestamp: datetime = Field(default_factory=datetime.utcnow)
+        taxonomy: dict = Field(default_factory=dict)
+        error: str | None = None
+        details: dict = Field(default_factory=dict)
+
+Rules:
+  - All prior events must remain intact.
+  - ConfigDict, Enum, datetime, Field already imported.
+
+═══════════════════════════════════════════════════════════
+STEP 2 — DATA CONTRACTS: contracts/v2_output.py
+═══════════════════════════════════════════════════════════
+
+File: src/ytclfr/contracts/v2_output.py
+
+Create this file. It does not exist yet.
+Pure Pydantic v2 only. No Celery, DB, or task imports.
+
+    """V2 output contracts for Stage D — Taxonomy + Intent Mapping.
+
+    V2FinalOutput is the terminal output of the V2 pipeline.
+    It is stored in the existing final_outputs table (output_json
+    column) with content_type = "v2_" + parent_category.
+
+    The V1 FinalOutput contract (contracts/output.py) is NOT modified.
+    V1 API endpoint updates are deferred to Pipeline Wiring (W-6).
+    """
+
+    from datetime import datetime
+    from typing import Literal
+    from uuid import UUID
+
+    from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+    class TaxonomyResult(BaseModel):
+        """Taxonomy classification produced by Stage D."""
+
+        model_config = ConfigDict(frozen=True)
+
+        parent_category: str = Field(
+            description=(
+                "Top-level category: Education, Shopping, Sports, Music, "
+                "Film, Technology, Food, Health, News, Other"
+            )
+        )
+        child_category: str = Field(
+            description="Specific subcategory within the parent"
+        )
+        intent: str = Field(
+            description="What the creator intends the viewer to achieve"
+        )
+        confidence: float = Field(
+            ge=0.0, le=1.0,
+            description="Taxonomy confidence 0.0–1.0",
+        )
+        groq_taxonomy_used: bool = Field(
+            default=False,
+            description="True if Groq produced this taxonomy",
+        )
+
+
+    class ExtractedItem(BaseModel):
+        """A structured item extracted from the video content.
+
+        Populated from EvidenceGraph entities with type refinement.
+        """
+
+        model_config = ConfigDict(frozen=True)
+
+        name: str
+        item_type: Literal["product", "person", "place", "topic"]
+        timestamp: float | None = Field(
+            default=None,
+            description="First mention timestamp in seconds",
+        )
+        confidence: float = Field(ge=0.0, le=1.0)
+
+
+    class V2FinalOutput(BaseModel):
+        """Terminal output of the V2 evidence-based pipeline.
+
+        Produced by Stage D and persisted to final_outputs.output_json.
+        Contains the complete taxonomy, summary, structured items,
+        evidence provenance, and field-level confidence scores.
+        """
+
+        model_config = ConfigDict(from_attributes=True)
+
+        job_id: UUID
+        taxonomy: TaxonomyResult
+        summary: str = Field(
+            description="2-3 sentence video summary from Stage C Groq"
+        )
+        items: list[ExtractedItem] = Field(
+            default_factory=list,
+            description="Structured items extracted from the video",
+        )
+        evidence_graph_summary: list[dict] = Field(
+            default_factory=list,
+            description="Sample of fused segments for provenance",
+        )
+        provenance: dict = Field(
+            default_factory=dict,
+            description="Links taxonomy claims to evidence timestamps",
+        )
+        confidence: dict = Field(
+            default_factory=dict,
+            description=(
+                "Field-level confidence: taxonomy, summary, items, overall"
+            ),
+        )
+        fallback_notes: list[str] = Field(
+            default_factory=list,
+            description="Notes when rule-based fallback was used",
+        )
+        created_at: datetime = Field(
+            default_factory=datetime.utcnow
+        )
+
+        @field_validator("confidence")
+        @classmethod
+        def validate_confidence_fields(cls, v: dict) -> dict:
+            """All confidence sub-values must be 0.0–1.0."""
+            for key, val in v.items():
+                if isinstance(val, float) and not (0.0 <= val <= 1.0):
+                    raise ValueError(
+                        f"confidence.{key} must be between 0.0 and 1.0"
+                    )
+            return v
+
+═══════════════════════════════════════════════════════════
+STEP 3 — TAXONOMY PACKAGE: taxonomy/__init__.py + mapper.py
+═══════════════════════════════════════════════════════════
+
+First create the taxonomy package:
+
+    File: src/ytclfr/taxonomy/__init__.py
+    Content: """Taxonomy and intent mapping module for Stage D."""
+
+──────────────────────────────────────────────────────────
+File: src/ytclfr/taxonomy/mapper.py
+──────────────────────────────────────────────────────────
+
+Create this file. Pure function — zero Celery, zero DB, zero ORM.
+Uses httpx (same pattern as fusion/groq_reasoner.py). Never raises.
+
+    """Groq-powered taxonomy classification for Stage D.
+
+    Pure function — no Celery, no DB.
+    Accepts EvidenceGraph fields and returns TaxonomyResult.
+    Degrades gracefully: if Groq fails, the rule-based resolver
+    in intent_resolver.py provides a fallback TaxonomyResult.
+
+    Never raises to its caller.
+    """
+
+    ── TUNABLE CONSTANTS ──────────────────────────────────────
+
+    GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
+    GROQ_TAXONOMY_TEMPERATURE: float = 0.1
+    GROQ_TAXONOMY_MAX_TOKENS: int = 500
+    MAX_ENTITIES_IN_PROMPT: int = 8
+    MAX_SUMMARY_CHARS: int = 500
+
+    VALID_PARENT_CATEGORIES: frozenset[str] = frozenset({
+        "Education", "Shopping", "Sports", "Music",
+        "Film", "Technology", "Food", "Health", "News", "Other",
+    })
+
+    ── Output dataclass ───────────────────────────────────────
+
+    @dataclass
+    class GroqTaxonomyResult:
+        """Raw parsed result from the Groq taxonomy call."""
+        parent_category: str
+        child_category: str
+        intent: str
+        confidence: float
+        fallback_notes: list[str]
+        groq_used: bool = True
+
+    ── Public function ─────────────────────────────────────────
+
+    def classify_taxonomy(
+        dominant_subject: str | None,
+        groq_summary: str | None,
+        entities: list[dict],  # [{"name": str, "type": str}]
+        has_speech: bool,
+        has_music: bool,
+        settings: Settings,
+    ) -> GroqTaxonomyResult:
+        """Classify video taxonomy using Groq. Degrades gracefully.
+
+        Never raises — any failure returns a fallback result
+        with groq_used=False.
+
+        Args:
+            dominant_subject: From EvidenceGraph.dominant_subject.
+            groq_summary: From EvidenceGraph.groq_summary.
+            entities: Simplified entity dicts from EvidenceGraph.
+            has_speech: From SignalManifest (via EvidenceGraph context).
+            has_music: From SignalManifest (via EvidenceGraph context).
+            settings: App settings with groq_api_key.
+
+        Returns:
+            GroqTaxonomyResult. groq_used=False if Groq unavailable.
+        """
+        if not settings.groq_api_key:
+            logger.warning(
+                "GROQ_API_KEY not configured — using rule-based taxonomy"
+            )
+            return _make_fallback_result(
+                dominant_subject, has_speech, has_music,
+                note="Groq API key not configured"
+            )
+
+        try:
+            prompt = _build_taxonomy_prompt(
+                dominant_subject, groq_summary, entities
+            )
+            raw = _call_groq(prompt, settings)
+            return _parse_taxonomy_response(raw)
+        except Exception as exc:
+            logger.warning(
+                "Groq taxonomy classification failed: %s. "
+                "Using rule-based fallback.",
+                exc,
+            )
+            return _make_fallback_result(
+                dominant_subject, has_speech, has_music,
+                note=f"Groq failed: {exc}"
+            )
+
+    ── Private helpers ─────────────────────────────────────────
+
+    def _build_taxonomy_prompt(
+        dominant_subject: str | None,
+        groq_summary: str | None,
+        entities: list[dict],
+    ) -> str:
+        subject_str = (dominant_subject or "unknown")[:200]
+        summary_str = (groq_summary or "No summary available")[
+            :MAX_SUMMARY_CHARS
+        ]
+        entity_str = ", ".join(
+            e.get("name", "") for e in entities[:MAX_ENTITIES_IN_PROMPT]
+        ) or "none"
+
+        return (
+            "Classify this YouTube video into a taxonomy.\n\n"
+            f"DOMINANT SUBJECT: {subject_str}\n"
+            f"SUMMARY: {summary_str}\n"
+            f"KEY ENTITIES: {entity_str}\n\n"
+            "Respond ONLY with valid JSON (no markdown, no backticks):\n"
+            "{\n"
+            '  "parent_category": "Education|Shopping|Sports|Music|'
+            'Film|Technology|Food|Health|News|Other",\n'
+            '  "child_category": "specific subcategory within the parent",\n'
+            '  "intent": "what the viewer gains by watching (one phrase)",\n'
+            '  "confidence": 0.85\n'
+            "}"
+        )
+
+    def _call_groq(prompt: str, settings: Settings) -> str:
+        """Call Groq API. Raises on failure — caller handles."""
+        import httpx
+
+        headers = {
+            "Authorization": f"Bearer {settings.groq_api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": settings.groq_model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": GROQ_TAXONOMY_TEMPERATURE,
+            "max_tokens": GROQ_TAXONOMY_MAX_TOKENS,
+            "response_format": {"type": "json_object"},
+        }
+        with httpx.Client(
+            timeout=settings.llm_request_timeout_seconds
+        ) as client:
+            response = client.post(
+                GROQ_API_URL, headers=headers, json=payload
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+
+    def _parse_taxonomy_response(raw_json: str) -> GroqTaxonomyResult:
+        """Parse Groq JSON response. Raises on malformed input."""
+        import json
+
+        data = json.loads(raw_json)
+        parent = str(data.get("parent_category", "Other"))
+        if parent not in VALID_PARENT_CATEGORIES:
+            parent = "Other"
+        child = str(data.get("child_category", "General"))
+        intent = str(data.get("intent", "Watch and learn"))
+        try:
+            conf = float(data.get("confidence", 0.7))
+            conf = max(0.0, min(1.0, conf))
+        except (ValueError, TypeError):
+            conf = 0.7
+
+        return GroqTaxonomyResult(
+            parent_category=parent,
+            child_category=child,
+            intent=intent,
+            confidence=conf,
+            fallback_notes=[],
+            groq_used=True,
+        )
+
+    def _make_fallback_result(
+        dominant_subject: str | None,
+        has_speech: bool,
+        has_music: bool,
+        note: str = "",
+    ) -> GroqTaxonomyResult:
+        """Rule-based fallback used when Groq is unavailable.
+
+        Defers to intent_resolver for keyword-based mapping.
+        Always returns a result — never raises.
+        """
+        from ytclfr.taxonomy.intent_resolver import resolve_by_rules
+
+        result = resolve_by_rules(
+            dominant_subject=dominant_subject,
+            has_speech=has_speech,
+            has_music=has_music,
+        )
+        if note:
+            result.fallback_notes.append(note)
+        result.groq_used = False
+        return result
+
+    Imports at top of mapper.py:
+        import logging
+        from dataclasses import dataclass, field
+
+        from ytclfr.core.config import Settings
+
+        logger = logging.getLogger(__name__)
+
+═══════════════════════════════════════════════════════════
+STEP 4 — TAXONOMY PACKAGE: taxonomy/intent_resolver.py
+═══════════════════════════════════════════════════════════
+
+File: src/ytclfr/taxonomy/intent_resolver.py
+
+Create this file. Pure function — zero network, zero DB, zero Celery.
+
+    """Rule-based taxonomy fallback for Stage D.
+
+    Pure function — no Groq, no DB, no Celery.
+    Used when Groq is unavailable or fails.
+    Provides deterministic taxonomy classification from
+    keyword matching against dominant_subject.
+
+    All keyword sets are TUNABLE module-level constants.
+    """
+
+    ── TUNABLE CONSTANTS ──────────────────────────────────────
+
+    DEFAULT_CONFIDENCE: float = 0.55
+
+    # Maps lowercase keyword → (parent, child, intent)
+    SUBJECT_KEYWORD_MAP: dict[str, tuple[str, str, str]] = {
+        # Education
+        "tutorial":    ("Education",   "Tutorial",        "Learn a skill step by step"),
+        "course":      ("Education",   "Course Lesson",   "Study the material"),
+        "lecture":     ("Education",   "Lecture",         "Understand the concept"),
+        "explained":   ("Education",   "Explainer",       "Understand the concept"),
+        "lesson":      ("Education",   "Lesson",          "Study the material"),
+        "how to":      ("Education",   "How-To Guide",    "Follow the instructions"),
+        "guide":       ("Education",   "Guide",           "Follow the instructions"),
+        # Technology
+        "coding":      ("Technology",  "Coding Tutorial", "Write the code yourself"),
+        "programming": ("Technology",  "Coding Tutorial", "Write the code yourself"),
+        "python":      ("Technology",  "Coding Tutorial", "Write the code yourself"),
+        "javascript":  ("Technology",  "Coding Tutorial", "Write the code yourself"),
+        "react":       ("Technology",  "Coding Tutorial", "Write the code yourself"),
+        "review":      ("Technology",  "Tech Review",     "Decide whether to buy or use"),
+        "demo":        ("Technology",  "Product Demo",    "See it in action"),
+        # Shopping
+        "unboxing":    ("Shopping",    "Unboxing",        "Experience the reveal"),
+        "haul":        ("Shopping",    "Haul",            "Discover what was bought"),
+        "comparison":  ("Shopping",    "Comparison",      "Decide between options"),
+        "best":        ("Shopping",    "Product Review",  "Discover top picks"),
+        # Sports
+        "highlights":  ("Sports",      "Highlights",      "Catch the best moments"),
+        "match":       ("Sports",      "Match Recap",     "Watch the key moments"),
+        "game":        ("Sports",      "Game Recap",      "Watch the key moments"),
+        "analysis":    ("Sports",      "Analysis",        "Understand the tactics"),
+        # Music
+        "music video": ("Music",       "Music Video",     "Watch and listen"),
+        "song":        ("Music",       "Song",            "Listen and enjoy"),
+        "cover":       ("Music",       "Cover",           "Enjoy the rendition"),
+        "playlist":    ("Music",       "Playlist",        "Discover new music"),
+        # Film
+        "movie":       ("Film",        "Movie Review",    "Decide whether to watch"),
+        "film":        ("Film",        "Film Review",     "Decide whether to watch"),
+        "recap":       ("Film",        "Recap",           "Catch up on the story"),
+        "reaction":    ("Film",        "Reaction",        "Watch the genuine reaction"),
+        # Food
+        "recipe":      ("Food",        "Recipe",          "Cook along at home"),
+        "cooking":     ("Food",        "Cooking Tutorial","Cook along at home"),
+        "food":        ("Food",        "Food Content",    "Discover the dish"),
+        # Health
+        "workout":     ("Health",      "Workout",         "Exercise along"),
+        "fitness":     ("Health",      "Fitness Guide",   "Improve your health"),
+        "meditation":  ("Health",      "Wellness",        "Practice mindfulness"),
+        # News
+        "news":        ("News",        "News Report",     "Stay informed"),
+        "update":      ("News",        "Update",          "Stay informed"),
+        "breaking":    ("News",        "Breaking News",   "Learn what happened"),
+    }
+
+    # Signal-based defaults when no keyword matches
+    MUSIC_ONLY_DEFAULT: tuple[str, str, str] = (
+        "Music", "Audio Content", "Listen and enjoy"
+    )
+    SPEECH_DEFAULT: tuple[str, str, str] = (
+        "Education", "General Content", "Watch and learn"
+    )
+    NO_SIGNAL_DEFAULT: tuple[str, str, str] = (
+        "Other", "General Video", "Watch the content"
+    )
+
+    ── Output dataclass ───────────────────────────────────────
+
+    Import GroqTaxonomyResult from ytclfr.taxonomy.mapper.
+    (or define it inline to avoid circular import — check first.
+     If circular import: define a ResolverResult dataclass here
+     that mapper converts to GroqTaxonomyResult after calling.)
+
+    To avoid circular imports: define TaxonomyFallback dataclass
+    in this file and have mapper import it:
+
+    @dataclass
+    class TaxonomyFallback:
+        parent_category: str
+        child_category: str
+        intent: str
+        confidence: float
+        fallback_notes: list[str]
+        groq_used: bool = False
+
+    ── Public function ─────────────────────────────────────────
+
+    def resolve_by_rules(
+        dominant_subject: str | None,
+        has_speech: bool,
+        has_music: bool,
+    ) -> TaxonomyFallback:
+        """Classify video taxonomy using keyword rules.
+
+        Searches SUBJECT_KEYWORD_MAP against the dominant_subject.
+        Falls back to signal-based defaults if no keyword matches.
+
+        Never raises. Always returns a TaxonomyFallback.
+
+        Args:
+            dominant_subject: EvidenceGraph.dominant_subject or None.
+            has_speech: SignalManifest.has_speech.
+            has_music: SignalManifest.has_music.
+
+        Returns:
+            TaxonomyFallback with groq_used=False.
+        """
+        notes: list[str] = ["Groq unavailable — rule-based taxonomy used"]
+
+        if dominant_subject:
+            subject_lower = dominant_subject.lower()
+            for keyword, (parent, child, intent) in SUBJECT_KEYWORD_MAP.items():
+                if keyword in subject_lower:
+                    return TaxonomyFallback(
+                        parent_category=parent,
+                        child_category=child,
+                        intent=intent,
+                        confidence=DEFAULT_CONFIDENCE,
+                        fallback_notes=notes,
+                        groq_used=False,
+                    )
+
+        # Signal-based fallback
+        if has_music and not has_speech:
+            parent, child, intent = MUSIC_ONLY_DEFAULT
+        elif has_speech:
+            parent, child, intent = SPEECH_DEFAULT
+        else:
+            parent, child, intent = NO_SIGNAL_DEFAULT
+
+        notes.append("No subject keyword matched — signal-based default used")
+        return TaxonomyFallback(
+            parent_category=parent,
+            child_category=child,
+            intent=intent,
+            confidence=DEFAULT_CONFIDENCE * 0.7,
+            fallback_notes=notes,
+            groq_used=False,
+        )
+
+    Update mapper.py: import TaxonomyFallback from intent_resolver.
+    The _make_fallback_result function returns TaxonomyFallback
+    (not GroqTaxonomyResult). Update mapper.py accordingly so that
+    both Groq success path and fallback path return GroqTaxonomyResult
+    by converting TaxonomyFallback to GroqTaxonomyResult at the end
+    of classify_taxonomy.
+
+    CANONICAL PATTERN (no circular import):
+      - intent_resolver.py defines TaxonomyFallback
+      - mapper.py imports TaxonomyFallback from intent_resolver
+      - mapper.py defines GroqTaxonomyResult
+      - classify_taxonomy always returns GroqTaxonomyResult
+      - fallback path converts TaxonomyFallback → GroqTaxonomyResult inline
+
+═══════════════════════════════════════════════════════════
+STEP 5 — CELERY TASK: tasks/stage_d.py
+═══════════════════════════════════════════════════════════
+
+File: src/ytclfr/tasks/stage_d.py
+
+Create this file. This is the terminal V2 pipeline task.
+
+    """Celery task for Stage D — Taxonomy + Intent Mapping.
+
+    run_taxonomy_mapping is the terminal V2 pipeline task.
+    It reads the EvidenceGraph from Stage C, classifies the
+    taxonomy (Groq + rule-based fallback), and persists a
+    V2FinalOutput to the existing final_outputs table.
+
+    After this task, job.status = "completed".
+    """
+
+    ── MODULE-LEVEL CONSTANTS ──────────────────────────────────
+
+    # Content type prefix for V2 outputs in final_outputs table.
+    # Allows V1 API to distinguish V2 records.
+    # # PIPELINE-WIRING-TODO: Update GET /results endpoint (W-6) to
+    # # serve V2FinalOutput when content_type starts with "v2_".
+    V2_CONTENT_TYPE_PREFIX: str = "v2_"
+
+    # Maximum fused segments to include in evidence_graph_summary
+    # (kept small to avoid large JSON payloads in output_json).
+    MAX_EVIDENCE_SUMMARY_SEGMENTS: int = 20
+
+    ── MODULE-LEVEL SINGLETONS ─────────────────────────────────
+
+    _evidence_store = EvidenceGraphStore()
+    _settings = get_settings()
+
+    ── SSE HELPER ──────────────────────────────────────────────
+
+    def _emit_sse(event: StageDEvent) -> None:
+        """Publish a StageDEvent to Redis SSE channel.
+        Failure logs WARNING but never raises."""
+        Copy the exact _emit_sse pattern from tasks/stage_c.py.
+        Same Redis pub/sub channel: f"job:{event.job_id}:events"
+
+    ── TASK DEFINITION ─────────────────────────────────────────
+
+    @celery_app.task(
+        bind=True,
+        name="ytclfr.tasks.stage_d.run_taxonomy_mapping",
+        queue="fast",
+        max_retries=2,
+        default_retry_delay=30,
+    )
+    def run_taxonomy_mapping(
+        self,
+        job_id: str,
+    ) -> dict[str, object]:
+        """Read EvidenceGraph and produce V2 FinalOutput with taxonomy.
+
+        Terminal task of the V2 pipeline. Sets job.status = "completed".
+
+        Args:
+            job_id: String UUID of the job to classify.
+
+        Returns:
+            Dict with job_id, status, parent_category, child_category.
+        """
+        job_uuid = UUID(job_id)
+
+    Steps in this exact order:
+
+    Step 1 — Emit STARTED:
+        _emit_sse(StageDEvent(
+            event_type=StageDStatus.STARTED,
+            job_id=job_id,
+        ))
+
+    Step 2 — Set job status to stage_d_running:
+        settings = get_settings()
+        with db_session() as session:
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if not job:
+                raise ValueError(f"Job not found: {job_id}")
+            job.status = "stage_d_running"
+            session.commit()
+            signal_manifest_has_speech = True   # safe default
+            signal_manifest_has_music = False   # safe default
+            # Try to load SignalManifest for signal context
+            from ytclfr.storage.manifest_store import SignalManifestStore
+            manifest_store = SignalManifestStore()
+            manifest = manifest_store.get_by_job_id(session, job_uuid)
+            if manifest:
+                signal_manifest_has_speech = manifest.has_speech
+                signal_manifest_has_music = manifest.has_music
+
+    Step 3 — Idempotency check:
+        (Perform AFTER setting stage_d_running, INSIDE the DB session)
+        Check if a V2 final_output record already exists:
+            from ytclfr.db.models.final_output import FinalOutputModel
+            existing = session.query(FinalOutputModel).filter(
+                FinalOutputModel.job_id == job_uuid,
+            ).first()
+            if existing and existing.content_type.startswith(
+                V2_CONTENT_TYPE_PREFIX
+            ):
+                logger.warning(
+                    "Stage D idempotency hit for job %s — "
+                    "V2 FinalOutput already exists, skipping",
+                    job_id,
+                )
+                return {
+                    "job_id": job_id,
+                    "status": "skipped",
+                    "reason": "V2 FinalOutput already persisted",
+                }
+
+    Step 4 — Load EvidenceGraph from DB:
+        with db_session() as session:
+            evidence_graph = _evidence_store.get_by_job_id(
+                session, job_uuid
+            )
+        if not evidence_graph:
+            raise ValueError(
+                f"EvidenceGraph not found for job {job_id}. "
+                "Stage C must complete before Stage D."
+            )
+
+        _emit_sse(StageDEvent(
+            event_type=StageDStatus.EVIDENCE_LOADED,
+            job_id=job_id,
+            details={
+                "total_segments": evidence_graph.total_segments,
+                "entity_count": len(evidence_graph.entities),
+                "dominant_subject": evidence_graph.dominant_subject,
+                "groq_reasoning_was_used": evidence_graph.groq_reasoning_used,
+            },
+        ))
+
+    Step 5 — Taxonomy classification:
+        from ytclfr.taxonomy.mapper import classify_taxonomy
+
+        entity_dicts = [
+            {"name": e.name, "type": e.entity_type}
+            for e in evidence_graph.entities[:MAX_ENTITIES_IN_PROMPT]
+        ]
+
+        groq_taxonomy = classify_taxonomy(
+            dominant_subject=evidence_graph.dominant_subject,
+            groq_summary=evidence_graph.groq_summary,
+            entities=entity_dicts,
+            has_speech=signal_manifest_has_speech,
+            has_music=signal_manifest_has_music,
+            settings=settings,
+        )
+
+        if groq_taxonomy.groq_used:
+            _emit_sse(StageDEvent(
+                event_type=StageDStatus.GROQ_TAXONOMY_COMPLETE,
+                job_id=job_id,
+                taxonomy={
+                    "parent": groq_taxonomy.parent_category,
+                    "child": groq_taxonomy.child_category,
+                    "intent": groq_taxonomy.intent,
+                },
+                details={"confidence": groq_taxonomy.confidence},
+            ))
+        else:
+            _emit_sse(StageDEvent(
+                event_type=StageDStatus.GROQ_TAXONOMY_SKIPPED,
+                job_id=job_id,
+                taxonomy={
+                    "parent": groq_taxonomy.parent_category,
+                    "child": groq_taxonomy.child_category,
+                    "intent": groq_taxonomy.intent,
+                },
+                details={"notes": groq_taxonomy.fallback_notes},
+            ))
+
+    Step 6 — Build TaxonomyResult and ExtractedItems:
+        taxonomy_result = TaxonomyResult(
+            parent_category=groq_taxonomy.parent_category,
+            child_category=groq_taxonomy.child_category,
+            intent=groq_taxonomy.intent,
+            confidence=round(groq_taxonomy.confidence, 3),
+            groq_taxonomy_used=groq_taxonomy.groq_used,
+        )
+
+        # Map EvidenceGraph entities → ExtractedItem
+        # Only map entities with known types (not "unknown")
+        items: list[ExtractedItem] = []
+        for entity in evidence_graph.entities:
+            item_type = entity.entity_type
+            if item_type == "unknown":
+                # Guess from taxonomy context
+                if taxonomy_result.parent_category == "Shopping":
+                    item_type = "product"
+                elif item_type == "unknown":
+                    item_type = "topic"
+            items.append(ExtractedItem(
+                name=entity.name,
+                item_type=item_type,
+                timestamp=(
+                    entity.mentioned_at[0]
+                    if entity.mentioned_at else None
+                ),
+                confidence=round(entity.confidence, 3),
+            ))
+
+    Step 7 — Build evidence_graph_summary (sample segments):
+        evidence_summary = [
+            {
+                "timestamp": seg.timestamp,
+                "end_timestamp": seg.end_timestamp,
+                "text": seg.text,
+                "source": seg.source,
+                "confidence": seg.confidence,
+            }
+            for seg in evidence_graph.segments[:MAX_EVIDENCE_SUMMARY_SEGMENTS]
+        ]
+
+    Step 8 — Build provenance dict:
+        provenance = {
+            "taxonomy_evidence": {
+                "dominant_subject": evidence_graph.dominant_subject,
+                "scene_boundaries": evidence_graph.scene_boundaries[:5],
+                "entity_count": len(evidence_graph.entities),
+                "groq_summary_used": evidence_graph.groq_reasoning_used,
+            },
+            "taxonomy_method": (
+                "groq" if groq_taxonomy.groq_used else "rule_based"
+            ),
+        }
+
+    Step 9 — Build confidence dict:
+        overall = round(
+            (taxonomy_result.confidence + evidence_graph.confidence) / 2.0,
+            3
+        )
+        confidence_dict = {
+            "taxonomy": taxonomy_result.confidence,
+            "evidence_graph": evidence_graph.confidence,
+            "overall": overall,
+        }
+
+    Step 10 — Assemble V2FinalOutput:
+        v2_output = V2FinalOutput(
+            job_id=job_uuid,
+            taxonomy=taxonomy_result,
+            summary=evidence_graph.groq_summary or (
+                f"Video about {evidence_graph.dominant_subject or 'unknown topic'}"
+            ),
+            items=items,
+            evidence_graph_summary=evidence_summary,
+            provenance=provenance,
+            confidence=confidence_dict,
+            fallback_notes=groq_taxonomy.fallback_notes,
+        )
+
+    Step 11 — Persist to final_outputs table:
+        from ytclfr.db.models.final_output import FinalOutputModel
+
+        content_type_str = (
+            V2_CONTENT_TYPE_PREFIX
+            + taxonomy_result.parent_category.lower().replace(" ", "_")
+        )
+
+        with db_session() as session:
+            existing = session.query(FinalOutputModel).filter(
+                FinalOutputModel.job_id == job_uuid
+            ).first()
+
+            output_json_dict = v2_output.model_dump(mode="json")
+            overall_confidence = confidence_dict["overall"]
+
+            if existing:
+                existing.content_type = content_type_str
+                existing.overall_confidence = overall_confidence
+                existing.output_json = output_json_dict
+                session.commit()
+                output_id = existing.id
+            else:
+                new_record = FinalOutputModel(
+                    job_id=job_uuid,
+                    content_type=content_type_str,
+                    overall_confidence=overall_confidence,
+                    output_json=output_json_dict,
+                )
+                session.add(new_record)
+                session.commit()
+                session.refresh(new_record)
+                output_id = new_record.id
+
+    Step 12 — Update job status to completed:
+        with db_session() as session:
+            job = session.query(Job).filter(Job.id == job_uuid).first()
+            if job:
+                job.status = "completed"
+                session.commit()
+
+    Step 13 — Emit COMPLETE SSE:
+        _emit_sse(StageDEvent(
+            event_type=StageDStatus.COMPLETE,
+            job_id=job_id,
+            taxonomy={
+                "parent": taxonomy_result.parent_category,
+                "child": taxonomy_result.child_category,
+                "intent": taxonomy_result.intent,
+            },
+            details={
+                "overall_confidence": confidence_dict["overall"],
+                "item_count": len(items),
+                "groq_taxonomy_used": groq_taxonomy.groq_used,
+                "content_type": content_type_str,
+            },
+        ))
+
+    Step 14 — PIPELINE-WIRING-TODO and return:
+        # PIPELINE-WIRING-TODO: W-6 — Update GET /api/v1/jobs/{id}/results
+        # to detect content_type.startswith("v2_") and deserialize
+        # V2FinalOutput instead of V1 FinalOutput.
+
+        logger.info(
+            "Stage D complete for job %s: %s / %s (conf=%.2f)",
+            job_id,
+            taxonomy_result.parent_category,
+            taxonomy_result.child_category,
+            taxonomy_result.confidence,
+        )
+
+        return {
+            "job_id": job_id,
+            "status": "completed",
+            "parent_category": taxonomy_result.parent_category,
+            "child_category": taxonomy_result.child_category,
+            "intent": taxonomy_result.intent,
+            "confidence": confidence_dict["overall"],
+        }
+
+    ── ERROR HANDLING ───────────────────────────────────────────
+
+    Wrap Steps 2–14 in try/except Exception as exc:
+        logger.error(
+            "Stage D failed for job %s: %s",
+            job_id, exc, exc_info=True,
+        )
+        try:
+            with db_session() as err_session:
+                job_err = err_session.query(Job).filter(
+                    Job.id == job_uuid
+                ).first()
+                if job_err:
+                    job_err.status = "stage_d_failed"
+                    job_err.error_message = str(exc)
+                    err_session.commit()
+        except Exception:
+            pass
+
+        _emit_sse(StageDEvent(
+            event_type=StageDStatus.FAILED,
+            job_id=job_id,
+            error=str(exc),
+        ))
+        raise self.retry(exc=exc, countdown=30)
+
+    ── TOP-LEVEL IMPORTS ────────────────────────────────────────
+
+    import logging
+    from uuid import UUID
+
+    from ytclfr.contracts.events import StageDEvent, StageDStatus
+    from ytclfr.contracts.v2_output import (
+        ExtractedItem,
+        TaxonomyResult,
+        V2FinalOutput,
+    )
+    from ytclfr.core.config import get_settings
+    from ytclfr.core.logging import get_logger
+    from ytclfr.db.models.job import Job
+    from ytclfr.db.session import db_session
+    from ytclfr.queue.celery_app import celery_app
+    from ytclfr.storage.evidence_store import EvidenceGraphStore
+
+    Lazy imports (inside function body):
+    from ytclfr.db.models.final_output import FinalOutputModel
+    from ytclfr.storage.manifest_store import SignalManifestStore
+    from ytclfr.taxonomy.mapper import classify_taxonomy
+
+═══════════════════════════════════════════════════════════
+STEP 6 — WIRE STAGE C → STAGE D: tasks/stage_c.py
+═══════════════════════════════════════════════════════════
+
+File: src/ytclfr/tasks/stage_c.py (existing — one block change only)
+
+Locate the exact STAGE-D-TODO block at Step 13:
+
+    # STAGE-D-TODO: trigger run_taxonomy_mapping.delay(job_id)
+    # here once tasks/stage_d.py is built and confirmed stable.
+    # At that point Stage D reads the EvidenceGraph and produces
+    # the V2 FinalOutput (taxonomy + intent + structured items).
+
+Replace it exactly with:
+
+    # Stage D trigger — dispatch taxonomy mapping
+    from ytclfr.tasks.stage_d import run_taxonomy_mapping  # lazy
+    run_taxonomy_mapping.delay(job_id)
+    logger.info(
+        "Stage D triggered for job %s", job_id
+    )
+
+Rules:
+  - The import is INSIDE the function body (lazy import).
+    Do not add it to the module-level import block.
+  - Do not modify any other line in stage_c.py.
+  - This is the only edit to stage_c.py in this session.
+
+═══════════════════════════════════════════════════════════
+STEP 7 — CELERY REGISTRATION: queue/celery_app.py
+═══════════════════════════════════════════════════════════
+
+File: src/ytclfr/queue/celery_app.py (existing — one line only)
+
+Locate:
+    import ytclfr.tasks.stage_c  # noqa: F401, E402 — V2 Stage C Evidence Fusion
+
+Add immediately after it:
+    import ytclfr.tasks.stage_d  # noqa: F401, E402 — V2 Stage D Taxonomy Mapping
+
+Import order is now: align, extract, ingest, route, stage_a,
+stage_b, stage_c, stage_d.
+
+No other changes to celery_app.py.
+
+═══════════════════════════════════════════════════════════
+STEP 8 — UNIT TESTS
+═══════════════════════════════════════════════════════════
+
+──────────────────────────────────────────────────────────
+File: tests/fixtures/v2_final_output_golden.json
+
+Create a realistic V2FinalOutput golden fixture:
+{
+  "job_id": "00000000-0000-0000-0000-000000000099",
+  "taxonomy": {
+    "parent_category": "Education",
+    "child_category": "Coding Tutorial",
+    "intent": "Learn to build FastAPI endpoints step by step",
+    "confidence": 0.87,
+    "groq_taxonomy_used": true
+  },
+  "summary": "A hands-on Python FastAPI tutorial covering endpoint creation and validation.",
+  "items": [
+    {"name": "Python", "item_type": "topic", "timestamp": 0.0, "confidence": 0.9},
+    {"name": "FastAPI", "item_type": "topic", "timestamp": 4.0, "confidence": 0.85}
+  ],
+  "evidence_graph_summary": [
+    {"timestamp": 0.0, "end_timestamp": 3.5,
+     "text": "Welcome to this Python tutorial",
+     "source": "asr", "confidence": 0.92}
+  ],
+  "provenance": {
+    "taxonomy_evidence": {
+      "dominant_subject": "Python FastAPI tutorial for beginners",
+      "scene_boundaries": [0.0, 45.0, 90.0],
+      "entity_count": 2,
+      "groq_summary_used": true
+    },
+    "taxonomy_method": "groq"
+  },
+  "confidence": {
+    "taxonomy": 0.87,
+    "evidence_graph": 0.85,
+    "overall": 0.86
+  },
+  "fallback_notes": [],
+  "created_at": "2025-01-01T10:00:00Z"
+}
+
+──────────────────────────────────────────────────────────
+File: tests/unit/stage_d/__init__.py — empty file
+
+──────────────────────────────────────────────────────────
+File: tests/unit/stage_d/test_v2_output_contracts.py
+
+    import json
+    from pathlib import Path
+    import pytest
+    from pydantic import ValidationError
+    from ytclfr.contracts.v2_output import (
+        V2FinalOutput, TaxonomyResult, ExtractedItem,
+    )
+
+    def _load_golden() -> dict:
+        p = (
+            Path(__file__).parent.parent.parent
+            / "fixtures" / "v2_final_output_golden.json"
+        )
+        return json.loads(p.read_text())
+
+    class TestV2OutputContracts:
+
+        def test_golden_fixture_validates(self):
+            """Golden fixture must validate into V2FinalOutput."""
+            data = _load_golden()
+            output = V2FinalOutput.model_validate(data)
+            assert output.taxonomy.parent_category == "Education"
+            assert output.taxonomy.groq_taxonomy_used is True
+            assert len(output.items) == 2
+            assert output.confidence["overall"] > 0.0
+
+        def test_taxonomy_confidence_over_one_rejected(self):
+            """TaxonomyResult confidence > 1.0 must raise."""
+            with pytest.raises(ValidationError):
+                TaxonomyResult(
+                    parent_category="Education",
+                    child_category="Tutorial",
+                    intent="Learn",
+                    confidence=1.5,
+                )
+
+        def test_extracted_item_valid_types(self):
+            """All ExtractedItem item_type values must be accepted."""
+            for itype in ["product","person","place","topic"]:
+                item = ExtractedItem(
+                    name="Test", item_type=itype, confidence=0.8
+                )
+                assert item.item_type == itype
+
+        def test_v2_output_empty_items_valid(self):
+            """V2FinalOutput with empty items list is valid."""
+            data = _load_golden()
+            data["items"] = []
+            output = V2FinalOutput.model_validate(data)
+            assert output.items == []
+
+        def test_confidence_dict_invalid_value_rejected(self):
+            """confidence dict value > 1.0 must raise ValidationError."""
+            data = _load_golden()
+            data["confidence"]["overall"] = 1.5
+            with pytest.raises(ValidationError):
+                V2FinalOutput.model_validate(data)
+
+        def test_taxonomy_result_frozen(self):
+            """TaxonomyResult is frozen — mutation must raise."""
+            t = TaxonomyResult(
+                parent_category="Education",
+                child_category="Tutorial",
+                intent="Learn",
+                confidence=0.9,
+            )
+            with pytest.raises(Exception):
+                t.parent_category = "Sports"  # type: ignore
+
+──────────────────────────────────────────────────────────
+File: tests/unit/stage_d/test_taxonomy_mapper.py
+
+    import json
+    import pytest
+    from unittest.mock import patch
+    from ytclfr.taxonomy.mapper import (
+        classify_taxonomy,
+        _build_taxonomy_prompt,
+        _parse_taxonomy_response,
+        VALID_PARENT_CATEGORIES,
+    )
+    from ytclfr.core.config import Settings
+
+
+    def _make_settings(api_key: str = "test-key") -> Settings:
+        return Settings(
+            database_url="sqlite:///:memory:",
+            redis_url="redis://localhost:6379/0",
+            groq_api_key=api_key,
+            jwt_secret_key="test",
+            groq_model="llama-3.3-70b-versatile",
+            llm_request_timeout_seconds=30,
+        )
+
+
+    class TestTaxonomyMapper:
+
+        def test_empty_api_key_returns_fallback(self):
+            """Missing API key returns groq_used=False."""
+            result = classify_taxonomy(
+                dominant_subject="Python tutorial",
+                groq_summary=None,
+                entities=[],
+                has_speech=True,
+                has_music=False,
+                settings=_make_settings(api_key=""),
+            )
+            assert result.groq_used is False
+            assert result.parent_category in VALID_PARENT_CATEGORIES
+
+        @patch("ytclfr.taxonomy.mapper._call_groq")
+        def test_successful_groq_response_parsed(self, mock_call):
+            """Valid Groq JSON is parsed into GroqTaxonomyResult."""
+            mock_call.return_value = json.dumps({
+                "parent_category": "Education",
+                "child_category": "Coding Tutorial",
+                "intent": "Learn to code",
+                "confidence": 0.9,
+            })
+            result = classify_taxonomy(
+                dominant_subject="Python programming",
+                groq_summary="A Python coding tutorial",
+                entities=[{"name": "Python", "type": "topic"}],
+                has_speech=True,
+                has_music=False,
+                settings=_make_settings(),
+            )
+            assert result.groq_used is True
+            assert result.parent_category == "Education"
+            assert result.confidence == 0.9
+
+        @patch("ytclfr.taxonomy.mapper._call_groq")
+        def test_network_failure_returns_fallback(self, mock_call):
+            """Network error returns groq_used=False without raising."""
+            mock_call.side_effect = ConnectionError("timeout")
+            result = classify_taxonomy(
+                dominant_subject="sports highlights",
+                groq_summary=None,
+                entities=[],
+                has_speech=True,
+                has_music=False,
+                settings=_make_settings(),
+            )
+            assert result.groq_used is False
+
+        @patch("ytclfr.taxonomy.mapper._call_groq")
+        def test_invalid_parent_category_normalized_to_other(
+            self, mock_call
+        ):
+            """Unknown parent_category in Groq response → 'Other'."""
+            mock_call.return_value = json.dumps({
+                "parent_category": "NotACategory",
+                "child_category": "Something",
+                "intent": "Watch",
+                "confidence": 0.6,
+            })
+            result = classify_taxonomy(
+                dominant_subject=None, groq_summary=None,
+                entities=[], has_speech=False, has_music=False,
+                settings=_make_settings(),
+            )
+            assert result.parent_category == "Other"
+
+        def test_build_prompt_contains_subject(self):
+            """Prompt must contain the dominant_subject string."""
+            prompt = _build_taxonomy_prompt(
+                "Python tutorial", "A coding tutorial", []
+            )
+            assert "Python tutorial" in prompt
+
+        def test_parse_response_confidence_clamped(self):
+            """confidence > 1.0 in Groq response is clamped to 1.0."""
+            raw = json.dumps({
+                "parent_category": "Education",
+                "child_category": "Tutorial",
+                "intent": "Learn",
+                "confidence": 2.5,
+            })
+            result = _parse_taxonomy_response(raw)
+            assert result.confidence <= 1.0
+
+──────────────────────────────────────────────────────────
+File: tests/unit/stage_d/test_intent_resolver.py
+
+    from ytclfr.taxonomy.intent_resolver import (
+        resolve_by_rules,
+        TaxonomyFallback,
+        SUBJECT_KEYWORD_MAP,
+        DEFAULT_CONFIDENCE,
+    )
+
+
+    class TestIntentResolver:
+
+        def test_returns_taxonomy_fallback_type(self):
+            """resolve_by_rules returns TaxonomyFallback."""
+            result = resolve_by_rules("tutorial", True, False)
+            assert isinstance(result, TaxonomyFallback)
+            assert result.groq_used is False
+
+        def test_tutorial_keyword_maps_to_education(self):
+            """'tutorial' in subject → Education/Tutorial."""
+            result = resolve_by_rules(
+                dominant_subject="Python tutorial for beginners",
+                has_speech=True, has_music=False,
+            )
+            assert result.parent_category == "Education"
+            assert "Tutorial" in result.child_category
+
+        def test_recipe_keyword_maps_to_food(self):
+            """'recipe' in subject → Food/Recipe."""
+            result = resolve_by_rules(
+                dominant_subject="Italian pasta recipe",
+                has_speech=True, has_music=False,
+            )
+            assert result.parent_category == "Food"
+
+        def test_music_only_video_maps_to_music(self):
+            """No speech + has_music → Music default."""
+            result = resolve_by_rules(
+                dominant_subject=None,
+                has_speech=False, has_music=True,
+            )
+            assert result.parent_category == "Music"
+
+        def test_no_signals_maps_to_other(self):
+            """All false signals + no subject → Other."""
+            result = resolve_by_rules(
+                dominant_subject=None,
+                has_speech=False, has_music=False,
+            )
+            assert result.parent_category == "Other"
+
+        def test_fallback_always_has_notes(self):
+            """fallback_notes is never empty — always documents the reason."""
+            result = resolve_by_rules(None, False, False)
+            assert len(result.fallback_notes) > 0
+
+        def test_confidence_is_within_range(self):
+            """Confidence from resolver is always 0.0–1.0."""
+            for subject in [None, "tutorial", "recipe", "sports highlights"]:
+                result = resolve_by_rules(subject, True, False)
+                assert 0.0 <= result.confidence <= 1.0
+
+        def test_all_keywords_map_to_valid_categories(self):
+            """Every keyword in SUBJECT_KEYWORD_MAP maps to a valid parent."""
+            valid = {
+                "Education","Shopping","Sports","Music","Film",
+                "Technology","Food","Health","News","Other",
+            }
+            for keyword, (parent, child, intent) in SUBJECT_KEYWORD_MAP.items():
+                assert parent in valid, (
+                    f"keyword '{keyword}' maps to invalid parent '{parent}'"
+                )
+
+──────────────────────────────────────────────────────────
+File: tests/unit/stage_d/test_stage_d_events.py
+
+    from ytclfr.contracts.events import (
+        StageDEvent, StageDStatus,
+        StageCStatus, StageBStatus, StageAStatus,
+        VideoIngestedEvent,
+    )
+
+
+    class TestStageDEvents:
+
+        def test_started_event_validates(self):
+            """StageDEvent with STARTED validates."""
+            event = StageDEvent(
+                event_type=StageDStatus.STARTED,
+                job_id="00000000-0000-0000-0000-000000000099",
+            )
+            assert event.event_type == StageDStatus.STARTED.value
+
+        def test_complete_event_with_taxonomy(self):
+            """COMPLETE event carries taxonomy dict."""
+            event = StageDEvent(
+                event_type=StageDStatus.COMPLETE,
+                job_id="00000000-0000-0000-0000-000000000099",
+                taxonomy={"parent": "Education", "child": "Tutorial"},
+            )
+            assert event.taxonomy["parent"] == "Education"
+
+        def test_groq_skipped_event_validates(self):
+            """GROQ_TAXONOMY_SKIPPED validates without taxonomy."""
+            event = StageDEvent(
+                event_type=StageDStatus.GROQ_TAXONOMY_SKIPPED,
+                job_id="00000000-0000-0000-0000-000000000099",
+            )
+            assert event.taxonomy == {}
+
+        def test_failed_event_with_error(self):
+            """FAILED event carries error string."""
+            event = StageDEvent(
+                event_type=StageDStatus.FAILED,
+                job_id="00000000-0000-0000-0000-000000000099",
+                error="database connection failed",
+            )
+            assert event.error == "database connection failed"
+
+        def test_stage_d_status_has_six_values(self):
+            """StageDStatus has exactly 6 values."""
+            assert len(list(StageDStatus)) == 6
+
+        def test_all_prior_events_still_importable(self):
+            """All V1 and Stage A/B/C events still import."""
+            assert VideoIngestedEvent is not None
+            assert StageAStatus.COMPLETE.value == "stage_a_complete"
+            assert StageBStatus.DISPATCHED.value == "stage_b_dispatched"
+            assert StageCStatus.COMPLETE.value == "stage_c_complete"
+
+──────────────────────────────────────────────────────────
+Run tests:
+  pytest tests/unit/stage_d/ -v
+
+All tests must pass before Part C.
+
+═══════════════════════════════════════════════════════════
+PART C — UPDATE CONTROL FILES
+═══════════════════════════════════════════════════════════
+
+──────────────────────────────────────────────────────────
+PART C — STEP 1: Append to v2/decisions.md
+──────────────────────────────────────────────────────────
+
+  ## DR-V2-11 — Stage D persists V2FinalOutput to existing final_outputs table
+  Date: [today]
+  Status: ACCEPTED
+  Context: Stage D produces a richer V2 output (taxonomy, summary,
+    items, evidence provenance) that is structurally incompatible
+    with the V1 FinalOutput schema (content_type, video_metadata,
+    items, script). Adding a new DB table would require a new
+    migration and break the V1 results API.
+  Decision: Stage D writes V2FinalOutput to the existing final_outputs
+    table using output_json (JSON column). content_type is set to
+    "v2_" + parent_category (e.g., "v2_education"). The V2_CONTENT_TYPE_PREFIX
+    "v2_" distinguishes V2 records from V1 records. V1 API endpoint
+    updates are deferred to Pipeline Wiring (W-6).
+  Consequences: No new Alembic migration needed. V1 API (GET /results)
+    will return a V2 dict for V2-path jobs until W-6 is applied.
+    Stage D is idempotent: it checks for content_type.startswith("v2_")
+    before re-running.
+  Supersedes: NONE
+
+  ## DR-V2-12 — Taxonomy classification is Groq-first, rule-based fallback
+  Date: [today]
+  Status: ACCEPTED
+  Context: Groq provides rich taxonomy classification but may be
+    unavailable (no API key, network failure, rate limiting). Stage D
+    cannot block or fail if Groq is unavailable.
+  Decision: taxonomy/mapper.py calls Groq first. On any failure or
+    missing key, it calls taxonomy/intent_resolver.py which uses
+    SUBJECT_KEYWORD_MAP against dominant_subject + signal flags.
+    V2FinalOutput.taxonomy.groq_taxonomy_used records which path ran.
+    The rule-based fallback always produces a valid TaxonomyFallback.
+  Consequences: Every V2 job gets taxonomy even without Groq. Groq
+    taxonomy confidence is typically 0.7–0.95. Rule-based fallback
+    confidence is 0.55 (or lower for fully ambiguous content). Stage D
+    never fails due to missing taxonomy.
+  Supersedes: NONE
+
+  ## DR-V2-13 — taxonomy/ and fusion/ are pure-function packages
+  Date: [today]
+  Status: ACCEPTED
+  Context: taxonomy/mapper.py and taxonomy/intent_resolver.py
+    contain the core classification business logic of Stage D.
+    Embedding this logic in the Celery task body makes it impossible
+    to unit-test without mocking Celery, DB, and Redis.
+  Decision: All classification logic lives in pure functions.
+    tasks/stage_d.py calls them and handles infrastructure concerns.
+    Circular import between mapper.py and intent_resolver.py is
+    avoided by defining TaxonomyFallback in intent_resolver.py
+    and importing it into mapper.py (one-way dependency).
+  Consequences: Classification logic is testable without any
+    infrastructure. mapper.py has 6 tests, intent_resolver.py has 8
+    tests, all pure-function tests with no mocking complexity.
+  Supersedes: NONE
+
+──────────────────────────────────────────────────────────
+PART C — STEP 2: Append to v2/diff.md
+──────────────────────────────────────────────────────────
+
+  ### D-1 — Stage D SSE Events
+  Date: [today]
+  Files:
+  - `src/ytclfr/contracts/events.py` — modified
+  Summary: Added StageDStatus (6 values: STARTED, EVIDENCE_LOADED,
+    GROQ_TAXONOMY_COMPLETE, GROQ_TAXONOMY_SKIPPED, COMPLETE, FAILED)
+    and StageDEvent model with taxonomy dict field. All prior events
+    preserved intact.
+
+  ### D-2 — V2 Output Data Contracts
+  Date: [today]
+  Files:
+  - `src/ytclfr/contracts/v2_output.py` — created
+  Summary: TaxonomyResult (frozen, all taxonomy fields including
+    groq_taxonomy_used flag), ExtractedItem (frozen, name/type/
+    timestamp/confidence), V2FinalOutput (taxonomy + summary +
+    items + evidence_graph_summary + provenance + confidence +
+    fallback_notes). confidence field_validator enforces 0.0–1.0.
+
+  ### D-3 — taxonomy/ package: mapper.py
+  Date: [today]
+  Files:
+  - `src/ytclfr/taxonomy/__init__.py` — created
+  - `src/ytclfr/taxonomy/mapper.py` — created
+  Summary: Pure function classify_taxonomy(). Groq API via httpx,
+    json_object response format. Degrades to intent_resolver fallback
+    on missing key/network error/malformed JSON. Never raises.
+    VALID_PARENT_CATEGORIES set enforces valid taxonomy output.
+
+  ### D-4 — taxonomy/ package: intent_resolver.py
+  Date: [today]
+  Files:
+  - `src/ytclfr/taxonomy/intent_resolver.py` — created
+  Summary: Pure function resolve_by_rules(). SUBJECT_KEYWORD_MAP
+    with 30+ entries maps lowercase subject keywords to (parent,
+    child, intent) tuples. Signal-based defaults for music-only,
+    speech-only, no-signal cases. Returns TaxonomyFallback.
+    Never raises.
+
+  ### D-5 — tasks/stage_d.py: run_taxonomy_mapping
+  Date: [today]
+  Files:
+  - `src/ytclfr/tasks/stage_d.py` — created
+  Summary: Terminal V2 pipeline task on fast queue. Reads EvidenceGraph,
+    loads SignalManifest for signal context, calls classify_taxonomy,
+    maps entities to ExtractedItems, assembles V2FinalOutput, upserts
+    to final_outputs with content_type="v2_"+parent_category.
+    Sets job to "completed". Idempotent: skips if V2 record exists.
+    PIPELINE-WIRING-TODO at Step 14 for API update (W-6).
+
+  ### D-6 — Wire Stage C → Stage D
+  Date: [today]
+  Files:
+  - `src/ytclfr/tasks/stage_c.py` — modified
+  - `src/ytclfr/queue/celery_app.py` — modified
+  Summary: STAGE-D-TODO in stage_c.py Step 13 replaced with lazy
+    import + run_taxonomy_mapping.delay(job_id). celery_app.py
+    registers ytclfr.tasks.stage_d.
+
+  ### D-7 — Stage D unit tests
+  Date: [today]
+  Files:
+  - `tests/fixtures/v2_final_output_golden.json` — created
+  - `tests/unit/stage_d/__init__.py` — created
+  - `tests/unit/stage_d/test_v2_output_contracts.py` — created (6 tests)
+  - `tests/unit/stage_d/test_taxonomy_mapper.py` — created (6 tests)
+  - `tests/unit/stage_d/test_intent_resolver.py` — created (8 tests)
+  - `tests/unit/stage_d/test_stage_d_events.py` — created (6 tests)
+  Summary: 26 total tests. Contract validation, taxonomy mapper with
+    Groq mocking, rule-based resolver keyword coverage, SSE event
+    contracts. All tests pass.
+
+──────────────────────────────────────────────────────────
+PART C — STEP 3: Update v2/build.md
+──────────────────────────────────────────────────────────
+
+Mark all Stage D micro-tasks [x] complete.
+Change Stage D STATUS to COMPLETE.
+
+Update CURRENT STAGE to:
+    CURRENT STAGE: Pipeline Wiring (W-1 through W-7)
+    STATUS: Not Started
+    (V2 Stage A — Signal Census: COMPLETE)
+    (V2 Stage B — Targeted Extraction: COMPLETE)
+    (V2 Stage C — Evidence Fusion: COMPLETE)
+    (V2 Stage D — Taxonomy + Intent Mapping: COMPLETE)
+
+═══════════════════════════════════════════════════════════
+VERIFICATION CHECKLIST — RUN BEFORE FINISHING
+═══════════════════════════════════════════════════════════
+
+  [ ] v2/diff.md — C-1 through C-9 entries appended (Part A fix)
+  [ ] v2/decisions.md — DR-V2-08, DR-V2-09, DR-V2-10 appended
+      (Part A fix)
+  [ ] v2/decisions.md DR-V2-06 Status is now SUPERSEDED
+      (Part A fix)
+
+  [ ] contracts/events.py — StageDStatus has 6 values, StageDEvent
+      importable:
+      python -c "from ytclfr.contracts.events import
+      StageDStatus, StageDEvent; print(len(list(StageDStatus)))"
+      → 6
+
+  [ ] All prior events importable:
+      python -c "from ytclfr.contracts.events import
+      VideoIngestedEvent, StageAStatus, StageBStatus,
+      StageCStatus, StageDStatus; print('ok')"
+
+  [ ] contracts/v2_output.py — V2FinalOutput, TaxonomyResult,
+      ExtractedItem importable:
+      python -c "from ytclfr.contracts.v2_output import
+      V2FinalOutput, TaxonomyResult, ExtractedItem; print('ok')"
+
+  [ ] TaxonomyResult is frozen — mutation raises
+
+  [ ] V2FinalOutput confidence dict validator rejects values > 1.0
+
+  [ ] taxonomy/__init__.py exists.
+
+  [ ] taxonomy/mapper.py — classify_taxonomy importable.
+      classify_taxonomy(None,None,[],False,False,settings_no_key)
+      returns GroqTaxonomyResult with groq_used=False.
+
+  [ ] taxonomy/intent_resolver.py — resolve_by_rules importable.
+      resolve_by_rules("tutorial", True, False).parent_category
+      == "Education"
+
+  [ ] TaxonomyFallback is defined in intent_resolver.py.
+      mapper.py imports TaxonomyFallback from intent_resolver.py.
+      No circular import.
+
+  [ ] tasks/stage_d.py importable:
+      python -c "from ytclfr.tasks.stage_d import
+      run_taxonomy_mapping; print(run_taxonomy_mapping.queue)"
+      → fast
+
+  [ ] tasks/stage_d.py Step 14 contains exact comment:
+        # PIPELINE-WIRING-TODO: W-6 — Update GET /api/v1/jobs/{id}/results
+
+  [ ] tasks/stage_c.py no longer contains "STAGE-D-TODO" string.
+      Now contains: run_taxonomy_mapping.delay(job_id)
+      as a lazy import inside the function body.
+
+  [ ] queue/celery_app.py contains:
+        import ytclfr.tasks.stage_d  # noqa: F401, E402
+  [ ] Import order: align, extract, ingest, route, stage_a,
+      stage_b, stage_c, stage_d.
+
+  [ ] tests/fixtures/v2_final_output_golden.json validates:
+      python -c "
+      import json; from pathlib import Path
+      from ytclfr.contracts.v2_output import V2FinalOutput
+      d = json.loads(Path('tests/fixtures/v2_final_output_golden.json').read_text())
+      o = V2FinalOutput.model_validate(d)
+      print('golden ok:', o.taxonomy.parent_category)"
+
+  [ ] pytest tests/unit/stage_d/ -v — all 26 tests pass
+  [ ] pytest tests/unit/stage_c/ -v — all Stage C tests still pass
+  [ ] pytest tests/unit/stage_b/ -v — all Stage B tests still pass
+  [ ] pytest tests/unit/stage_a/ -v — all Stage A tests still pass
+  [ ] pytest tests/ -q --tb=short — all pre-existing tests pass
+  [ ] ruff check src/ytclfr/taxonomy/ — zero errors
+  [ ] ruff check src/ytclfr/tasks/stage_d.py — zero errors
+  [ ] ruff check src/ytclfr/contracts/v2_output.py — zero errors
+  [ ] ruff check src/ytclfr/tasks/stage_c.py — zero errors
+  [ ] mypy src/ytclfr/taxonomy/ — zero errors
+
+  [ ] v2/decisions.md has DR-V2-11, DR-V2-12, DR-V2-13 appended
+  [ ] v2/diff.md has D-1 through D-7 entries appended
+  [ ] v2/build.md Stage D marked COMPLETE
+  [ ] v2/build.md CURRENT STAGE updated to Pipeline Wiring
+
+═══════════════════════════════════════════════════════════
+CONFIRMED DECISIONS — DO NOT QUESTION OR OVERRIDE
+═══════════════════════════════════════════════════════════
+
+- No new Alembic migration. final_outputs (migration 0006) is used.
+  content_type = "v2_" + parent_category.lower() marks V2 records.
+  Non-negotiable: adding a new table for the same purpose is waste.
+
+- TaxonomyFallback is defined in intent_resolver.py.
+  mapper.py imports it. Not the other way around.
+  This prevents the circular import: mapper → intent_resolver (OK).
+  intent_resolver must NEVER import from mapper.
+
+- All Groq imports (httpx inside _call_groq) and lazy task imports
+  (FinalOutputModel, SignalManifestStore, classify_taxonomy) are
+  INSIDE the function body. Never at module top.
+
+- classify_taxonomy NEVER raises. All exceptions (network, parse,
+  missing key) return a fallback result via _make_fallback_result.
+
+- resolve_by_rules NEVER raises. It always returns a TaxonomyFallback.
+
+- taxonomy/mapper.py and taxonomy/intent_resolver.py are pure
+  functions with no Celery, DB, Redis, or filesystem dependencies.
+  This is non-negotiable for testability (DR-V2-13).
+
+- V2FinalOutput is NOT a subclass or extension of V1 FinalOutput.
+  They are separate contracts in separate files. V1 contracts/output.py
+  is NOT modified. Pipeline Wiring (W-6) will update the API.
+
+- run_taxonomy_mapping is on queue="fast". It does no heavy I/O —
+  one DB read (EvidenceGraph) and one Groq call with small payload.
+
+- The STAGE-D-TODO replacement in stage_c.py is a lazy import.
+  run_taxonomy_mapping is imported inside the function body, not
+  at the top of stage_c.py. Prevents circular imports.
+
+- job.status = "completed" is set ONLY by Stage D. This is the
+  terminal status for the V2 pipeline. No other stage sets it.
+
+- # PIPELINE-WIRING-TODO: is the only accepted deferral comment
+  format in Stage D code. # TODO without a stage prefix is banned.
+
+- V2 pipeline chain is now fully wired:
+  Stage A (run_signal_census)
+    → Stage B (run_targeted_extraction)
+    → Extractors (run_asr / run_ocr / run_audio_classifier)
+    → Stage C chord callback (run_fuse_evidence)
+    → Stage D (run_taxonomy_mapping)
+    → job.status = "completed"
+
+- Hardware: ThinkPad L13 Gen 2, CPU-only. No GPU inference.
+- No Docker, no containers. PostgreSQL and Redis run natively.
+- Pydantic v2 only. SQLAlchemy 2.x mapped_column style only.
